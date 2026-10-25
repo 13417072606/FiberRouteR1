@@ -175,8 +175,9 @@ public sealed class MainForm:Form
     {
         if(busy)return;using var file=new OpenFileDialog{Filter=TableMappingDialog.Filter};if(file.ShowDialog()!=DialogResult.OK)return;
         using var dialog=new TableMappingDialog(file.FileName);if(dialog.ShowDialog(this)!=DialogResult.OK)return;
+        string typeFile=file.FileName,typeEncoding=dialog.FileEncoding,nameField=dialog.NameColumn,typeField=dialog.TypeColumn;string? typeSheet=dialog.Sheet;
         await Work("正在生成节点类型独立预览…",async ct=>{
-            pendingTypes=await Task.Run(()=>store.PreviewTypes(file.FileName,dialog.FileEncoding,dialog.NameColumn,dialog.TypeColumn,dialog.Sheet),ct);
+            pendingTypes=await Task.Run(()=>store.PreviewTypes(typeFile,typeEncoding,nameField,typeField,typeSheet),ct);
             typePreview.DataSource=pendingTypes.Select(x=>new{节点=x.Name,原类型=x.Before,新类型=x.After,校验=x.Status}).ToList();applyTypes.Enabled=pendingTypes.Any(x=>x.Status=="可更新");
             typeStats.Text=$"类型预览 {pendingTypes.Count:N0} 行，可更新 {pendingTypes.Count(x=>x.Status=="可更新"):N0} 行；确认前不修改节点";
         });
@@ -218,6 +219,7 @@ public sealed class MainForm:Form
     }
     async Task ImportData()
     {
+        if(!File.Exists(importPath.Text)||map.Count==0)throw new InvalidOperationException("请先选择文件和工作表，成功预览后再导入。");
         var snapshot=new FileInfo(importPath.Text);
         if(map.Count==0||previewPath!=importPath.Text||previewEncoding!=encoding.Text||previewSheet!=(worksheet.Enabled?worksheet.Text:"")||!snapshot.Exists||snapshot.Length!=previewLength||snapshot.LastWriteTimeUtc.Ticks!=previewWrite)throw new InvalidOperationException("文件、编码或工作表已变化，请重新预览后导入。");
         foreach(var field in Store.Required)if(!map.TryGetValue(field,out var selected)||!headers.Contains(selected.Text))throw new InvalidDataException("请选择必填字段映射："+field);
