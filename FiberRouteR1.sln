@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{34D5F42F-CC95-4026-A853-322FB6EF368C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiberRoute.Core", "src\FiberRoute.Core\FiberRoute.Core.csproj", "{7150D518-283F-496A-B90A-78706C659722}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiberRoute.App", "src\FiberRoute.App\FiberRoute.App.csproj", "{85817E77-61ED-4639-B247-F5185F9255CE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiberRoute.Updater", "src\FiberRoute.Updater\FiberRoute.Updater.csproj", "{69CB123C-20D0-4E0E-87BF-875A28E002DC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiberRoute.Launcher", "src\FiberRoute.Launcher\FiberRoute.Launcher.csproj", "{DFED0C7A-DA1B-4999-9681-071BF4935D59}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{AA933AEE-D7E9-42AB-B37A-C0999A07540F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiberRoute.Tests", "tests\FiberRoute.Tests\FiberRoute.Tests.csproj", "{BD980695-EB71-49D9-8696-AF5E1803B04A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7150D518-283F-496A-B90A-78706C659722}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7150D518-283F-496A-B90A-78706C659722}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7150D518-283F-496A-B90A-78706C659722}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7150D518-283F-496A-B90A-78706C659722}.Release|Any CPU.Build.0 = Release|Any CPU
+		{85817E77-61ED-4639-B247-F5185F9255CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{85817E77-61ED-4639-B247-F5185F9255CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{85817E77-61ED-4639-B247-F5185F9255CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{85817E77-61ED-4639-B247-F5185F9255CE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{69CB123C-20D0-4E0E-87BF-875A28E002DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69CB123C-20D0-4E0E-87BF-875A28E002DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69CB123C-20D0-4E0E-87BF-875A28E002DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69CB123C-20D0-4E0E-87BF-875A28E002DC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DFED0C7A-DA1B-4999-9681-071BF4935D59}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DFED0C7A-DA1B-4999-9681-071BF4935D59}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DFED0C7A-DA1B-4999-9681-071BF4935D59}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DFED0C7A-DA1B-4999-9681-071BF4935D59}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BD980695-EB71-49D9-8696-AF5E1803B04A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BD980695-EB71-49D9-8696-AF5E1803B04A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BD980695-EB71-49D9-8696-AF5E1803B04A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BD980695-EB71-49D9-8696-AF5E1803B04A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7150D518-283F-496A-B90A-78706C659722} = {34D5F42F-CC95-4026-A853-322FB6EF368C}
+		{85817E77-61ED-4639-B247-F5185F9255CE} = {34D5F42F-CC95-4026-A853-322FB6EF368C}
+		{69CB123C-20D0-4E0E-87BF-875A28E002DC} = {34D5F42F-CC95-4026-A853-322FB6EF368C}
+		{DFED0C7A-DA1B-4999-9681-071BF4935D59} = {34D5F42F-CC95-4026-A853-322FB6EF368C}
+		{BD980695-EB71-49D9-8696-AF5E1803B04A} = {AA933AEE-D7E9-42AB-B37A-C0999A07540F}
+	EndGlobalSection
+EndGlobal
