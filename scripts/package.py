@@ -1,5 +1,6 @@
-import hashlib,json,pathlib,shutil,zipfile
+import hashlib,json,pathlib,shutil,zipfile,os
 root=pathlib.Path(__file__).resolve().parents[1]
+nuget=pathlib.Path(os.environ.get('NUGET_PACKAGES',str(root/'.cache/nuget/packages')))
 out=root/'artifacts'/'delivery'/'纤路R1'
 if out.exists(): shutil.rmtree(out)
 (out/'程序').mkdir(parents=True)
@@ -12,17 +13,17 @@ shutil.copy2(root/'artifacts'/'launcher'/'纤路R1.exe',out/'纤路R1.exe')
 shutil.copy2(root/'docs'/'使用说明.txt',out/'使用说明.txt')
 shutil.copy2(root/'docs'/'验证报告.md',out/'验证报告.md')
 licenses=out/'第三方许可';licenses.mkdir()
-for pattern in ['microsoft.data.sqlite.core/8.0.21','sqlitepclraw.lib.e_sqlite3/2.1.6','sqlitepclraw.core/2.1.6','sqlitepclraw.provider.e_sqlite3/2.1.6','sqlitepclraw.bundle_e_sqlite3/2.1.6']:
-    package=pathlib.Path('/workspace/.nuget/packages')/pattern
+for pattern in ['exceldatareader/3.8.0','microsoft.data.sqlite.core/8.0.21','sqlitepclraw.lib.e_sqlite3/2.1.6','sqlitepclraw.core/2.1.6','sqlitepclraw.provider.e_sqlite3/2.1.6','sqlitepclraw.bundle_e_sqlite3/2.1.6']:
+    package=nuget/pattern
     for f in package.rglob('*'):
         if f.is_file() and any(x in f.name.lower() for x in ['license','notice','copyright']):
             shutil.copy2(f,licenses/(pattern.replace('/','-')+'-'+f.name))
 shutil.copy2(root/'docs'/'第三方组件.txt',licenses/'第三方组件.txt')
 for part in ['microsoft.netcore.app.runtime.win-x64/8.0.32','microsoft.windowsdesktop.app.runtime.win-x64/8.0.32']:
-    for f in (pathlib.Path('/workspace/.nuget/packages')/part).glob('*'):
+    for f in (nuget/part).glob('*'):
         if f.is_file() and any(x in f.name.lower() for x in ['license','notice']):shutil.copy2(f,licenses/(part.replace('/','-')+'-'+f.name))
 for f in (root/'docs'/'licenses').glob('*'):shutil.copy2(f,licenses/f.name)
-for name in ['FiberRouteR1.exe','FiberRouteR1.dll','FiberRouteR1.runtimeconfig.json','FiberRoute.Updater.exe','coreclr.dll','hostfxr.dll','hostpolicy.dll','e_sqlite3.dll','System.Windows.Forms.dll']:
+for name in ['ExcelDataReader.dll','FiberRouteR1.exe','FiberRouteR1.dll','FiberRouteR1.runtimeconfig.json','FiberRoute.Updater.exe','coreclr.dll','hostfxr.dll','hostpolicy.dll','e_sqlite3.dll','System.Windows.Forms.dll']:
     assert (out/'程序'/name).is_file(),name
 # Confirm native PE architecture of each EXE and native SQLite DLL.
 for f in [out/'纤路R1.exe',out/'程序'/'FiberRouteR1.exe',out/'程序'/'FiberRoute.Updater.exe',out/'程序'/'e_sqlite3.dll']:

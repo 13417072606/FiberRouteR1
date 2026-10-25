@@ -19,9 +19,9 @@ public sealed class Store
         var known=Graph.Nodes.Select(n=>n.Name).ToHashSet(StringComparer.Ordinal);
         foreach(var x in changes.Where(x=>x.Status=="可更新")) {if(!known.Contains(x.Name)||string.IsNullOrWhiteSpace(x.After))continue;q.Parameters[0].Value=x.Name;q.Parameters[1].Value=x.After;q.ExecuteNonQuery();}t.Commit();Reload();
     }
-    public List<TypeChange> PreviewTypes(string path,string encoding,string nameColumn,string typeColumn)
+    public List<TypeChange> PreviewTypes(string path,string encoding,string nameColumn,string typeColumn,string? sheet=null)
     {
-        using var it=Csv.Read(path,encoding).GetEnumerator(); if(!it.MoveNext())throw new InvalidDataException("类型表为空");var h=it.Current;int ni=Array.IndexOf(h,nameColumn),ti=Array.IndexOf(h,typeColumn);if(ni<0||ti<0)throw new InvalidDataException("类型表字段映射无效");
+        using var it=Tabular.Read(path,encoding,sheet).GetEnumerator(); if(!it.MoveNext())throw new InvalidDataException("类型表为空");var h=Tabular.Headers(it.Current);int ni=Array.IndexOf(h,nameColumn),ti=Array.IndexOf(h,typeColumn);if(ni<0||ti<0)throw new InvalidDataException("类型表字段映射无效");
         var known=Graph.Nodes.ToDictionary(n=>n.Name,n=>n.Type,StringComparer.Ordinal);var rows=new List<(string Name,string Type)>();
         while(it.MoveNext()) {var r=it.Current;rows.Add((ni<r.Length?r[ni].Trim():"",ti<r.Length?r[ti].Trim():""));}
         var conflicts=rows.GroupBy(x=>x.Name).Where(g=>g.Select(x=>x.Type).Distinct().Count()>1).Select(g=>g.Key).ToHashSet();
@@ -41,9 +41,9 @@ public sealed class Store
     public string Raw(int index) {using var c=Open(Database);using var q=c.CreateCommand();q.CommandText="SELECT raw FROM edges WHERE id=$i";q.Parameters.AddWithValue("$i",index);return q.ExecuteScalar() as string??"{}";}
     public static readonly string[] Fields=["ID","名称","长度","空闲数量","中继纤芯数量","始端设施","终端设施","始端类型","终端类型"];
     public static readonly string[] Required=["ID","空闲数量","中继纤芯数量","始端设施","终端设施"];
-    public async Task<ImportResult> ImportAsync(string path,string encoding,Dictionary<string,string> mapping,double unit,IProgress<ImportProgress>? progress,CancellationToken ct)
-    {return await Task.Run(()=>Import(path,encoding,mapping,unit,progress,ct),ct);}
-    ImportResult Import(string path,string encoding,Dictionary<string,string> mapping,double unit,IProgress<ImportProgress>? progress,CancellationToken ct)
+    public async Task<ImportResult> ImportAsync(string path,string encoding,Dictionary<string,string> mapping,double unit,IProgress<ImportProgress>? progress,CancellationToken ct,string? sheet=null)
+    {return await Task.Run(()=>Import(path,encoding,mapping,unit,progress,ct,sheet),ct);}
+    ImportResult Import(string path,string encoding,Dictionary<string,string> mapping,double unit,IProgress<ImportProgress>? progress,CancellationToken ct,string? sheet)
     {
         if(unit!=1&&unit!=1000)throw new ArgumentException("长度单位无效");
         string temp=Path.Combine(Root,"import-"+Guid.NewGuid()+".db"),errors=Path.Combine(Root,"导入异常-"+DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")+".csv");
@@ -54,7 +54,7 @@ public sealed class Store
             using(var report=new StreamWriter(errors,false,new UTF8Encoding(true)))
             {
                 Run(c,"PRAGMA journal_mode=DELETE; CREATE TABLE nodes(id INTEGER PRIMARY KEY,name TEXT UNIQUE,type TEXT); CREATE TABLE edges(id INTEGER PRIMARY KEY,business_id TEXT,name TEXT,a INTEGER,b INTEGER,length REAL,free INTEGER,total INTEGER,raw TEXT); CREATE TABLE meta(name TEXT PRIMARY KEY,value TEXT);");
-                using var it=Csv.Read(path,encoding).GetEnumerator();if(!it.MoveNext())throw new InvalidDataException("CSV为空");var headers=it.Current.Select(x=>x.Trim()).ToArray();if(headers.Distinct().Count()!=headers.Length)throw new InvalidDataException("CSV表头重名");
+                using var it=Tabular.Read(path,encoding,sheet).GetEnumerator();if(!it.MoveNext())throw new InvalidDataException("所选表格为空");var headers=Tabular.Headers(it.Current);
                 var indexes=mapping.ToDictionary(x=>x.Key,x=>Array.IndexOf(headers,x.Value));foreach(var field in Required)if(!indexes.TryGetValue(field,out int ix)||ix<0)throw new InvalidDataException("缺少字段映射："+field);
                 string Get(string[] row,string key)=>indexes.TryGetValue(key,out int ix)&&ix>=0&&ix<row.Length?row[ix].Trim():"";
                 report.WriteLine(Csv.Line(new[]{"记录序号","原因","原始字段JSON"}));

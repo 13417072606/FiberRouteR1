@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd /workspace/FiberRouteR1
+cd "$(dirname "$0")/.."
 . scripts/dotnet-env.sh
 if ! test -x "$DOTNET_ROOT/dotnet"; then
   archive=$(mktemp /tmp/fiber-sdk.XXXXXX.tar.gz)

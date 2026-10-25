@@ -2,6 +2,11 @@
   "version": 1,
   "dependencies": {
     "net8.0": {
+      "ExcelDataReader": {
+        "type": "Transitive",
+        "resolved": "3.8.0",
+        "contentHash": "kbUsldc5Fn9IKgzL2nr4VvN/mKqPqn8zGXUZpA7uL6svCA4psF+qMK519EhMvderpU4pAJoqk9DWpiSIkiZtXA=="
+      },
       "Microsoft.Data.Sqlite": {
         "type": "Transitive",
         "resolved": "8.0.21",
@@ -62,6 +67,7 @@
       "fiberroute.core": {
         "type": "Project",
         "dependencies": {
+          "ExcelDataReader": "[3.8.0, )",
           "Microsoft.Data.Sqlite": "[8.0.21, )",
           "System.Text.Encoding.CodePages": "[8.0.0, )"
         }

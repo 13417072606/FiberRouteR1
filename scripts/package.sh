@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd /workspace/FiberRouteR1
+cd "$(dirname "$0")/.."
 . scripts/dotnet-env.sh
 mkdir -p artifacts/validation
 dotnet run --project tests/FiberRoute.Tests -c Release > artifacts/validation/tests.txt

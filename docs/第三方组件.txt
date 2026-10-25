@@ -4,3 +4,5 @@ SQLitePCLRaw 2.1.6：Copyright 2014-2023 SourceGear, LLC；https://github.com/er
 SQLite：https://www.sqlite.org/copyright.html
 .NET 8.0.32 / WindowsDesktop 8.0.32：https://github.com/dotnet/runtime 及 https://github.com/dotnet/winforms
 许可文本及运行库第三方声明随本目录附带。具体依赖及完整性哈希参见仓库各项目 locks/*.lock.json。
+
+ExcelDataReader 3.8.0（MIT）：https://github.com/ExcelDataReader/ExcelDataReader；XLS/XLSX 流式读取，不需要安装 Excel。许可文本随包附带。
