@@ -1,0 +1,83 @@
+PASS sample 12 edges / 20 nodes
+PASS sample 1659.56 m
+PASS sample 40 aggregate cores
+PASS long ID exact text
+PASS A route exists
+PASS A length / jumps / capacity / residual
+PASS B insufficient cores
+PASS C avoid type
+PASS D avoid node
+PASS E zero jumps
+PASS F endpoint type exemption
+PASS G zero length allowed
+PASS explicit endpoint conflict rejected
+PASS route cancellation
+PASS queue upper bound reported
+PASS expansion upper bound reported
+PASS time upper bound reported
+PASS manual multi-label type changes routing
+PASS manual types survive resource replacement
+PASS type import conflicts / unknown / empty preview
+PASS type preview creates no nodes and changes nothing
+PASS quoted multiline CSV and invalid isolation
+PASS trim exact endpoints / missing length retained
+PASS leading zeros preserved
+PASS anomaly report header + 2 records
+PASS resource rollback preserves manual settings
+PASS mid-import cancellation preserves original database
+PASS failed import preserves original database
+PASS GBK import + km conversion
+PASS GB18030 import + km conversion
+PASS 400 random multigraph ordering comparisons against exhaustive oracle
+PASS RSA-PSS signed manifest verification
+PASS tampered manifest rejected
+PASS program ZIP layout and license extraction
+PASS update ZIP traversal rejected
+PASS update cannot overwrite personal exports
+PASS automatic utf8 / strict text / ID / quoted multiline
+PASS automatic utf8bom / strict text / ID / quoted multiline
+PASS automatic gbk / strict text / ID / quoted multiline
+PASS automatic gb18030 / strict text / ID / quoted multiline
+PASS automatic utf16 / strict text / ID / quoted multiline
+PASS automatic utf16be / strict text / ID / quoted multiline
+PASS automatic utf16nobom / strict text / ID / quoted multiline
+PASS GB18030 four-byte character
+PASS xls native format and sheet discovery
+PASS xls actual import / mapping / exact long ID / zero and missing length
+PASS xls numeric ID precision risk rejects and preserves database
+PASS xls native type preview / conflicts / unknown / blank / no mutation
+PASS xls missing sheet actionable error
+PASS xls cancellation retains original
+PASS xlsx native format and sheet discovery
+PASS xlsx actual import / mapping / exact long ID / zero and missing length
+PASS xlsx numeric ID precision risk rejects and preserves database
+PASS xlsx native type preview / conflicts / unknown / blank / no mutation
+PASS xlsx missing sheet actionable error
+PASS xlsx cancellation retains original
+PASS invalid UTF-8 BOM payload never replaced silently
+PASS Excel binary never parsed as CSV text
+PASS invalid Excel gives format error
+PASS corrupt Excel container rejected
+ALL PASS: 60 checks
+
+BENCH rows=290000 bytes=94965753 nodes=20000 import_ms=8280
+BENCH complex_search_ms=13 limited=True expansions=732 peak_working_set=227872768
+PASS synthetic 290000 rows
+PASS dense parallel search bounded
+  Determining projects to restore...
+  Restored /workspace/FiberRouteR1-revised/src/FiberRoute.Core/FiberRoute.Core.csproj (in 302 ms).
+  Restored /workspace/FiberRouteR1-revised/src/FiberRoute.App/FiberRoute.App.csproj (in 305 ms).
+  FiberRoute.Core -> /workspace/FiberRouteR1-revised/src/FiberRoute.Core/bin/Release/net8.0/FiberRoute.Core.dll
+  FiberRoute.App -> /workspace/FiberRouteR1-revised/src/FiberRoute.App/bin/Release/net8.0-windows/win-x64/FiberRouteR1.dll
+  FiberRoute.App -> /workspace/FiberRouteR1-revised/artifacts/app/
+  Determining projects to restore...
+  Restored /workspace/FiberRouteR1-revised/src/FiberRoute.Updater/FiberRoute.Updater.csproj (in 151 ms).
+  FiberRoute.Updater -> /workspace/FiberRouteR1-revised/src/FiberRoute.Updater/bin/Release/net8.0/win-x64/FiberRoute.Updater.dll
+  FiberRoute.Updater -> /workspace/FiberRouteR1-revised/artifacts/updater/
+  Determining projects to restore...
+  Restored /workspace/FiberRouteR1-revised/src/FiberRoute.Launcher/FiberRoute.Launcher.csproj (in 257 ms).
+  FiberRoute.Launcher -> /workspace/FiberRouteR1-revised/src/FiberRoute.Launcher/bin/Release/net8.0/win-x64/纤路R1.dll
+  FiberRoute.Launcher -> /workspace/FiberRouteR1-revised/artifacts/launcher/
+ZIP files: 268 size: 94075979
+SHA256: 1011ea4aac733c1491630adf092305f62ebd0ab49a2eb8fce2ada010188aa173
+PASS complete delivery ZIP accepted by program updater

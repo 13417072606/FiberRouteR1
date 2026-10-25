@@ -1,0 +1,9 @@
+本包使用 .NET / Windows Forms / Microsoft.Data.Sqlite（MIT）及 SQLitePCLRaw（Apache-2.0）、SQLite（公有领域）。
+Microsoft.Data.Sqlite 8.0.21：https://github.com/dotnet/efcore
+SQLitePCLRaw 2.1.6：Copyright 2014-2023 SourceGear, LLC；https://github.com/ericsink/SQLitePCL.raw
+SQLite：https://www.sqlite.org/copyright.html
+.NET 8.0.32 / WindowsDesktop 8.0.32：https://github.com/dotnet/runtime 及 https://github.com/dotnet/winforms
+许可文本及运行库第三方声明随本目录附带。具体依赖及完整性哈希参见仓库各项目 locks/*.lock.json。
+
+ExcelDataReader 3.7.0（MIT）：https://github.com/ExcelDataReader/ExcelDataReader
+Excel读取在本地完成，不依赖Office。
