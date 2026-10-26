@@ -1,0 +1,51 @@
+[
+  {
+    "archive": "节点类型-ODF.rar",
+    "sha256": "b2a32d21d56813837f631e125800714c1cb5f45c811b3a21765ef8d9786980b2",
+    "files": [
+      "ODF-1.CSV"
+    ]
+  },
+  {
+    "archive": "节点类型-光分纤箱.zip",
+    "sha256": "6dc42e40e2850b092e44b6de0bca539bdcd627740c922b03ea65206619aa5f85",
+    "files": [
+      "节点类型-光分纤箱/光分纤箱-1.CSV"
+    ]
+  },
+  {
+    "archive": "集群管理.zip",
+    "sha256": "a37ea7a7d52c3b116f29efded0957a4cd98a95cd59ded167dfd6f79556e0ee3b",
+    "files": [
+      "集群管理.xlsx"
+    ]
+  },
+  {
+    "archive": "节点类型-光终端盒.rar",
+    "sha256": "6a7d0e3ce65993eda4512c0b5de0bb83c9144b19eecc5f619658bc1332c3f72a",
+    "files": [
+      "光终端盒-1.CSV"
+    ]
+  },
+  {
+    "archive": "节点类型-光交接箱.rar",
+    "sha256": "0b2abebe2293a4205a1c64919dd29d2c75e195470a3d2881ff2068995e8cd1a0",
+    "files": [
+      "光交接箱-1.CSV"
+    ]
+  },
+  {
+    "archive": "节点类型-多媒体箱-20261026131714.zip",
+    "sha256": "4455db706d2e6d5e843c43032b0e082a8d2208c912e6213d8e926964bfe992be",
+    "files": [
+      "节点类型-多媒体箱-20261026131714.xlsx"
+    ]
+  },
+  {
+    "archive": "中继段.zip",
+    "sha256": "3fe555fac6cd62414e1fee1d17b12c0ebfca30f469dbe0a2be0a2b073f08bd23",
+    "files": [
+      "中继段/中继段-1.CSV"
+    ]
+  }
+]
