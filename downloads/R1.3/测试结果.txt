@@ -1,0 +1,98 @@
+PASS sample 12 edges / 20 nodes
+PASS sample 1659.56 m
+PASS sample 40 aggregate cores
+PASS long ID exact text
+PASS A route exists
+PASS A length / jumps / capacity / residual
+PASS B insufficient cores
+PASS C avoid type
+PASS D avoid node
+PASS E zero jumps
+PASS F endpoint type exemption
+PASS G zero length allowed
+PASS explicit endpoint conflict rejected
+PASS route cancellation
+PASS queue upper bound reported
+PASS expansion upper bound reported
+PASS time upper bound reported
+PASS manual multi-label type changes routing
+PASS manual types survive resource replacement
+PASS type import conflicts / unknown / empty preview
+PASS type preview creates no nodes and changes nothing
+PASS quoted multiline CSV and invalid isolation
+PASS trim exact endpoints / missing length retained
+PASS leading zeros preserved
+PASS anomaly report header + 2 records
+PASS resource rollback preserves manual settings
+PASS mid-import cancellation preserves original database
+PASS failed import preserves original database
+PASS GBK import + km conversion
+PASS GB18030 import + km conversion
+PASS 400 random multigraph ordering comparisons against exhaustive oracle
+PASS RSA-PSS signed manifest verification
+PASS tampered manifest rejected
+PASS program ZIP layout and license extraction
+PASS update ZIP traversal rejected
+PASS update cannot overwrite personal exports
+PASS automatic utf8 / strict text / ID / quoted multiline
+PASS automatic utf8bom / strict text / ID / quoted multiline
+PASS automatic gbk / strict text / ID / quoted multiline
+PASS automatic gb18030 / strict text / ID / quoted multiline
+PASS automatic utf16 / strict text / ID / quoted multiline
+PASS automatic utf16be / strict text / ID / quoted multiline
+PASS automatic utf16nobom / strict text / ID / quoted multiline
+PASS GB18030 four-byte character
+PASS xls native format and sheet discovery
+PASS xls actual import / mapping / exact long ID / zero and missing length
+PASS xls numeric ID precision risk rejects and preserves database
+PASS xls native type preview / conflicts / unknown / blank / no mutation
+PASS xls missing sheet actionable error
+PASS xls cancellation retains original
+PASS xlsx native format and sheet discovery
+PASS xlsx actual import / mapping / exact long ID / zero and missing length
+PASS xlsx numeric ID precision risk rejects and preserves database
+PASS xlsx native type preview / conflicts / unknown / blank / no mutation
+PASS xlsx missing sheet actionable error
+PASS xlsx cancellation retains original
+PASS invalid UTF-8 BOM payload never replaced silently
+PASS Excel binary never parsed as CSV text
+PASS invalid Excel gives format error
+PASS corrupt Excel container rejected
+PASS cluster disabled cannot bridge disconnected devices
+PASS unconfirmed cluster cannot connect routing
+PASS cluster hard rules and exact real endpoints Candidates
+PASS cluster hard rules and exact real endpoints Distance
+PASS cluster hard rules and exact real endpoints Jumps
+PASS cluster hard rules and exact real endpoints Capacity
+PASS cluster cannot bypass real capacity
+PASS cluster does not erase actual hop
+PASS cluster type exclusion enforced
+PASS avoiding either cluster member excludes logical node
+PASS cluster member avoid endpoint conflict rejected
+PASS reverse cluster path retains direction
+PASS same cluster endpoint relation has no invented capacity or resource
+PASS cluster routing cancellation
+PASS automatic identification is pending, not abnormal
+PASS real asset type table tolerates duplicate unused headers and confirms exact matches
+PASS unmatched type mapping retained for future resource snapshots
+PASS type import flags manual conflict without overwriting manual value
+PASS manual correction clears abnormal state
+PASS conflicting type tables require review
+PASS type transaction cancellation preserves metadata
+PASS reciprocal cluster rows deduplicated and table import confirms
+PASS persisted cluster builds logical graph
+PASS restart preserves types clusters status
+PASS overlap and missing members do not silently merge
+PASS explicit raw 17-column export preserves literal quotes and final multi-value field
+PASS identical periodic resource import skips DB replacement
+PASS full cluster refresh removes stale table groups and retains manual groups
+PASS table refresh preserves conflicting manual cluster and flags review
+PASS 320 random contracted multigraph comparisons against independent exhaustive oracle
+ALL PASS: 90 checks
+
+FULL resources_read=281242 accepted=272561 invalid=8681 nodes=264608 milliseconds=9684
+FULL type_assignments=277154 matched=259442 review=4 pending=5162
+FULL clusters=364 enabled=273 review=39 elapsed_ms=15134
+FULL DATA PASS
+
+FULL golden route 208.21m / 1 jump PASS; edges=272561 nodes=264608; standalone reopen PASS

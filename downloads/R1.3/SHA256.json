@@ -1,0 +1,66 @@
+{
+  "下载说明.txt": {
+    "bytes": 858,
+    "sha256": "d253e27608bb19d41d880549f0971e22adcc660d3aeaf10d303603873f10ea7a"
+  },
+  "测试结果.txt": {
+    "bytes": 4726,
+    "sha256": "ef3d49b75a556c240dfcfba825bf56a9f5d7290d5aeb913dc131d36ac75b76ee"
+  },
+  "FiberRouteR1-win-x64-R1.3.zip.part005": {
+    "bytes": 15156629,
+    "sha256": "72064b0b2748ecfe4890af3828de8d8fc631d8fc8816d007cb2e80c57b48da31"
+  },
+  "FiberRouteR1-data-R1.3.zip.part002": {
+    "bytes": 20000000,
+    "sha256": "1e300f7da866d70ba672455b2fb3652d02c9067daec4df97a509c63f7a6f092f"
+  },
+  "FiberRouteR1-win-x64-R1.3.zip.part002": {
+    "bytes": 20000000,
+    "sha256": "daa7b25594c053a28411dc7e313412bb28b2ca397dddcd69d3b419d664245d13"
+  },
+  "FiberRouteR1-data-R1.3.zip.part001": {
+    "bytes": 20000000,
+    "sha256": "2715de03c5e226865db36b66d73ef16801863063428dc947bc83a9f162898c07"
+  },
+  "FiberRouteR1-win-x64-R1.3.zip.part003": {
+    "bytes": 20000000,
+    "sha256": "8a45b2cb8574775fba1278c7b0c2074a724747158b9fc7638bfa30748c3010c2"
+  },
+  "FiberRouteR1-data-R1.3.zip": {
+    "bytes": 71164824,
+    "sha256": "f7f44b2c4d5fc0b176760e3fa42d914ca7bcd552d16b726188dc078d506f1e6b"
+  },
+  "FiberRouteR1-data-R1.3.zip.part003": {
+    "bytes": 20000000,
+    "sha256": "7b9b7b6d35a7ef3ab69487aa68be954fed476b2711c27d7ce6acf9fc8bcf4d01"
+  },
+  "FiberRouteR1-R1.3-source.zip": {
+    "bytes": 142039,
+    "sha256": "2b505b085b148016c7cdb8716efb40bf64687f796a6401059cc555a17e7c1981"
+  },
+  "使用说明.txt": {
+    "bytes": 4745,
+    "sha256": "e5a6cfd4a89b8c0b13a5f86baee140e2045e9fcf1d75ce9496ddf5d5112d0d8e"
+  },
+  "FiberRouteR1-win-x64-R1.3.zip.part004": {
+    "bytes": 20000000,
+    "sha256": "197f7bcedc0de517eaf1ae5386fd32d141789ecbb101dfdc18ec2f4b043e0b7b"
+  },
+  "验证报告.md": {
+    "bytes": 2032,
+    "sha256": "c14cd93ad035d010fbd446359b23d445c6ac078daedd2c37e1f2a1b0108e66bb"
+  },
+  "FiberRouteR1-win-x64-R1.3.zip.part001": {
+    "bytes": 20000000,
+    "sha256": "34526bd3ec7336ddd283b3b5b20b6a3dfd83fb02a2f1186f0741723fa16378b1"
+  },
+  "FiberRouteR1-win-x64-R1.3.zip": {
+    "bytes": 95156629,
+    "sha256": "25469cbbc6c908f6a2daeffcf135577b631141ba873d44c08a2fd362e4cca167"
+  },
+  "FiberRouteR1-data-R1.3.zip.part004": {
+    "bytes": 11164824,
+    "sha256": "8c01a3a32de6fdf24592fce3a78270ab18dcd7cf3ad1e25a0ebd25aba4b036f2"
+  }
+}

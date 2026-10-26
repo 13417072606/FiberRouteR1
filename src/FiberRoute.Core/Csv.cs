@@ -25,7 +25,7 @@ public static class Csv
         {
             Validate(path,"GB18030",ct);
             var h=Read(path,"GB18030").FirstOrDefault()??[];
-            string[] known=[..Store.Fields,"节点名称","节点类型","占用数量","业务状态","始端机房","终端机房"];
+            string[] known=[..Store.Fields,"节点名称","节点类型","设施名称","设备名称","集群列表","占用数量","业务状态","始端机房","终端机房"];
             if(!h.Any(x=>known.Contains(x.Trim())))throw new InvalidDataException("编码存在歧义：GB18030可解码，但未识别中文表头。请选择编码后重新预览。");
             return "GB18030";
         }
@@ -53,6 +53,16 @@ public static class Csv
         using var parser=new TextFieldParser(r){TextFieldType=FieldType.Delimited,HasFieldsEnclosedInQuotes=true,TrimWhiteSpace=false};
         parser.SetDelimiters(",");
         while(!parser.EndOfData)yield return parser.ReadFields()??[];
+    }
+    public static readonly string[] RawResourceHeaders=["ID","名称","长度","空闲数量","占用数量","中继纤芯数量","占有率","业务状态","始端区域","终端区域","始端站点","终端站点","始端机房","终端机房","始端设施","终端设施","关联光缆段"];
+    public static bool IsResourceExport(string path,string encoding)
+    {using var r=new StreamReader(path,EncodingFor(encoding=="自动"?DetectEncoding(path):encoding),false);return (r.ReadLine()??"").TrimStart('\ufeff').Split(',').SequenceEqual(RawResourceHeaders);}
+    public static IEnumerable<string[]> ReadResourceExport(string path,string encoding)
+    {
+        if(encoding=="自动")encoding=DetectEncoding(path);
+        using var r=new StreamReader(path,EncodingFor(encoding),false);string header=(r.ReadLine()??"").TrimStart('\ufeff');if(!header.Split(',').SequenceEqual(RawResourceHeaders))throw new InvalidDataException("原始导出模式仅适用于固定17列中继段表");
+        yield return RawResourceHeaders;
+        string? line;while((line=r.ReadLine())!=null){if(line.Length==0)continue;yield return line.Split([','],17,StringSplitOptions.None);}
     }
     public static string Line(IEnumerable<object?> fields)=>string.Join(",",fields.Select(v=>"\""+(Convert.ToString(v,System.Globalization.CultureInfo.InvariantCulture)??"").Replace("\"","\"\"")+"\""));
     public static void Write(string path,IEnumerable<IEnumerable<object?>> rows)

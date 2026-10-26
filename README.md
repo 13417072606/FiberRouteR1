@@ -1,42 +1,17 @@
-# 纤路 R1.1 修正版下载
+# 光路调度智能分析 R1.3
 
-本分支包含1.1.0修正版源码及Windows x64自包含交付文件。原main与r1-distribution分支未覆盖。
+Windows x64 自包含便携版。顶部四页导航、左侧路由配置右侧方案、节点类型确认与分类、集群管理、可拖动表格与区域布局已实现。复杂更新中心本版不包含。
 
-**[下载完整Windows便携包（94,075,979字节）](https://github.com/13417072606/FiberRouteR1/raw/refs/heads/r1-revised-20261025/downloads/R1.1/FiberRouteR1-win-x64-R1.1.zip)**
+[交付文件：完整程序、独立全量数据、20MB分包、校验清单](downloads/R1.3/)
 
-完整解压后运行“纤路R1.exe”，无需安装.NET或编译。
+推荐使用 [R1.3断点续传下载脚本](downloads/Download-R1.3.ps1)，默认下载并校验程序与数据两套包，解压到同一运行目录。双击“光路调度智能分析.exe”。先关闭旧版。程序不需要.NET、Office、Python或Git，不依赖运营商内网。
 
-- [分包1](https://github.com/13417072606/FiberRouteR1/raw/refs/heads/r1-revised-20261025/downloads/R1.1/FiberRouteR1-win-x64-R1.1.zip.part001)
-- [分包2](https://github.com/13417072606/FiberRouteR1/raw/refs/heads/r1-revised-20261025/downloads/R1.1/FiberRouteR1-win-x64-R1.1.zip.part002)
-- [分包3](https://github.com/13417072606/FiberRouteR1/raw/refs/heads/r1-revised-20261025/downloads/R1.1/FiberRouteR1-win-x64-R1.1.zip.part003)
-- [分包4](https://github.com/13417072606/FiberRouteR1/raw/refs/heads/r1-revised-20261025/downloads/R1.1/FiberRouteR1-win-x64-R1.1.zip.part004)
-- [合并分包.cmd](downloads/R1.1/合并分包.cmd)
-- [SHA256校验清单](downloads/R1.1/SHA256SUMS.txt)
-- [验证报告](downloads/R1.1/验证报告.md)
+程序与数据库分开交付。数据库包约410MiB当前数据（解压后，报告另计），不包含原始表或重复上一版备份。当前281242条原始中继段中272561条可接入，8681条隔离，异常报告随独立数据包提供。259442节点由类型表确认，4项冲突、5162待确认；273组集群关系启用。
 
-完整ZIP SHA256：`1011ea4aac733c1491630adf092305f62ebd0ab49a2eb8fce2ada010188aa173`。分包字节流合并已校验与完整包一致；前三份各30,000,000字节，第四份4,075,979字节。
+90项检查、共720次随机图穷举对照、全量重开与208.21米黄金路径通过。Windows x64交叉构建通过，Windows GUI和高DPI未实机验收。图标为参考图矢量版本，不是原PNG逐像素嵌入。
 
-**60项检查和Windows交叉构建通过，尚未在Windows桌面实际运行验收。**
+- [使用说明](docs/使用说明.txt)
+- [验证报告](docs/验证报告.md)
+- [确认的R1.3需求](docs/R1.3需求确认.md)
 
-# 纤路 R1.1 修正版
-
-基于2026-10-25交接源码制作，版本1.1.0。C#/.NET 8 Windows Forms + SQLite，Windows x64自包含便携程序。
-
-修复CSV默认UTF-8导致非UTF-8文件无法预览的问题；支持严格自动编码识别、XLS/XLSX原生流式读取、工作表选择、字段映射和后台导入；重排四页界面并增加真实节点连线示意图。人工类型和资源回退规则保留。
-
-当前验证：核心测试通过，Windows交叉构建通过。Linux无法运行Windows Forms，尚未完成Windows桌面实际交互或截图验收；请先用附带调测数据试用。未配置线上更新源。
-
-## 开发
-
-在当前检出目录开发，不需要Git worktree。
-
-```bash
-bash scripts/install.sh
-. scripts/dotnet-env.sh
-dotnet run --project tests/FiberRoute.Tests -c Release
-bash scripts/package.sh
-```
-
-脚本以自身目录定位项目；SDK 8.0.426，下载时校验SHA512，依赖版本锁定。生成产物为 artifacts/FiberRouteR1-win-x64-R1.1.zip。测试输入为tests/fixtures真实二进制XLS及XLSX；tests/generate_fixtures.py仅为开发时重新生成夹具用，不随成品运行。
-
-完整解压后运行“纤路R1.exe”，不需要用户安装.NET、Python或编译。使用说明和验证边界见docs目录。
+开发：使用当前检出目录，不需worktree。`bash scripts/install.sh` 恢复并验证，`bash scripts/package.sh` 自包含发布并打包。全量数据检查：激活scripts/dotnet-env.sh后，运行 `dotnet run --project tests/FiberRoute.Tests -c Release -- --r13-full <已解压数据目录> <数据库输出目录>`。

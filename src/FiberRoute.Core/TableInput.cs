@@ -38,7 +38,7 @@ public static class TableInput
     }
     public static IEnumerable<string[]> Read(string path,string encoding="自动",string? sheet=null,string? idColumn=null)
     {
-        if(Format(path)=="CSV"){foreach(var row in Csv.Read(path,encoding))yield return row;yield break;}
+        if(Format(path)=="CSV"){foreach(var row in sheet=="__RESOURCE_RAW__"?Csv.ReadResourceExport(path,encoding):Csv.Read(path,encoding))yield return row;yield break;}
         using var s=File.OpenRead(path);using var r=Excel(s);
         if(sheet!=null){while(r.Name!=sheet)if(!r.NextResult())throw new InvalidDataException("工作表不存在："+sheet);}
         int width=-1,idIndex=-1;long line=0;

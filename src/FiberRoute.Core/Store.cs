@@ -3,21 +3,22 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 namespace FiberRoute.Core;
-public sealed class Store
+public sealed partial class Store
 {
     public string Root {get;} public string Database=>Path.Combine(Root,"resources.db");
     public string Personal=>Path.Combine(Root,"personal.db"); public Graph Graph {get;private set;}=new([],[],"未导入");
-    public Store(string root) {Root=root;Directory.CreateDirectory(root);using var c=Open(Personal);Run(c,"CREATE TABLE IF NOT EXISTS types(name TEXT PRIMARY KEY,type TEXT NOT NULL); CREATE TABLE IF NOT EXISTS settings(name TEXT PRIMARY KEY,value TEXT NOT NULL)");Reload();}
+    public Store(string root) {Root=root;Directory.CreateDirectory(root);using var c=Open(Personal);Run(c,"CREATE TABLE IF NOT EXISTS types(name TEXT PRIMARY KEY,type TEXT NOT NULL); CREATE TABLE IF NOT EXISTS settings(name TEXT PRIMARY KEY,value TEXT NOT NULL)");InitMetadata();Reload();}
     static SqliteConnection Open(string path) { var c=new SqliteConnection(new SqliteConnectionStringBuilder{DataSource=path,Pooling=false}.ToString());c.Open();return c; }
     static void Run(SqliteConnection c,string sql) {using var q=c.CreateCommand();q.CommandText=sql;q.ExecuteNonQuery();}
     public string? Setting(string name) {using var c=Open(Personal);using var q=c.CreateCommand();q.CommandText="SELECT value FROM settings WHERE name=$n";q.Parameters.AddWithValue("$n",name);return q.ExecuteScalar() as string;}
     public void SetSetting(string name,string value) {using var c=Open(Personal);using var q=c.CreateCommand();q.CommandText="INSERT OR REPLACE INTO settings VALUES($n,$v)";q.Parameters.AddWithValue("$n",name);q.Parameters.AddWithValue("$v",value);q.ExecuteNonQuery();}
     public Dictionary<string,string> ManualTypes() {using var c=Open(Personal);using var q=c.CreateCommand();q.CommandText="SELECT name,type FROM types";using var r=q.ExecuteReader();var d=new Dictionary<string,string>(StringComparer.Ordinal);while(r.Read())d[r.GetString(0)]=r.GetString(1);return d;}
-    public void SetTypes(IEnumerable<TypeChange> changes)
+    public void SetTypes(IEnumerable<TypeChange> changes,string source="人工修改")
     {
         using var c=Open(Personal);using var t=c.BeginTransaction();using var q=c.CreateCommand();q.Transaction=t;q.CommandText="INSERT OR REPLACE INTO types VALUES($n,$v)";q.Parameters.Add("$n",SqliteType.Text);q.Parameters.Add("$v",SqliteType.Text);
         var known=Graph.Nodes.Select(n=>n.Name).ToHashSet(StringComparer.Ordinal);
-        foreach(var x in changes.Where(x=>x.Status=="可更新")) {if(!known.Contains(x.Name)||string.IsNullOrWhiteSpace(x.After))continue;q.Parameters[0].Value=x.Name;q.Parameters[1].Value=x.After;q.ExecuteNonQuery();}t.Commit();Reload();
+        var changed=changes.Where(x=>x.Status=="可更新").ToArray();
+        foreach(var x in changed) {if(!known.Contains(x.Name)||string.IsNullOrWhiteSpace(x.After))continue;q.Parameters[0].Value=x.Name;q.Parameters[1].Value=x.After;q.ExecuteNonQuery();}t.Commit();foreach(var x in changed)SaveTypeMeta(x.Name,source,"已确认","");Reload();
     }
     public List<TypeChange> PreviewTypes(string path,string encoding,string nameColumn,string typeColumn,string? sheet=null,CancellationToken ct=default)
     {
@@ -31,12 +32,12 @@ public sealed class Store
     {
         Graph=File.Exists(Database)?LoadGraph(Database,ManualTypes()):new([],[],"未导入");
     }
-    static Graph LoadGraph(string path,Dictionary<string,string> manual)
+    Graph LoadGraph(string path,Dictionary<string,string> manual)
     {
         using var c=Open(path);
         var ns=new List<Node>();using(var q=c.CreateCommand()){q.CommandText="SELECT id,name,type FROM nodes ORDER BY id";using var r=q.ExecuteReader();while(r.Read()){var name=r.GetString(1);bool confirmed=manual.TryGetValue(name,out var type);ns.Add(new(r.GetInt32(0),name,confirmed?type!:r.GetString(2),confirmed));}}
         var es=new List<Edge>();using(var q=c.CreateCommand()){q.CommandText="SELECT id,business_id,name,a,b,length,free,total FROM edges ORDER BY id";using var r=q.ExecuteReader();while(r.Read())es.Add(new(r.GetInt32(0),r.GetString(1),r.GetString(2),r.GetInt32(3),r.GetInt32(4),r.IsDBNull(5)?null:r.GetDouble(5),r.GetInt32(6),r.GetInt32(7),""));}
-        using var v=c.CreateCommand();v.CommandText="SELECT value FROM meta WHERE name='version'";return new(ns.ToArray(),es.ToArray(),v.ExecuteScalar() as string??"未知");
+        using var v=c.CreateCommand();v.CommandText="SELECT value FROM meta WHERE name='version'";var graph=new Graph(Decorate(ns.ToArray()),es.ToArray(),v.ExecuteScalar() as string??"未知");graph.SetClusters(Clusters(graph));return graph;
     }
     public string Raw(int index) {using var c=Open(Database);using var q=c.CreateCommand();q.CommandText="SELECT raw FROM edges WHERE id=$i";q.Parameters.AddWithValue("$i",index);return q.ExecuteScalar() as string??"{}";}
     public static readonly string[] Fields=["ID","名称","长度","空闲数量","中继纤芯数量","始端设施","终端设施","始端类型","终端类型"];
@@ -46,6 +47,10 @@ public sealed class Store
     ImportResult Import(string path,string encoding,Dictionary<string,string> mapping,double unit,IProgress<ImportProgress>? progress,CancellationToken ct,string? sheet)
     {
         if(unit!=1&&unit!=1000)throw new ArgumentException("长度单位无效");
+        string digest;
+        using(var input=File.OpenRead(path))digest=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(input));
+        ct.ThrowIfCancellationRequested();string signature=digest+JsonSerializer.Serialize(new{encoding,sheet,unit,mapping=mapping.OrderBy(x=>x.Key).ToArray()});
+        if(File.Exists(Database)){using var old=Open(Database);using var sig=old.CreateCommand();sig.CommandText="SELECT value FROM meta WHERE name='import_signature'";if((string?)sig.ExecuteScalar()==signature)return new(Graph.Edges.Length,Graph.Edges.Length,0,Graph.Nodes.Length,Graph.Version,Directory.GetFiles(Root,"导入异常-*.csv").OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault()??"",true);}
         string temp=Path.Combine(Root,"import-"+Guid.NewGuid()+".db"),errors=Path.Combine(Root,"导入异常-"+DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")+".csv");
         long read=0,accepted=0,invalid=0;var nodes=new Dictionary<string,int>(StringComparer.Ordinal);string version=DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss zzz");
         try
@@ -90,7 +95,7 @@ public sealed class Store
                     transaction.Commit();
                 }finally{transaction.Dispose();}
                 if(accepted==0)throw new InvalidDataException("没有可接入的中继段，原数据库保持不变。异常报告："+errors);
-                using var meta=c.CreateCommand();meta.CommandText="INSERT INTO meta VALUES('version',$v)";meta.Parameters.AddWithValue("$v",version);meta.ExecuteNonQuery();
+                using var meta=c.CreateCommand();meta.CommandText="INSERT INTO meta VALUES('version',$v)";meta.Parameters.AddWithValue("$v",version);meta.ExecuteNonQuery();using(var signatureCommand=c.CreateCommand()){signatureCommand.CommandText="INSERT INTO meta VALUES('import_signature',$s)";signatureCommand.Parameters.AddWithValue("$s",signature);signatureCommand.ExecuteNonQuery();}
                 Run(c,"CREATE INDEX edge_a ON edges(a); CREATE INDEX edge_b ON edges(b);");
                 using var check=c.CreateCommand();check.CommandText="PRAGMA integrity_check";if((string?)check.ExecuteScalar()!="ok")throw new InvalidDataException("数据库完整性校验失败");
             }
@@ -99,7 +104,7 @@ public sealed class Store
             // All connections have closed. File.Replace is atomic on supported local Windows volumes.
             if(File.Exists(Database))File.Replace(temp,Database,Database+".bak",true);else File.Move(temp,Database);
             Graph=stagedGraph;progress?.Report(new(read,accepted,invalid,nodes.Count));return new(read,accepted,invalid,nodes.Count,version,errors);
-        }finally{if(File.Exists(temp))File.Delete(temp);}
+        }finally{if(File.Exists(temp))File.Delete(temp);foreach(var stale in Directory.GetFiles(Root,"导入异常-*.csv").OrderByDescending(File.GetLastWriteTimeUtc).Skip(1))File.Delete(stale);}
     }
     public void Rollback() {string backup=Database+".bak";if(!File.Exists(backup))throw new FileNotFoundException("无上一版数据库");string temp=Database+".rollback";File.Copy(backup,temp,true);File.Replace(temp,Database,backup,true);Reload();}
 }

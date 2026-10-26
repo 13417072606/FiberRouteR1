@@ -3,6 +3,12 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+if(args.Length==3&&args[0]=="--r13-full"){await R13Checks.Full(args[1],args[2]);return;}
+if(args.Length==2&&args[0]=="--r13-verify"){
+ var full=new Store(args[1]);var g=full.Graph;int a=Array.FindIndex(g.Nodes,n=>n.Name.Contains("家美社区雅源美宿公寓1栋2楼")&&n.Name.EndsWith("GF271")),b=Array.FindIndex(g.Nodes,n=>n.Name.Contains("家美社区雅源美宿公寓1栋4楼")&&n.Name.EndsWith("GF272"));
+ if(a<0||b<0)throw new Exception("full golden endpoints missing");var rr=Routing.Find(g,new(a,b,1,1,8,RouteOrder.Distance,[],[]));if(rr.Limited||!rr.Routes.Any(r=>Math.Abs(r.Length-208.21)<1e-8&&r.Jumps==1))throw new Exception("full golden route failed");
+ Console.WriteLine($"FULL golden route 208.21m / 1 jump PASS; edges={g.Edges.Length} nodes={g.Nodes.Length}; standalone reopen PASS");return;
+}
 int checks=0;
 void Check(bool ok,string label){checks++;if(!ok)throw new Exception("FAIL "+label);Console.WriteLine("PASS "+label);}
 string root=Path.Combine(Path.GetTempPath(),"fiber-tests-"+Guid.NewGuid());Directory.CreateDirectory(root);
@@ -80,6 +86,7 @@ try
     MakeZip("纤路R1/程序/../../escape.exe");bool traversal=false;try{FiberRoute.Updater.PackageValidator.Extract(package,Path.Combine(root,"bad-package"));}catch(InvalidDataException){traversal=true;}Check(traversal&&!File.Exists(Path.Combine(root,"escape.exe")),"update ZIP traversal rejected");
     MakeZip("纤路R1/导出结果/private.csv");bool blocked=false;try{FiberRoute.Updater.PackageValidator.Extract(package,Path.Combine(root,"bad-exports"));}catch(InvalidDataException){blocked=true;}Check(blocked,"update cannot overwrite personal exports");
     await ImportChecks.Run(root,Check);
+    await R13Checks.Run(root,Check);
     Console.WriteLine($"ALL PASS: {checks} checks");
 }finally{Directory.Delete(root,true);}
 sealed class ImmediateProgress(Action<ImportProgress> callback):IProgress<ImportProgress>{public void Report(ImportProgress value)=>callback(value);}
