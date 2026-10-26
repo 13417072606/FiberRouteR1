@@ -37,7 +37,8 @@ public sealed partial class Store
         using var c=Open(path);
         var ns=new List<Node>();using(var q=c.CreateCommand()){q.CommandText="SELECT id,name,type FROM nodes ORDER BY id";using var r=q.ExecuteReader();while(r.Read()){var name=r.GetString(1);bool confirmed=manual.TryGetValue(name,out var type);ns.Add(new(r.GetInt32(0),name,confirmed?type!:r.GetString(2),confirmed));}}
         var es=new List<Edge>();using(var q=c.CreateCommand()){q.CommandText="SELECT id,business_id,name,a,b,length,free,total FROM edges ORDER BY id";using var r=q.ExecuteReader();while(r.Read())es.Add(new(r.GetInt32(0),r.GetString(1),r.GetString(2),r.GetInt32(3),r.GetInt32(4),r.IsDBNull(5)?null:r.GetDouble(5),r.GetInt32(6),r.GetInt32(7),""));}
-        using var v=c.CreateCommand();v.CommandText="SELECT value FROM meta WHERE name='version'";var graph=new Graph(Decorate(ns.ToArray()),es.ToArray(),v.ExecuteScalar() as string??"未知");graph.SetClusters(Clusters(graph));return graph;
+        using var v=c.CreateCommand();v.CommandText="SELECT value FROM meta WHERE name='version'";var graph=new Graph(Decorate(ns.ToArray()),es.ToArray(),v.ExecuteScalar() as string??"未知");
+        EnsureResourceRooms(c);graph.SetClusters(RoutingGroups(graph,ResourceRooms(c)));return graph;
     }
     public string Raw(int index) {using var c=Open(Database);using var q=c.CreateCommand();q.CommandText="SELECT raw FROM edges WHERE id=$i";q.Parameters.AddWithValue("$i",index);return q.ExecuteScalar() as string??"{}";}
     public static readonly string[] Fields=["ID","名称","长度","空闲数量","中继纤芯数量","始端设施","终端设施","始端类型","终端类型"];
@@ -58,7 +59,7 @@ public sealed partial class Store
             using(var c=Open(temp))
             using(var report=new StreamWriter(errors,false,new UTF8Encoding(true)))
             {
-                Run(c,"PRAGMA journal_mode=DELETE; CREATE TABLE nodes(id INTEGER PRIMARY KEY,name TEXT UNIQUE,type TEXT); CREATE TABLE edges(id INTEGER PRIMARY KEY,business_id TEXT,name TEXT,a INTEGER,b INTEGER,length REAL,free INTEGER,total INTEGER,raw TEXT); CREATE TABLE meta(name TEXT PRIMARY KEY,value TEXT);");
+                Run(c,"PRAGMA journal_mode=DELETE; CREATE TABLE nodes(id INTEGER PRIMARY KEY,name TEXT UNIQUE,type TEXT); CREATE TABLE edges(id INTEGER PRIMARY KEY,business_id TEXT,name TEXT,a INTEGER,b INTEGER,length REAL,free INTEGER,total INTEGER,raw TEXT); CREATE TABLE meta(name TEXT PRIMARY KEY,value TEXT); CREATE TABLE rooms(name TEXT,room TEXT,PRIMARY KEY(name,room));");
                 using var it=TableInput.Read(path,encoding,sheet,mapping.GetValueOrDefault("ID")).GetEnumerator();if(!it.MoveNext())throw new InvalidDataException("数据表为空");var headers=it.Current.Select(x=>x.Trim()).ToArray();if(headers.Distinct().Count()!=headers.Length)throw new InvalidDataException("数据表头重名");
                 var indexes=mapping.ToDictionary(x=>x.Key,x=>Array.IndexOf(headers,x.Value));foreach(var field in Required)if(!indexes.TryGetValue(field,out int ix)||ix<0)throw new InvalidDataException("缺少字段映射："+field);
                 string Get(string[] row,string key)=>indexes.TryGetValue(key,out int ix)&&ix>=0&&ix<row.Length?row[ix].Trim():"";
@@ -66,6 +67,8 @@ public sealed partial class Store
                 SqliteTransaction transaction=c.BeginTransaction();
                 using var nq=c.CreateCommand();nq.CommandText="INSERT INTO nodes VALUES($id,$name,$type)";nq.Parameters.Add("$id",SqliteType.Integer);nq.Parameters.Add("$name",SqliteType.Text);nq.Parameters.Add("$type",SqliteType.Text);
                 using var eq=c.CreateCommand();eq.CommandText="INSERT INTO edges VALUES($id,$business,$name,$a,$b,$length,$free,$total,$raw)";
+                using var rq=c.CreateCommand();rq.CommandText="INSERT OR IGNORE INTO rooms VALUES($n,$r)";rq.Parameters.AddWithValue("$n","");rq.Parameters.AddWithValue("$r","");
+                void Room(string name,string room){room=room.Trim();if(room.Length==0||room=="--"||room=="无")return;rq.Transaction=transaction;rq.Parameters[0].Value=name;rq.Parameters[1].Value=room;rq.ExecuteNonQuery();}
                 foreach(var p in new[]{"$id","$business","$name","$a","$b","$length","$free","$total","$raw"})eq.Parameters.AddWithValue(p,"");
                 int NodeId(string name,string type,string room)
                 {
@@ -88,6 +91,7 @@ public sealed partial class Store
                         else
                         {
                             var raw=headers.Select((h,i)=>(h,i)).ToDictionary(x=>x.h,x=>r[x.i]);int ai=NodeId(a,Get(r,"始端类型"),raw.GetValueOrDefault("始端机房","")),bi=NodeId(b,Get(r,"终端类型"),raw.GetValueOrDefault("终端机房",""));
+                            Room(a,raw.GetValueOrDefault("始端机房",""));Room(b,raw.GetValueOrDefault("终端机房",""));
                             eq.Transaction=transaction;object[] vals=[(int)accepted,id,Get(r,"名称"),ai,bi,length is null?DBNull.Value:length.Value,free,total,JsonSerializer.Serialize(raw,new JsonSerializerOptions{Encoder=System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping})];for(int i=0;i<vals.Length;i++)eq.Parameters[i].Value=vals[i];eq.ExecuteNonQuery();accepted++;
                         }
                         if(read%1000==0){transaction.Commit();transaction.Dispose();transaction=c.BeginTransaction();progress?.Report(new(read,accepted,invalid,nodes.Count));}

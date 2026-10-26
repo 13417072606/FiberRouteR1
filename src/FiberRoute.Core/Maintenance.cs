@@ -4,7 +4,7 @@ namespace FiberRoute.Core;
 public sealed record TypeAssignment(string Name,string Type,string Source,string Status,string Reason);
 public sealed partial class Store
 {
-    void InitMetadata(){using var c=Open(Personal);Run(c,"CREATE TABLE IF NOT EXISTS type_meta(name TEXT PRIMARY KEY,source TEXT,status TEXT,reason TEXT); CREATE TABLE IF NOT EXISTS clusters(id TEXT PRIMARY KEY,name TEXT,type TEXT,members TEXT,source TEXT,status TEXT,reason TEXT,enabled INTEGER)");}
+    void InitMetadata(){using var c=Open(Personal);Run(c,"CREATE TABLE IF NOT EXISTS type_meta(name TEXT PRIMARY KEY,source TEXT,status TEXT,reason TEXT); CREATE TABLE IF NOT EXISTS clusters(id TEXT PRIMARY KEY,name TEXT,type TEXT,members TEXT,source TEXT,status TEXT,reason TEXT,enabled INTEGER); CREATE TABLE IF NOT EXISTS room_members(name TEXT,room TEXT,source TEXT,PRIMARY KEY(name,room,source)); CREATE TABLE IF NOT EXISTS room_choices(name TEXT PRIMARY KEY,room TEXT,enabled INTEGER)");}
     void SaveTypeMeta(string name,string source,string status,string reason){using var c=Open(Personal);using var q=c.CreateCommand();q.CommandText="INSERT OR REPLACE INTO type_meta VALUES($n,$s,$t,$r)";q.Parameters.AddWithValue("$n",name);q.Parameters.AddWithValue("$s",source);q.Parameters.AddWithValue("$t",status);q.Parameters.AddWithValue("$r",reason);q.ExecuteNonQuery();}
     Node[] Decorate(Node[] nodes)
     {
@@ -34,7 +34,7 @@ public sealed partial class Store
         {
             string encoding=Csv.DetectEncoding(path);using var reader=new StreamReader(path,Csv.EncodingFor(encoding),false);var header=(reader.ReadLine()??"").TrimStart('\ufeff').Split(',');
             if(header.Length>20&&header[0]=="ID"&&header[1]=="设施名称")
-            {yield return ["设施名称"];string? line;while((line=reader.ReadLine())!=null){if(line.Length==0)continue;var fields=line.Split([','],3);yield return [fields.Length>1?fields[1]:""];}yield break;}
+            {int room=Array.FindIndex(header,x=>x is "机房名称" or "所属机房");yield return ["设施名称","机房名称"];string? line;while((line=reader.ReadLine())!=null){if(line.Length==0)continue;var fields=line.Split([','],Math.Max(3,room+2));yield return [fields.Length>1?fields[1]:"",room>=0&&fields.Length>room?fields[room]:""];}yield break;}
         }
         foreach(var row in TableInput.Read(path,"自动",sheet,"__not_used__"))yield return row;
     }

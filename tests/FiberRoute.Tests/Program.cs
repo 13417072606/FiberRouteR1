@@ -3,6 +3,11 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+if(args.Length==3&&args[0]=="--r131-baseline"){
+ var full=new Store(args[2]);var files=Directory.GetFiles(args[1],"*",SearchOption.AllDirectories).Where(p=>Path.GetExtension(p).Equals(".csv",StringComparison.OrdinalIgnoreCase)&&!Path.GetFileName(p).StartsWith("中继段")).Select(p=>(p,"",(string?)null)).ToArray();
+ full.ApplyRoomFiles(files);var seed=full.PreviewRoomFiles(files).Select(x=>new RoomSeed(x.Name,x.Room,x.Source)).ToArray();File.WriteAllText(Path.Combine(args[2],"机房归属基线.json"),System.Text.Json.JsonSerializer.Serialize(seed,new System.Text.Json.JsonSerializerOptions{Encoder=System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping}));
+ var rooms=full.RoomAssignments();Console.WriteLine($"FULL ROOM PASS: baseline={seed.Length} bytes={new FileInfo(Path.Combine(args[2],"机房归属基线.json")).Length} matched_facilities={rooms.Count} room_cores={rooms.Where(x=>x.Enabled).Select(x=>x.Room).Distinct().Count()} cabinet_pending={rooms.Count(x=>x.IsCabinet&&!x.Enabled)} conflicts={rooms.Count(x=>x.Status=="需核对")} graph_logical_groups={full.Graph.ClusterNames.Count}");return;
+}
 if(args.Length==3&&args[0]=="--r13-full"){await R13Checks.Full(args[1],args[2]);return;}
 if(args.Length==2&&args[0]=="--r13-verify"){
  var full=new Store(args[1]);var g=full.Graph;int a=Array.FindIndex(g.Nodes,n=>n.Name.Contains("家美社区雅源美宿公寓1栋2楼")&&n.Name.EndsWith("GF271")),b=Array.FindIndex(g.Nodes,n=>n.Name.Contains("家美社区雅源美宿公寓1栋4楼")&&n.Name.EndsWith("GF272"));
@@ -87,6 +92,7 @@ try
     MakeZip("纤路R1/导出结果/private.csv");bool blocked=false;try{FiberRoute.Updater.PackageValidator.Extract(package,Path.Combine(root,"bad-exports"));}catch(InvalidDataException){blocked=true;}Check(blocked,"update cannot overwrite personal exports");
     await ImportChecks.Run(root,Check);
     await R13Checks.Run(root,Check);
+    await RoomChecks.Run(root,Check);
     Console.WriteLine($"ALL PASS: {checks} checks");
 }finally{Directory.Delete(root,true);}
 sealed class ImmediateProgress(Action<ImportProgress> callback):IProgress<ImportProgress>{public void Report(ImportProgress value)=>callback(value);}

@@ -1,6 +1,9 @@
 import hashlib,json,pathlib,shutil,zipfile
+import xml.etree.ElementTree as ET
 root=pathlib.Path(__file__).resolve().parents[1]
-out=root/'artifacts'/'delivery'/'光路调度智能分析R1.3'
+version=ET.parse(root/'src'/'FiberRoute.App'/'FiberRoute.App.csproj').findtext('.//Version')
+delivery_name='光路调度智能分析R'+version
+out=root/'artifacts'/'delivery'/delivery_name
 if out.exists(): shutil.rmtree(out)
 (out/'程序').mkdir(parents=True)
 (out/'导出结果').mkdir()
@@ -35,11 +38,11 @@ config=json.loads((out/'程序'/'FiberRouteR1.runtimeconfig.json').read_text())
 assert 'includedFrameworks' in config['runtimeOptions'] and 'frameworks' not in config['runtimeOptions']
 manifest={str(f.relative_to(out)):hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(out.rglob('*')) if f.is_file()}
 (out/'文件校验SHA256.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
-archive=root/'artifacts'/'FiberRouteR1-win-x64-R1.3.zip'
+archive=root/'artifacts'/('FiberRouteR1-win-x64-R'+version+'.zip')
 with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
     for f in sorted(out.rglob('*')):
-        if f.is_file():z.write(f,'光路调度智能分析R1.3/'+str(f.relative_to(out)))
-    z.writestr('光路调度智能分析R1.3/导出结果/','')
+        if f.is_file():z.write(f,delivery_name+'/'+str(f.relative_to(out)))
+    z.writestr(delivery_name+'/导出结果/','')
 with zipfile.ZipFile(archive) as z:
     assert z.testzip() is None
     assert not any(f.endswith(('.py','.pyd','.cs')) for f in z.namelist())

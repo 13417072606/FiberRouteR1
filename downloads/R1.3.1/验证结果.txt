@@ -1,0 +1,144 @@
+R1.3.1 核心、全量与交互验证
+
+PASS sample 12 edges / 20 nodes
+PASS sample 1659.56 m
+PASS sample 40 aggregate cores
+PASS long ID exact text
+PASS A route exists
+PASS A length / jumps / capacity / residual
+PASS B insufficient cores
+PASS C avoid type
+PASS D avoid node
+PASS E zero jumps
+PASS F endpoint type exemption
+PASS G zero length allowed
+PASS explicit endpoint conflict rejected
+PASS route cancellation
+PASS queue upper bound reported
+PASS expansion upper bound reported
+PASS time upper bound reported
+PASS manual multi-label type changes routing
+PASS manual types survive resource replacement
+PASS type import conflicts / unknown / empty preview
+PASS type preview creates no nodes and changes nothing
+PASS quoted multiline CSV and invalid isolation
+PASS trim exact endpoints / missing length retained
+PASS leading zeros preserved
+PASS anomaly report header + 2 records
+PASS resource rollback preserves manual settings
+PASS mid-import cancellation preserves original database
+PASS failed import preserves original database
+PASS GBK import + km conversion
+PASS GB18030 import + km conversion
+PASS 400 random multigraph ordering comparisons against exhaustive oracle
+PASS RSA-PSS signed manifest verification
+PASS tampered manifest rejected
+PASS program ZIP layout and license extraction
+PASS update ZIP traversal rejected
+PASS update cannot overwrite personal exports
+PASS automatic utf8 / strict text / ID / quoted multiline
+PASS automatic utf8bom / strict text / ID / quoted multiline
+PASS automatic gbk / strict text / ID / quoted multiline
+PASS automatic gb18030 / strict text / ID / quoted multiline
+PASS automatic utf16 / strict text / ID / quoted multiline
+PASS automatic utf16be / strict text / ID / quoted multiline
+PASS automatic utf16nobom / strict text / ID / quoted multiline
+PASS GB18030 four-byte character
+PASS xls native format and sheet discovery
+PASS xls actual import / mapping / exact long ID / zero and missing length
+PASS xls numeric ID precision risk rejects and preserves database
+PASS xls native type preview / conflicts / unknown / blank / no mutation
+PASS xls missing sheet actionable error
+PASS xls cancellation retains original
+PASS xlsx native format and sheet discovery
+PASS xlsx actual import / mapping / exact long ID / zero and missing length
+PASS xlsx numeric ID precision risk rejects and preserves database
+PASS xlsx native type preview / conflicts / unknown / blank / no mutation
+PASS xlsx missing sheet actionable error
+PASS xlsx cancellation retains original
+PASS invalid UTF-8 BOM payload never replaced silently
+PASS Excel binary never parsed as CSV text
+PASS invalid Excel gives format error
+PASS corrupt Excel container rejected
+PASS cluster disabled cannot bridge disconnected devices
+PASS unconfirmed cluster cannot connect routing
+PASS cluster hard rules and exact real endpoints Candidates
+PASS cluster hard rules and exact real endpoints Distance
+PASS cluster hard rules and exact real endpoints Jumps
+PASS cluster hard rules and exact real endpoints Capacity
+PASS cluster cannot bypass real capacity
+PASS cluster does not erase actual hop
+PASS cluster type exclusion enforced
+PASS avoiding either cluster member excludes logical node
+PASS cluster member avoid endpoint conflict rejected
+PASS reverse cluster path retains direction
+PASS same cluster endpoint relation has no invented capacity or resource
+PASS cluster routing cancellation
+PASS automatic identification is pending, not abnormal
+PASS real asset type table tolerates duplicate unused headers and confirms exact matches
+PASS unmatched type mapping retained for future resource snapshots
+PASS type import flags manual conflict without overwriting manual value
+PASS manual correction clears abnormal state
+PASS conflicting type tables require review
+PASS type transaction cancellation preserves metadata
+PASS reciprocal cluster rows deduplicated and table import confirms
+PASS persisted cluster builds logical graph
+PASS restart preserves types clusters status
+PASS overlap and missing members do not silently merge
+PASS explicit raw 17-column export preserves literal quotes and final multi-value field
+PASS identical periodic resource import skips DB replacement
+PASS full cluster refresh removes stale table groups and retains manual groups
+PASS table refresh preserves conflicting manual cluster and flags review
+PASS 320 random contracted multigraph comparisons against independent exhaustive oracle
+PASS ODF and ODB with explicit room affiliation route as one room core
+PASS room aggregation retains all real resources and names the room core
+PASS cabinet table match is confirmed but requires explicit grouping consent
+PASS room field does not automatically contract non ODF ODB cabinet facilities
+PASS explicit cabinet room confirmation enables its real segments
+PASS room aggregation never bypasses real segment capacity
+PASS explicit cluster cannot silently bridge two different room cores
+PASS conflicting explicit room fields are quarantined and upstream room is not used
+PASS human choice resolves a room affiliation conflict using a supplied room value
+PASS reopen retains room choices and cabinet approval
+PASS user can suspend cabinet aggregation without deleting real resources
+PASS periodic room update replaces same source rows and does not accumulate obsolete affiliations
+PASS compact room baseline is applied once and exposes conflicts rather than guessing
+PASS human room choice cannot invent an unavailable affiliation
+PASS R1.3 database migration reconstructs explicit resource room fields
+PASS cancelled affiliation refresh preserves previous room rows
+ALL PASS: 106 checks
+
+FULL ROOM PASS: baseline=42972 bytes=8277870 matched_facilities=42975 room_cores=29772 cabinet_pending=931 conflicts=0 graph_logical_groups=5976
+FULL golden route 208.21m / 1 jump PASS; edges=272561 nodes=264608; standalone reopen PASS
+
+Wine 96 DPI / 中文替代字体 / 12段20节点调测样例：
+PASS settings is a neutral utility button
+PASS current route navigation has selected state from first paint
+PASS route search populates oriented real segment table
+PASS segment headers fit actual font and padding at 96 DPI
+PASS real WM_MOUSEWHEEL horizontally scrolls the connection diagram
+PASS mouse down move and up drag the diagram horizontally
+PASS resource table header fits actual font
+PASS user column width survives window resize
+PASS endpoint search popup remains open while typing
+PASS endpoint search filters exact fixture result
+PASS mouse click commits endpoint and closes dropdown
+ALL PASS: 11 UI checks; DeviceDpi=96; Font=WenQuanYi Micro Hei
+
+Wine 144 DPI：
+PASS settings is a neutral utility button
+PASS current route navigation has selected state from first paint
+PASS route search populates oriented real segment table
+PASS segment headers fit actual font and padding at 144 DPI
+PASS real WM_MOUSEWHEEL horizontally scrolls the connection diagram
+PASS mouse down move and up drag the diagram horizontally
+PASS resource table header fits actual font
+PASS user column width survives window resize
+PASS endpoint search popup remains open while typing
+PASS endpoint search filters exact fixture result
+PASS mouse click commits endpoint and closes dropdown
+ALL PASS: 11 UI checks; DeviceDpi=144; Font=WenQuanYi Micro Hei
+
+PowerShell 7.4 实际离线安装、重复安装及逐文件SHA256通过；安装前后 resources.db、personal.db 字节未改。错误大小/哈希补丁在写入前拒绝。
+原始 R1.3 启动器 + 已安装补丁在 Wine 实际启动为 R1.3.1，42972条归属来源落库，派生临时JSON清理。
+Windows PowerShell 5.1 和客户Windows实机尚未执行；兼容环境验证不等于Windows实机验收。

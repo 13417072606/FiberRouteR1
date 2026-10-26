@@ -14,6 +14,8 @@ public sealed class Graph(Node[] nodes, Edge[] edges, string version)
     public int[][] LogicalAdjacency {get; private set;}=Build(nodes.Length,edges);
     public Dictionary<int,string> ClusterNames {get;}=[];
     public Dictionary<int,int[]> ClusterMembers {get;}=[];
+    public Dictionary<string,string> GroupWarnings {get;}=[];
+    public Dictionary<string,int[]> Rooms {get;}=new(StringComparer.Ordinal);
     public void SetClusters(IEnumerable<ClusterRecord> clusters)
     {
         var names=Nodes.ToDictionary(n=>n.Name,n=>n.Id,StringComparer.Ordinal);
