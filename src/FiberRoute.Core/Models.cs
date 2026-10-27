@@ -16,6 +16,7 @@ public sealed class Graph(Node[] nodes, Edge[] edges, string version)
     public Dictionary<int,int[]> ClusterMembers {get;}=[];
     public Dictionary<string,string> GroupWarnings {get;}=[];
     public Dictionary<string,int[]> Rooms {get;}=new(StringComparer.Ordinal);
+    public Dictionary<int,RoomAssignment> RoomAffiliations {get;}=[];
     public void SetClusters(IEnumerable<ClusterRecord> clusters)
     {
         var names=Nodes.ToDictionary(n=>n.Name,n=>n.Id,StringComparer.Ordinal);
@@ -39,10 +40,12 @@ public sealed class Graph(Node[] nodes, Edge[] edges, string version)
 }
 public enum RouteOrder { Candidates, Distance, Jumps, Capacity }
 public sealed record RouteOptions(int Start, int End, int Demand, int MaxJumps, int Count, RouteOrder Order,
-    HashSet<string> AvoidTypes, HashSet<int> AvoidNodes, int MaxExpansions = 200000, int MaxQueue = 50000, int TimeoutMs = 10000);
+    HashSet<string> AvoidTypes, HashSet<int> AvoidNodes, int MaxExpansions = 200000, int MaxQueue = 50000, int TimeoutMs = 10000, bool RequireCapacity = true);
 public sealed record Route(int[] Nodes, int[] Edges, double Length, int Unknown, int Zero, int Bottleneck)
 {
     public int Jumps => Math.Max(0,Edges.Length-1);
+    public bool HasCapacity(int demand) => Edges.Length > 0 && Bottleneck >= demand;
+    public string CapacityStatus(int demand) => Edges.Length == 0 ? "内部关系容量待核验" : HasCapacity(demand) ? $"满足 {demand} 芯需求" : $"芯数不足（缺 {demand-Bottleneck} 芯）";
     public RouteStep[] Steps {get;init;}=[];
     public ClusterTransfer[] Transfers {get;init;}=[];
 }

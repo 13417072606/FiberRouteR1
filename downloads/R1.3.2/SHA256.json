@@ -1,0 +1,46 @@
+{
+  "FiberRouteR1-R1.3.2-patch.zip": {
+    "Size": 1049664,
+    "Sha256": "9622ff78919dc2fbd479b9d3150d32b4bd4095eef6012f12ace86deb07851a12"
+  },
+  "FiberRouteR1-win-x64-R1.3.2.zip": {
+    "Size": 96065519,
+    "Sha256": "b68a5d76c02c75e200ae79d9e7ec5d30b52968692965a194504f5d6222cb0f63"
+  },
+  "FiberRouteR1-win-x64-R1.3.2.zip.part001": {
+    "Size": 20000000,
+    "Sha256": "b903b96f29d8d79256b1f7051244d0188e5ad070f28c7571d5ec3b161cc0acbf"
+  },
+  "FiberRouteR1-win-x64-R1.3.2.zip.part002": {
+    "Size": 20000000,
+    "Sha256": "ce93530692154359b265b7091b7e049e1def64b08c220a6e122bb2efc4d973a4"
+  },
+  "FiberRouteR1-win-x64-R1.3.2.zip.part003": {
+    "Size": 20000000,
+    "Sha256": "c49dfb395913e5b56c2b501a28c8c12f2e4823b0d100900b06541e749b92d214"
+  },
+  "FiberRouteR1-win-x64-R1.3.2.zip.part004": {
+    "Size": 20000000,
+    "Sha256": "1ea121be624e437a6e71efc1eebac867148da8535c2cb7d1d0af141117c12c24"
+  },
+  "FiberRouteR1-win-x64-R1.3.2.zip.part005": {
+    "Size": 16065519,
+    "Sha256": "55ded76213ec401c443d136403cb8c7e0d16bd475248aed6af77cb84b9ce1047"
+  },
+  "Download-R1.3.2.ps1": {
+    "Size": 7699,
+    "Sha256": "5cc44e4309670bcf45646fe590690832ecd7656064bfb73ceff2d6e4742ffa02"
+  },
+  "Install-R1.3.2-patch.ps1": {
+    "Size": 9029,
+    "Sha256": "f1b70737a74a53463bff74c3b45a72ecffe20e5ad24d2d5aa2e030afc5aa0e4b"
+  },
+  "README.md": {
+    "Size": 2394,
+    "Sha256": "2f1f8fc0d84e571ac508c540bd9060594de8f655ad24117c0a1ab33dbc1cb3f2"
+  },
+  "验证结果.txt": {
+    "Size": 1867,
+    "Sha256": "bbd001b58b7889856541cea7883778a1ac8847be2dd9bb860fcf139cfe35318d"
+  }
+}

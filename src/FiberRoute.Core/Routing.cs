@@ -9,9 +9,12 @@ public static class Routing
         if(o.Demand<1 || o.MaxJumps<0 || o.MaxJumps>100 || o.Count<1 || o.Count>50) throw new ArgumentException("芯数须大于0，跳纤上限0–100，候选数1–50");
         if(o.AvoidNodes.Any(n=>g.Logical[n]==g.Logical[o.Start]||g.Logical[n]==g.Logical[o.End])) throw new ArgumentException("具体规避节点与起终点冲突");
         var watch=Stopwatch.StartNew(); var results=new List<Route>(); int expansions=0; bool limited=false;
-        var queue=new PriorityQueue<State,(double,long)>(); long serial=0;
+        var queue=new PriorityQueue<State,(int,double,long)>(); long serial=0;
         double Score(State s)=>o.Order switch { RouteOrder.Distance=>s.Distance, RouteOrder.Capacity=>-(double)s.Capacity, _=>s.Depth };
-        var root=new State(o.Start,null,-1,0,0,0,0,int.MaxValue); queue.Enqueue(root,(Score(root),serial++));
+        // Feasible candidates are returned before capacity-short reference routes. All other
+        // constraints still apply when the user explicitly includes reference routes.
+        (int,double,long) Priority(State s)=>(s.Capacity<o.Demand?1:0,Score(s),serial++);
+        var root=new State(o.Start,null,-1,0,0,0,0,int.MaxValue); queue.Enqueue(root,Priority(root));
         while(queue.TryDequeue(out var s,out _))
         {
             if(ct.IsCancellationRequested) return new(results,true,true,expansions,watch.ElapsedMilliseconds);
@@ -30,13 +33,13 @@ public static class Routing
             foreach(int ix in g.LogicalAdjacency[g.Logical[s.Node]])
             {
                 if(ct.IsCancellationRequested) return new(results,true,true,expansions,watch.ElapsedMilliseconds);
-                var e=g.Edges[ix]; if(e.Free<o.Demand)continue; int n=g.Logical[e.A]==g.Logical[s.Node]?e.B:e.A;
+                var e=g.Edges[ix]; if(o.RequireCapacity&&e.Free<o.Demand)continue; int n=g.Logical[e.A]==g.Logical[s.Node]?e.B:e.A;
                 bool seen=false;for(State? p=s;p!=null;p=p.Prev)if(g.Logical[p.Node]==g.Logical[n]){seen=true;break;} if(seen)continue;
                 if(o.AvoidNodes.Any(x=>g.Logical[x]==g.Logical[n]))continue;
                 if(g.Logical[n]!=g.Logical[o.End] && (g.ClusterMembers.GetValueOrDefault(g.Logical[n])??[n]).Any(id=>g.Nodes[id].Type.Split(';',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries).Any(o.AvoidTypes.Contains)))continue;
                 if(queue.Count>=o.MaxQueue){limited=true;break;}
                 var next=new State(n,s,ix,s.Depth+1,s.Distance+(e.Length??0),s.Unknown+(e.Length==null?1:0),s.Zero+(e.Length==0?1:0),Math.Min(s.Capacity,e.Free));
-                queue.Enqueue(next,(Score(next),serial++));
+                queue.Enqueue(next,Priority(next));
             }
             // No states are silently discarded: queue exhaustion aborts with an explicit incomplete result.
             if(limited)break;

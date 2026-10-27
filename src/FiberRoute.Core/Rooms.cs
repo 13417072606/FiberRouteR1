@@ -68,9 +68,9 @@ public sealed partial class Store
         var choices=new Dictionary<string,(string Room,bool Enabled)>();using(var q=c.CreateCommand()){q.CommandText="SELECT name,room,enabled FROM room_choices";using var r=q.ExecuteReader();while(r.Read())choices[r.GetString(0)]=(r.GetString(1),r.GetInt32(2)==1);}
         var known=g.Nodes.ToDictionary(n=>n.Name,StringComparer.Ordinal);
         return values.Where(x=>HasRoom(x.Room)&&known.TryGetValue(x.Name,out var n)&&IsRoomFacility(n)).GroupBy(x=>x.Name,StringComparer.Ordinal).Select(group=>{
-            var n=known[group.Key];bool cabinet=IsCabinet(n);var rooms=group.Select(x=>x.Room).Distinct(StringComparer.Ordinal).ToArray();string room=rooms.Length==1?rooms[0]:string.Join("；",rooms),reason=rooms.Length>1?"同一设施对应多个所属机房":"",source=string.Join('；',group.Select(x=>x.Source).Distinct());bool enable=rooms.Length==1&&!cabinet;
+            var n=known[group.Key];bool cabinet=IsCabinet(n);var rooms=group.Select(x=>x.Room).Distinct(StringComparer.Ordinal).ToArray();string room=rooms.Length==1?rooms[0]:string.Join("；",rooms),reason=rooms.Length>1?"同一设施对应多个所属机房":"",source=string.Join('；',group.Select(x=>x.Source).Distinct());bool enable=rooms.Length==1;
             if(choices.TryGetValue(n.Name,out var choice)&&rooms.Contains(choice.Room,StringComparer.Ordinal)){room=choice.Room;reason="";source+="；人工确认";enable=choice.Enabled;}
-            return new RoomAssignment(n.Name,room,source,reason.Length>0?"需核对":"已确认",reason.Length>0?reason:cabinet&&!enable?"光交箱归入机房需人工确认":"",enable,cabinet);
+            return new RoomAssignment(n.Name,room,source,reason.Length>0?"需核对":"已确认",reason.Length>0?reason:!enable?"已人工暂停归并":"",enable,cabinet);
         }).OrderBy(x=>x.Room,StringComparer.Ordinal).ThenBy(x=>x.Name,StringComparer.Ordinal).ToList();
     }
     public void ConfirmRoom(string name,string room,bool enabled)
@@ -82,7 +82,7 @@ public sealed partial class Store
     IEnumerable<ClusterRecord> RoutingGroups(Graph g,List<(string Name,string Room,string Source)> resourceRooms)
     {
         var allRooms=RoomAssignments(g,resourceRooms);var rooms=allRooms.Where(x=>x.Enabled&&x.Status=="已确认").ToArray();var affiliation=rooms.ToDictionary(x=>x.Name,x=>x.Room,StringComparer.Ordinal);var blocked=allRooms.Where(x=>x.Status=="需核对"||x.IsCabinet&&!x.Enabled).Select(x=>x.Name).ToHashSet(StringComparer.Ordinal);
-        var names=g.Nodes.ToDictionary(n=>n.Name,n=>n.Id,StringComparer.Ordinal);var parent=Enumerable.Range(0,g.Nodes.Length).ToArray();int Root(int n){while(parent[n]!=n){parent[n]=parent[parent[n]];n=parent[n];}return n;}void Join(int a,int b){a=Root(a);b=Root(b);if(a!=b)parent[b]=a;}
+        var names=g.Nodes.ToDictionary(n=>n.Name,n=>n.Id,StringComparer.Ordinal);foreach(var x in allRooms)g.RoomAffiliations[names[x.Name]]=x;var parent=Enumerable.Range(0,g.Nodes.Length).ToArray();int Root(int n){while(parent[n]!=n){parent[n]=parent[parent[n]];n=parent[n];}return n;}void Join(int a,int b){a=Root(a);b=Root(b);if(a!=b)parent[b]=a;}
         foreach(var room in rooms.GroupBy(x=>x.Room,StringComparer.Ordinal)){g.Rooms[room.Key]=room.Select(x=>names[x.Name]).ToArray();int first=names[room.First().Name];foreach(var n in room)Join(first,names[n.Name]);}
         foreach(var cluster in Clusters(g).Where(x=>x.Enabled&&x.Status=="已确认"))
         {

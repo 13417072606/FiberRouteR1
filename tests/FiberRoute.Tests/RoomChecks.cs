@@ -14,7 +14,8 @@ static class RoomChecks
         RouteResult Find(string a,string b)=>Routing.Find(s.Graph,new(Id(a),Id(b),1,4,8,RouteOrder.Distance,[],[]));
         check(Find("甲","乙").Routes.Single().Length==30&&Find("甲","乙").Routes.Single().Transfers.Length==1,"ODF and ODB with explicit room affiliation route as one room core");
         check(s.Graph.Edges.Length==5&&s.Graph.Nodes.Length==10&&s.Graph.ClusterNames.Values.Contains("A机房"),"room aggregation retains all real resources and names the room core");
-        check(Find("甲","丙").Routes.Count==0&&s.RoomAssignments().Single(x=>x.Name=="A/GJ03") is {Status:"已确认",Enabled:false},"cabinet table match is confirmed but requires explicit grouping consent");
+        check(Find("甲","丙").Routes.Single().Length==15&&s.RoomAssignments().Single(x=>x.Name=="A/GJ03") is {Status:"已确认",Enabled:true},"unambiguous cabinet room affiliation participates without a startup approval gate");
+        s.ConfirmRoom("A/GJ03","A机房",false);check(Find("甲","丙").Routes.Count==0,"explicit user suspension overrides default cabinet affiliation");
         check(!s.RoomAssignments().Any(x=>x.Name=="楼外GF01")&&Find("甲","戊").Routes.Count==0,"room field does not automatically contract non ODF ODB cabinet facilities");
         s.ConfirmRoom("A/GJ03","A机房",true);check(Find("甲","丙").Routes.Single().Length==15,"explicit cabinet room confirmation enables its real segments");
         var result=Routing.Find(s.Graph,new(Id("甲"),Id("乙"),2,4,8,RouteOrder.Distance,[],[]));check(result.Routes.Count==0,"room aggregation never bypasses real segment capacity");

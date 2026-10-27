@@ -19,6 +19,16 @@ static class R13Checks
         bool conflict=false;try{Routing.Find(G(),O() with{Start=1,AvoidNodes=[2]});}catch(ArgumentException){conflict=true;}check(conflict,"cluster member avoid endpoint conflict rejected");
         var reverse=Routing.Find(G(),O() with{Start=3,End=0}).Routes.Single();check(reverse.Steps[0].From==3&&reverse.Transfers.Single().From==2,"reverse cluster path retains direction");
         var same=Routing.Find(G(),O() with{Start=1,End=2,MaxJumps=0}).Routes.Single();check(same.Edges.Length==0&&same.Jumps==0&&same.Bottleneck==0&&same.Transfers.Length==1,"same cluster endpoint relation has no invented capacity or resource");
+        var refs=Routing.Find(G(),O() with{Demand=2,RequireCapacity=false}).Routes;
+        check(refs.Count==1&&!refs[0].HasCapacity(2)&&refs[0].CapacityStatus(2).Contains("芯数不足"),"capacity filter can explicitly include a clearly marked shortage reference");
+        check(Routing.Find(G(),O() with{Demand=2,RequireCapacity=false,AvoidTypes=["光交箱"]}).Routes.Count==0&&Routing.Find(G(),O() with{Demand=2,RequireCapacity=false,MaxJumps=0}).Routes.Count==0,"reference routes still enforce exclusions and hop limits");
+        check(Routing.Find(G(),O() with{Start=1,End=3,AvoidTypes=["光交箱"]}).Routes.Count==1,"endpoint type exemption remains after its UI wording is removed");
+        var refNodes=Enumerable.Range(0,4).Select(i=>new Node(i,"参考"+i,"站点",true)).ToArray();
+        var refEdges=new[]{new Edge(0,"short","",0,3,1,0,4,""),new Edge(1,"long1","",0,1,20,3,4,""),new Edge(2,"long2","",1,3,20,3,4,"")};
+        var refGraph=new Graph(refNodes,refEdges,"ref");var refOrder=Routing.Find(refGraph,new(0,3,2,2,8,RouteOrder.Distance,[],[],RequireCapacity:false));
+        check(refOrder.Routes.Count==2&&refOrder.Routes[0].HasCapacity(2)&&refOrder.Routes[1].Bottleneck==0,"sufficient routes precede shortage references without inventing capacity on zero-free edges");
+        check(Routing.Find(refGraph,new(0,3,2,2,8,RouteOrder.Distance,[],[])).Routes.All(r=>r.HasCapacity(2)),"default capacity filter never returns shortage routes");
+        check(same.CapacityStatus(1)=="内部关系容量待核验","zero-segment room relation does not claim verified capacity");
         using var cancel=new CancellationTokenSource();cancel.Cancel();check(Routing.Find(G(),O(),cancel.Token).Cancelled,"cluster routing cancellation");
         var s=new Store(Path.Combine(root,"status-test"));var map=Store.Fields.ToDictionary(x=>x,x=>x);string resources=Path.Combine(root,"status.csv");Csv.Write(resources,new object?[][]{Store.Fields.Cast<object?>().ToArray(),["a","edge",1,1,2,"甲","乙","",""]});await s.ImportAsync(resources,"自动",map,1,null,default);
         check(s.Graph.Nodes.All(n=>n.Confirmation=="待确认"),"automatic identification is pending, not abnormal");

@@ -8,6 +8,15 @@ if(args.Length==3&&args[0]=="--r131-baseline"){
  full.ApplyRoomFiles(files);var seed=full.PreviewRoomFiles(files).Select(x=>new RoomSeed(x.Name,x.Room,x.Source)).ToArray();File.WriteAllText(Path.Combine(args[2],"机房归属基线.json"),System.Text.Json.JsonSerializer.Serialize(seed,new System.Text.Json.JsonSerializerOptions{Encoder=System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping}));
  var rooms=full.RoomAssignments();Console.WriteLine($"FULL ROOM PASS: baseline={seed.Length} bytes={new FileInfo(Path.Combine(args[2],"机房归属基线.json")).Length} matched_facilities={rooms.Count} room_cores={rooms.Where(x=>x.Enabled).Select(x=>x.Room).Distinct().Count()} cabinet_pending={rooms.Count(x=>x.IsCabinet&&!x.Enabled)} conflicts={rooms.Count(x=>x.Status=="需核对")} graph_logical_groups={full.Graph.ClusterNames.Count}");return;
 }
+if(args.Length==2&&args[0]=="--r132-room-verify"){
+ var full=new Store(args[1]);var g=full.Graph;var rooms=full.RoomAssignments();
+ string a="汕头南澳县南澳综合楼汇聚点四楼机房传输1",b="汕头南澳县后宅汇聚点一楼机房传输1";
+ var rr=Routing.Find(g,new(g.Rooms[a][0],g.Rooms[b][0],1,8,8,RouteOrder.Distance,[],[]));
+ if(!rr.Routes.Any(r=>r.Edges.Length==1&&Math.Abs(r.Length-2044.87)<.01))throw new Exception("real room-to-room example failed");
+ if(rooms.Any(x=>x.IsCabinet&&x.Status=="已确认"&&!x.Enabled&&!x.Source.Contains("人工确认")))throw new Exception("unnecessary cabinet approval gate remains");
+ Console.WriteLine($"FULL R1.3.2 ROOM PASS: source_facilities={rooms.Count} room_names={g.Rooms.Count} cabinets={rooms.Count(x=>x.IsCabinet)} enabled_cabinets={rooms.Count(x=>x.IsCabinet&&x.Enabled)} conflicts={rooms.Count(x=>x.Status=="需核对")} logical_groups={g.ClusterNames.Count}");
+ Console.WriteLine($"FULL room example PASS: {a} -> {b}; 2044.87m; one real segment; 0 jumps; returns={rr.Routes.Count}; limited={rr.Limited}");return;
+}
 if(args.Length==3&&args[0]=="--r13-full"){await R13Checks.Full(args[1],args[2]);return;}
 if(args.Length==2&&args[0]=="--r13-verify"){
  var full=new Store(args[1]);var g=full.Graph;int a=Array.FindIndex(g.Nodes,n=>n.Name.Contains("家美社区雅源美宿公寓1栋2楼")&&n.Name.EndsWith("GF271")),b=Array.FindIndex(g.Nodes,n=>n.Name.Contains("家美社区雅源美宿公寓1栋4楼")&&n.Name.EndsWith("GF272"));

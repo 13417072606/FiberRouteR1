@@ -8,14 +8,14 @@ public sealed partial class MainForm
     {
         maintenanceTabs=inner;var tab=new TabPage("机房归属"){Padding=new Padding(12),BackColor=Color.White};inner.TabPages.Add(tab);
         var actions=Flow();actions.Controls.AddRange([roomSearch,B("筛选",LoadRooms),B("查看成员与确认",ShowRoomMembers),B("导入所属机房表",ImportRoomTables),B("导出归属清单",()=>{var p=Save("机房归属.csv");if(p!=null)Csv.Write(p,new[]{new object?[]{"设施名称","所属机房","确认状态","参与机房整体路由","来源","原因"}}.Concat(store.RoomAssignments().Select(x=>new object?[]{x.Name,x.Room,x.Status,x.Enabled,x.Source,x.Reason})));})]);
-        var note=new Label{Dock=DockStyle.Top,Height=62,Text="以明确的所属机房为核心归并 ODF / ODB；保留实际设施和中继段。光交箱须人工确认后归入机房。\n仅使用所属机房字段，不使用上联机房、站点或名称相似度推断。",ForeColor=Theme.Muted,Padding=new Padding(8)};
+        var note=new Label{Dock=DockStyle.Top,Height=62,Text="以明确的所属机房为核心归并 ODF / ODB；保留实际设施和中继段。明确且无冲突的光交归属参与计算，在路径图内显示提示。\n仅使用所属机房字段，不使用上联机房、站点或名称相似度推断。",ForeColor=Theme.Muted,Padding=new Padding(8)};
         var pager=Flow();pager.Dock=DockStyle.Bottom;pager.Controls.AddRange([roomPageInfo,B("上一页",()=>{if(roomPage.Value>1)roomPage.Value--;LoadRooms();}),roomPage,B("跳转",LoadRooms),B("下一页",()=>{roomPage.Value++;LoadRooms();})]);tab.Controls.Add(roomGrid);tab.Controls.Add(pager);tab.Controls.Add(actions);tab.Controls.Add(note);roomGrid.CellDoubleClick+=(_,e)=>{if(e.RowIndex>=0)ShowRoomMembers();};
     }
     void LoadRooms()
     {
         if(maintenanceTabs==null)return;string term=roomSearch.Text.Trim();visibleRooms=store.RoomAssignments().Where(x=>x.Room.Contains(term,StringComparison.OrdinalIgnoreCase)||x.Name.Contains(term,StringComparison.OrdinalIgnoreCase)).GroupBy(x=>x.Room,StringComparer.Ordinal).OrderBy(x=>x.Key,StringComparer.Ordinal).ToList();
         int pages=Math.Max(1,(visibleRooms.Count+99)/100);if(roomPage.Value>pages)roomPage.Value=pages;int skip=((int)roomPage.Value-1)*100;roomPageInfo.Text=$"共 {visibleRooms.Count:N0} 个机房归属 / {pages} 页";
-        roomGrid.DataSource=visibleRooms.Skip(skip).Take(100).Select((g,i)=>new{序号=i+skip+1,所属机房=g.Key,设施数=g.Count(),已纳入=g.Count(x=>x.Enabled),光交箱待纳入=g.Count(x=>x.IsCabinet&&!x.Enabled),确认状态=g.Any(x=>x.Status=="需核对")?"需核对":"已确认",成员=string.Join("；",g.Select(x=>x.Name))}).ToList();
+        roomGrid.DataSource=visibleRooms.Skip(skip).Take(100).Select((g,i)=>new{序号=i+skip+1,所属机房=g.Key,设施数=g.Count(),已纳入=g.Count(x=>x.Enabled),已暂停光交箱=g.Count(x=>x.IsCabinet&&!x.Enabled),确认状态=g.Any(x=>x.Status=="需核对")?"需核对":"已确认",成员=string.Join("；",g.Select(x=>x.Name))}).ToList();
     }
     void ShowRoomMembers()
     {
@@ -37,13 +37,7 @@ public sealed partial class MainForm
         if(busy)return;using var f=new OpenFileDialog{Filter=TableInput.Filter,Multiselect=true,Title="选择含设施名称和机房名称/所属机房字段的表格"};if(f.ShowDialog()!=DialogResult.OK)return;
         var files=f.FileNames.Select(p=>(p,"",(string?)null)).ToArray();List<RoomAssignment> values=[];if(!await Work("读取明确的所属机房字段…",async ct=>values=await Task.Run(()=>store.PreviewRoomFiles(files,ct),ct)))return;
         if(values.Count==0)throw new InvalidDataException("未找到非空的机房名称/所属机房字段；不会使用上联机房替代。");
-        if(MessageBox.Show($"读取 {values.Count:N0} 条归属。按本次文件替换同来源的归属记录，保留人工启用选择；光交箱需另行确认后纳入。继续？","导入机房归属",MessageBoxButtons.YesNo)!=DialogResult.Yes)return;
-        if(await Work("更新机房归属…",ct=>Task.Run(()=>store.ApplyRoomFiles(files,ct),ct))){RefreshData();ShowRoomNotice();}
-    }
-    void ShowRoomNotice()
-    {
-        var pending=store.RoomAssignments().Where(x=>x.IsCabinet&&!x.Enabled&&x.Status=="已确认").ToArray();if(pending.Length==0)return;string fingerprint=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(string.Join('\n',pending.Select(x=>x.Name+"="+x.Room).Order(StringComparer.Ordinal)))));
-        if(store.Setting("room-cabinet-notice")==fingerprint)return;store.SetSetting("room-cabinet-notice",fingerprint);
-        if(MessageBox.Show(this,$"发现 {pending.Length:N0} 个光交箱具有明确的所属机房，但尚未纳入机房整体路由。\n请核对机房与设施清单，确认后启用。\n\n现在打开机房归属管理？","光交箱归入机房提示",MessageBoxButtons.YesNo,MessageBoxIcon.Information)==DialogResult.Yes){tabs.SelectedIndex=2;if(maintenanceTabs!=null)maintenanceTabs.SelectedIndex=2;}
+        if(MessageBox.Show($"读取 {values.Count:N0} 条归属。按本次文件替换同来源的归属记录，保留人工启用选择；明确且无冲突的光交归属会在路径图内显示提示。继续？","导入机房归属",MessageBoxButtons.YesNo)!=DialogResult.Yes)return;
+        if(await Work("更新机房归属…",ct=>Task.Run(()=>store.ApplyRoomFiles(files,ct),ct))){RefreshData();}
     }
 }

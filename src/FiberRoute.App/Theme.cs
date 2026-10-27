@@ -8,11 +8,35 @@ internal static class Theme
     {
         float d=Math.Min(radius*2,Math.Min(r.Width,r.Height));var p=new GraphicsPath();p.AddArc(r.X,r.Y,d,d,180,90);p.AddArc(r.Right-d,r.Y,d,d,270,90);p.AddArc(r.Right-d,r.Bottom-d,d,d,0,90);p.AddArc(r.X,r.Bottom-d,d,d,90,90);p.CloseFigure();return p;
     }
+    public static (Color Back,Color Fore) BadgeColors(string text) => text switch
+    {
+        "已确认" or "在网" => (Color.FromArgb(222,247,238),Color.FromArgb(0,119,84)),
+        "需核对" or "在建" => (Color.FromArgb(255,241,215),Color.FromArgb(166,92,0)),
+        "待确认" or "未识别" => (Color.FromArgb(233,240,248),Color.FromArgb(82,108,140)),
+        "分纤箱" => (Color.FromArgb(239,231,255),Color.FromArgb(102,59,181)),
+        "光交箱" => (Color.FromArgb(225,240,255),Color.FromArgb(0,107,181)),
+        "机房" or "光终端盒" => (Color.FromArgb(222,248,239),Color.FromArgb(0,120,95)),
+        _ when text.Contains("不足") => (Color.FromArgb(255,235,224),Color.FromArgb(168,64,24)),
+        _ => (Tint,Teal)
+    };
+    public static void Badge(Graphics g,string text,Font font,Rectangle bounds)
+    {
+        var colors=BadgeColors(text);int width=Math.Min(bounds.Width,TextRenderer.MeasureText(text,font).Width+14);
+        if(width<=0||bounds.Height<=0)return;var rect=new Rectangle(bounds.X,bounds.Y,width,bounds.Height);
+        using var path=Round(rect,5);using var b=new SolidBrush(colors.Back);g.FillPath(b,path);
+        TextRenderer.DrawText(g,text,font,Rectangle.Inflate(rect,-5,0),colors.Fore,TextFormatFlags.VerticalCenter|TextFormatFlags.HorizontalCenter|TextFormatFlags.EndEllipsis);
+    }
     public static void Glyph(Graphics g,string kind,Rectangle bounds,Color color)
     {
         var state=g.Save();g.TranslateTransform(bounds.X,bounds.Y);g.ScaleTransform(bounds.Width/24f,bounds.Height/24f);g.SmoothingMode=SmoothingMode.AntiAlias;using var p=new Pen(color,1.8f){StartCap=LineCap.Round,EndCap=LineCap.Round,LineJoin=LineJoin.Round};
         switch(kind)
         {
+            case "list":g.DrawRectangle(p,5,2,14,20);for(int y=7;y<20;y+=5){g.DrawLine(p,9,y,16,y);}break;
+            case "network":g.DrawLine(p,12,6,5,18);g.DrawLine(p,12,6,19,18);g.DrawEllipse(p,9,1,6,6);g.DrawEllipse(p,2,17,6,6);g.DrawEllipse(p,16,17,6,6);break;
+            case "database":g.DrawEllipse(p,3,3,18,6);g.DrawLine(p,3,6,3,19);g.DrawLine(p,21,6,21,19);g.DrawArc(p,3,9,18,6,0,180);g.DrawArc(p,3,16,18,6,0,180);break;
+            case "ruler":g.DrawPolygon(p,new Point[]{new Point(3,17),new Point(17,3),new Point(22,8),new Point(8,22)});for(int i=0;i<4;i++)g.DrawLine(p,7+i*3,15-i*3,9+i*3,17-i*3);break;
+            case "warning":g.DrawPolygon(p,new Point[]{new Point(12,2),new Point(23,21),new Point(1,21)});g.DrawLine(p,12,8,12,14);g.DrawEllipse(p,11.5f,17,1,1);break;
+            case "upload":g.DrawLines(p,new Point[]{new Point(4,14),new Point(4,21),new Point(21,21),new Point(21,14)});g.DrawLine(p,12,3,12,16);g.DrawLines(p,new Point[]{new Point(7,8),new Point(12,3),new Point(17,8)});break;
             case "search":g.DrawEllipse(p,3,3,13,13);g.DrawLine(p,14,14,21,21);break;
             case "swap":g.DrawLines(p,new Point[]{new(8,3),new(8,20),new(3,15)});g.DrawLine(p,8,20,13,15);g.DrawLines(p,new Point[]{new(17,21),new(17,4),new(12,9)});g.DrawLine(p,17,4,22,9);break;
             case "export":g.DrawLines(p,new Point[]{new(4,13),new(4,21),new(21,21),new(21,13)});g.DrawLines(p,new Point[]{new(12,3),new(12,15)});g.DrawLines(p,new Point[]{new(7,10),new(12,15),new(17,10)});break;
@@ -37,6 +61,7 @@ internal sealed class UiButton:Button
     public bool Primary {get;set;}
     public bool Selected {get;set;}
     public bool Navigation {get;set;}
+    public bool Pill {get;set;}
     public string Glyph {get;set;}="";
     bool hover,pressed;
     public UiButton(){FlatStyle=FlatStyle.Flat;FlatAppearance.BorderSize=0;UseVisualStyleBackColor=false;BackColor=Color.White;Cursor=Cursors.Hand;Height=42;Padding=new Padding(12,6,12,6);Margin=new Padding(4);SetStyle(ControlStyles.UserPaint|ControlStyles.OptimizedDoubleBuffer,true);}
@@ -47,9 +72,9 @@ internal sealed class UiButton:Button
     protected override void OnMouseUp(MouseEventArgs e){pressed=false;Invalidate();base.OnMouseUp(e);}
     protected override void OnPaint(PaintEventArgs e)
     {
-        var g=e.Graphics;float scale=DeviceDpi/96f;g.Clear(Parent?.BackColor??Color.White);g.SmoothingMode=SmoothingMode.AntiAlias;Color fill=Primary||Selected&&!Navigation?Theme.Teal:hover?Color.FromArgb(237,246,248):Color.White;Color ink=Primary||Selected&&!Navigation?Color.White:Selected?Theme.Teal:Theme.Ink;if(!Enabled){fill=Color.FromArgb(239,243,247);ink=Theme.Muted;}
+        var g=e.Graphics;float scale=DeviceDpi/96f;g.Clear(Parent?.BackColor??Color.White);g.SmoothingMode=SmoothingMode.AntiAlias;Color fill=Primary?Theme.Teal:Selected&&!Navigation?Theme.Tint:hover?Color.FromArgb(237,246,248):Color.White;Color ink=Primary?Color.White:Selected?Theme.Teal:Theme.Ink;if(!Enabled){fill=Color.FromArgb(239,243,247);ink=Theme.Muted;}
         if(Navigation){g.Clear(Color.White);if(Selected)using(var p=new Pen(Theme.Teal,4*scale){StartCap=LineCap.Round,EndCap=LineCap.Round})g.DrawLine(p,15*scale,Height-3*scale,Width-15*scale,Height-3*scale);}
-        else {using var path=Theme.Round(new RectangleF(1,1,Width-3,Height-3),7);using var b=new SolidBrush(pressed?ControlPaint.Dark(fill,.04f):fill);g.FillPath(b,path);using var p=new Pen(Primary||Selected?Theme.Teal:Theme.Line);g.DrawPath(p,path);}
+        else {using var path=Theme.Round(new RectangleF(1,1,Width-3,Height-3),Pill?Height/2f:7);using var b=new SolidBrush(pressed?ControlPaint.Dark(fill,.04f):fill);g.FillPath(b,path);using var p=new Pen(Primary||Selected?Theme.Teal:Theme.Line);g.DrawPath(p,path);}
         int left=(int)((Glyph.Length>0?36:8)*scale),icon=(int)(21*scale);if(Glyph.Length>0)Theme.Glyph(g,Glyph,new Rectangle((int)(12*scale),(Height-icon)/2,icon,icon),ink);
         TextRenderer.DrawText(g,Text,Font,new Rectangle(left,2,Width-left-(int)(8*scale),Height-5),ink,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
         if(Focused&&ShowFocusCues)ControlPaint.DrawFocusRectangle(g,new Rectangle(5,5,Width-11,Height-11),ink,fill);

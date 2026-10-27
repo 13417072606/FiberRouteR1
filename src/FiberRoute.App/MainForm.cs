@@ -8,22 +8,22 @@ public sealed partial class MainForm:Form
 {
     readonly Store store;
     readonly TabControl tabs=new(){Dock=DockStyle.Fill};
-    readonly Label status=new(){Dock=DockStyle.Bottom,Height=40,Padding=new Padding(12),Text="就绪"};
+    readonly Label status=new(){Dock=DockStyle.Bottom,Height=29,Padding=new Padding(8,5,8,4),Text="就绪"};
     readonly Color accent=Color.FromArgb(8,126,128);
     CancellationTokenSource? job; bool busy; bool resourceRefreshPending; string? errorFile; Graph? routeGraph;RouteOptions? routeOptions;List<Route> routes=[];
     readonly DataGridView routeGrid=Grid(),segments=Grid(),resourceGrid=Grid(),typeGrid=Grid(),importGrid=Grid(),typePreview=Grid();
     readonly PathDiagram pathView=new(){Dock=DockStyle.Fill};
     readonly NumericUpDown demand=Num(1,99999,1),jumps=Num(0,100,8),count=Num(1,50,8),minFree=Num(0,99999,0);
-    readonly ComboBox order=new(){DropDownStyle=ComboBoxStyle.DropDownList,Width=180};
+    readonly ComboBox order=new UiComboBox(){DropDownStyle=ComboBoxStyle.DropDownList,Width=180};
     readonly CheckedListBox avoidTypes=new(){Width=155,Height=112,CheckOnClick=true};
     readonly ListBox avoidNodes=new(){Width=280,Height=80};
     NodePicker start=null!,end=null!,avoid=null!;
     readonly TextBox resourceSearch=new(){Width=300},typeSearch=new(){Width=240};
-    readonly ComboBox resourceType=new(){Width=120,DropDownStyle=ComboBoxStyle.DropDownList},nodeType=new(){Width=120,DropDownStyle=ComboBoxStyle.DropDownList};
+    readonly ComboBox resourceType=new UiComboBox(){Width=120,DropDownStyle=ComboBoxStyle.DropDownList},nodeType=new UiComboBox(){Width=120,DropDownStyle=ComboBoxStyle.DropDownList};
     readonly Label resourceStats=new(){AutoSize=true},pageLabel=new(){AutoSize=true},typeStats=new(){AutoSize=true};
     readonly NumericUpDown page=Num(1,100000,1); const int PageSize=100;
     readonly TextBox importPath=new(){Width=460,ReadOnly=true};
-    readonly ComboBox encoding=new(){Width=120,DropDownStyle=ComboBoxStyle.DropDownList},units=new(){Width=80,DropDownStyle=ComboBoxStyle.DropDownList};
+    readonly ComboBox encoding=new UiComboBox(){Width=120,DropDownStyle=ComboBoxStyle.DropDownList},units=new UiComboBox(){Width=80,DropDownStyle=ComboBoxStyle.DropDownList};
     readonly FlowLayoutPanel mappings=Flow(); readonly Dictionary<string,ComboBox> map=[];
     string[] headers=[]; List<TypeChange> pendingTypes=[]; Button applyTypes=null!;
     readonly TextBox updateUrl=new(){Width=500},updateKey=new(){Multiline=true,Width=500,Height=90,ScrollBars=ScrollBars.Vertical};
@@ -31,26 +31,26 @@ public sealed partial class MainForm:Form
     public MainForm(Store s)
     {
         SuspendLayout();
-        store=s;Text="光路调度智能分析 R1.3.1";Width=1440;Height=950;MinimumSize=new Size(1100,760);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Microsoft YaHei UI",11);BackColor=Theme.Canvas;ForeColor=Theme.Ink;
+        store=s;Text="光路调度智能分析 R1.3.2";Width=1280;Height=800;MinimumSize=new Size(1080,700);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Microsoft YaHei UI",10);BackColor=Theme.Canvas;ForeColor=Theme.Ink;
         AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;
         tabs.Appearance=TabAppearance.FlatButtons;tabs.ItemSize=new Size(1,1);tabs.SizeMode=TabSizeMode.Fixed;
         Controls.Add(tabs);Controls.Add(status);BuildRoutes();BuildResources();BuildTypes();BuildImport();Controls.Add(BuildHeader());InstallLayoutMemory();RefreshData();
         FormClosing+=(_,e)=>{if(busy){job?.Cancel();e.Cancel=true;MessageBox.Show("正在停止后台任务，完成后可关闭。");}};
-        Shown+=(_,_)=>{RestoreRouteSettings();BeginInvoke((Action)ShowRoomNotice);};
+        Shown+=(_,_)=>RestoreRouteSettings();
         AutoScaleDimensions=new SizeF(96,96);ResumeLayout(true);
     }
-    static DataGridView Grid()=>new(){Dock=DockStyle.Fill,ReadOnly=true,AllowUserToAddRows=false,AllowUserToDeleteRows=false,AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.None,AllowUserToResizeColumns=true,AllowUserToResizeRows=true,AllowUserToOrderColumns=true,AutoSizeRowsMode=DataGridViewAutoSizeRowsMode.None,BorderStyle=BorderStyle.None,GridColor=Theme.Line,RowTemplate={Height=48},DefaultCellStyle={WrapMode=DataGridViewTriState.True,Padding=new Padding(8,6,8,6),ForeColor=Theme.Ink,SelectionBackColor=Theme.Tint,SelectionForeColor=Theme.Ink},ColumnHeadersDefaultCellStyle={BackColor=Color.FromArgb(239,244,250),ForeColor=Theme.Ink,SelectionBackColor=Color.FromArgb(239,244,250),SelectionForeColor=Theme.Ink,Padding=new Padding(8,10,8,10),WrapMode=DataGridViewTriState.True,Alignment=DataGridViewContentAlignment.MiddleLeft},ColumnHeadersHeight=52,ColumnHeadersHeightSizeMode=DataGridViewColumnHeadersHeightSizeMode.AutoSize,EnableHeadersVisualStyles=false,SelectionMode=DataGridViewSelectionMode.FullRowSelect,MultiSelect=false,BackgroundColor=Color.White,RowHeadersVisible=true,RowHeadersWidth=24,AutoGenerateColumns=true,ScrollBars=ScrollBars.Both};
+    static DataGridView Grid()=>new(){Dock=DockStyle.Fill,ReadOnly=true,AllowUserToAddRows=false,AllowUserToDeleteRows=false,AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.None,AllowUserToResizeColumns=true,AllowUserToResizeRows=true,AllowUserToOrderColumns=true,AutoSizeRowsMode=DataGridViewAutoSizeRowsMode.None,BorderStyle=BorderStyle.None,GridColor=Theme.Line,RowTemplate={Height=40},DefaultCellStyle={WrapMode=DataGridViewTriState.True,Padding=new Padding(9,5,9,5),ForeColor=Theme.Ink,SelectionBackColor=Theme.Tint,SelectionForeColor=Theme.Ink},ColumnHeadersDefaultCellStyle={BackColor=Color.FromArgb(239,244,250),ForeColor=Theme.Ink,SelectionBackColor=Color.FromArgb(239,244,250),SelectionForeColor=Theme.Ink,Padding=new Padding(9,8,9,8),WrapMode=DataGridViewTriState.True,Alignment=DataGridViewContentAlignment.MiddleLeft},ColumnHeadersHeight=52,ColumnHeadersHeightSizeMode=DataGridViewColumnHeadersHeightSizeMode.AutoSize,EnableHeadersVisualStyles=false,SelectionMode=DataGridViewSelectionMode.FullRowSelect,MultiSelect=false,BackgroundColor=Color.White,RowHeadersVisible=false,RowHeadersWidth=24,CellBorderStyle=DataGridViewCellBorderStyle.None,ColumnHeadersBorderStyle=DataGridViewHeaderBorderStyle.None,RowHeadersBorderStyle=DataGridViewHeaderBorderStyle.None,AutoGenerateColumns=true,ScrollBars=ScrollBars.Both};
     static NumericUpDown Num(int min,int max,int val)=>new(){Minimum=min,Maximum=max,Value=val,Width=110,AutoSize=false,Height=38,MinimumSize=new Size(70,34)};
     static FlowLayoutPanel Flow()=>new(){Dock=DockStyle.Top,AutoSize=true,WrapContents=true,Padding=new Padding(8)};
     static Label L(string text)=>new(){Text=text,AutoSize=true,Margin=new Padding(6,8,6,4)};
     Button B(string text,Action action) {var b=new UiButton(){Text=text,AutoSize=true,MinimumSize=new Size(72,40),Primary=text.StartsWith("确认")||text.StartsWith("查询")||text.StartsWith("导入")||text.StartsWith("保存")};b.Click+=(_,_)=>{try{action();}catch(Exception e){MessageBox.Show(e.Message,"光路调度智能分析");}};return b;}
     Button B(string text,Func<Task> action)
     {return B(text,()=>{_ = Run();});async Task Run(){try{await action();}catch(Exception e){MessageBox.Show(e.Message,"操作失败",MessageBoxButtons.OK,MessageBoxIcon.Error);}}}
-    TabPage Tab(string title) {var p=new TabPage(title){Padding=new Padding(14),BackColor=BackColor};tabs.TabPages.Add(p);return p;}
+    TabPage Tab(string title) {var p=new TabPage(title){Padding=new Padding(10),BackColor=BackColor};tabs.TabPages.Add(p);return p;}
     async Task<bool> Work(string label,Func<CancellationToken,Task> work)
     {
-        if(busy){MessageBox.Show("请等待当前任务完成或停止任务。");return false;}busy=true;job=new();status.Text=label;
-        try{await work(job.Token);return true;}catch(OperationCanceledException){status.Text="已取消，原数据保持不变";return false;}catch(Exception e){errorFile=Directory.GetFiles(store.Root,"导入异常-*.csv").OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();status.Text="失败："+e.Message;MessageBox.Show(e.Message,"操作失败",MessageBoxButtons.OK,MessageBoxIcon.Error);return false;}finally{busy=false;job.Dispose();job=null;if(resourceRefreshPending){resourceRefreshPending=false;BeginInvoke((Action)LoadResources);}}
+        if(busy){MessageBox.Show("请等待当前任务完成或停止任务。");return false;}busy=true;requireCapacity.Enabled=false;job=new();status.Text=label;
+        try{await work(job.Token);return true;}catch(OperationCanceledException){status.Text="已取消，原数据保持不变";return false;}catch(Exception e){errorFile=Directory.GetFiles(store.Root,"导入异常-*.csv").OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();status.Text="失败："+e.Message;MessageBox.Show(e.Message,"操作失败",MessageBoxButtons.OK,MessageBoxIcon.Error);return false;}finally{busy=false;requireCapacity.Enabled=true;job.Dispose();job=null;if(resourceRefreshPending){resourceRefreshPending=false;BeginInvoke((Action)LoadResources);}}
     }
     void BuildRoutes()
     {
@@ -60,11 +60,11 @@ public sealed partial class MainForm:Form
     async Task SearchRoutes()
     {
         if(start.Selected is not Node a||end.Selected is not Node b)throw new InvalidOperationException("请从搜索结果中选择完整起终点");
-        var opts=new RouteOptions(a.Id,b.Id,(int)demand.Value,(int)jumps.Value,(int)count.Value,(RouteOrder)order.SelectedIndex,avoidTypes.CheckedItems.Cast<string>().ToHashSet(),avoidNodes.Items.Cast<Node>().Select(x=>x.Id).ToHashSet());
-        store.SetSetting("route",JsonSerializer.Serialize(new{a=a.Name,b=b.Name,demand=(int)demand.Value,jumps=(int)jumps.Value,count=(int)count.Value,order=order.SelectedIndex,types=opts.AvoidTypes,nodes=avoidNodes.Items.Cast<Node>().Select(x=>x.Name).ToArray()}));
+        var opts=new RouteOptions(a.Id,b.Id,(int)demand.Value,(int)jumps.Value,(int)count.Value,(RouteOrder)order.SelectedIndex,avoidTypes.CheckedItems.Cast<string>().ToHashSet(),avoidNodes.Items.Cast<Node>().Select(x=>x.Id).ToHashSet(),RequireCapacity:requireCapacity.Checked);
+        store.SetSetting("route",JsonSerializer.Serialize(new{a=a.Name,b=b.Name,demand=(int)demand.Value,jumps=(int)jumps.Value,count=(int)count.Value,order=order.SelectedIndex,capacityOnly=requireCapacity.Checked,types=opts.AvoidTypes,nodes=avoidNodes.Items.Cast<Node>().Select(x=>x.Name).ToArray()}));
         await Work("正在计算…",async ct=>{
             var g=store.Graph;var result=await Task.Run(()=>Routing.Find(g,opts,ct));routeGraph=g;routeOptions=opts;routes=result.Routes;
-            routeGrid.DataSource=routes.Select((r,i)=>new{方案=i+1,已记录米=Math.Round(r.Length,2),未知长度段=r.Unknown,零长度段=r.Zero,跳纤=r.Jumps,瓶颈空闲=r.Bottleneck,需求后余量=r.Edges.Length==0?"内部关系未核验":(r.Bottleneck-opts.Demand).ToString()}).ToList();
+            routeGrid.DataSource=routes.Select((r,i)=>new{方案=i+1,容量状态=r.CapacityStatus(opts.Demand),已记录米=Math.Round(r.Length,2),未知长度段=r.Unknown,零长度段=r.Zero,跳纤=r.Jumps,瓶颈空闲=r.Bottleneck,需求后余量=r.Edges.Length==0?"内部关系未核验":(r.Bottleneck-opts.Demand).ToString()}).ToList();
             UpdateRouteSummary(result);
             status.Text=$"{routes.Count} 个方案 · 扩展 {result.Expansions:N0} · {result.ElapsedMs} ms · "+(result.Cancelled?"已停止，结果不完整":result.Limited?"达到搜索上限，结果不完整，不能保证最优":routes.Count>=opts.Count?"按所选指标从优到次返回；同值顺序不保证":"搜索完成");ShowRoute();if(routes.Any(x=>x.Transfers.Length>0))status.Text+=" · 含集群内部关系，内部可用芯数未单独核验";
         });
@@ -73,16 +73,18 @@ public sealed partial class MainForm:Form
     {
         if(routeGraph is not Graph g||routeOptions is not RouteOptions o)return;int ix=schemeChoice.SelectedIndex;if(ix<0||ix>=routes.Count)return;var r=routes[ix];
         pathView.SetRoute(g,r);
-        segments.DataSource=r.Edges.Select((i,j)=>{var e=g.Edges[i];var step=r.Steps.ElementAtOrDefault(j);return new{中继段_ID=$"{j+1} / {e.Id}",起端设施=g.Nodes[step?.From??e.A].Name,终端设施=g.Nodes[step?.To??e.B].Name,长度米=e.Length?.ToString("0.##",CultureInfo.InvariantCulture)??"未知",空闲_总芯=$"{e.Free} / {e.Total}",需求后余量=e.Free-o.Demand};}).ToList();
+        routeMetrics.BackColor=r.Edges.Length>0&&!r.HasCapacity(o.Demand)?Color.FromArgb(255,240,224):Theme.Tint;
+        routeMetrics.Text=$"方案 {ix+1:00}  ·  {r.CapacityStatus(o.Demand)}  ·  {r.Length:0.##} 米  ·  跳纤 {r.Jumps} 次  ·  瓶颈空闲 {r.Bottleneck} 芯\n未知长度 {r.Unknown} 段  ·  零长度 {r.Zero} 段";
+        segments.DataSource=r.Edges.Select((i,j)=>{var e=g.Edges[i];var step=r.Steps.ElementAtOrDefault(j);return new{序号=j+1,起端设施=g.Nodes[step?.From??e.A].Name,终端设施=g.Nodes[step?.To??e.B].Name,长度米=e.Length?.ToString("0.##",CultureInfo.InvariantCulture)??"未知",空闲_总芯=$"{e.Free} / {e.Total}",需求后余量=e.Free-o.Demand};}).ToList();
         foreach(DataGridViewColumn c in segments.Columns)c.HeaderText=c.Name=="长度米"?"长度（米）":c.Name.Replace("_"," / ");
     }
-    void ClearRoutes(){routes=[];routeGraph=null;routeOptions=null;routeGrid.DataSource=null;segments.DataSource=null;pathView.Clear();schemeChoice.Items.Clear();routeSummary.Text="选择起终点，查询可用光路";}
-    void ExportRoutes()
+    void ClearRoutes(){routes=[];routeGraph=null;routeOptions=null;routeGrid.DataSource=null;segments.DataSource=null;pathView.Clear();schemeChoice.Items.Clear();routeSummary.Text="候选路由 · 选择起终点后查询";routeMetrics.Text="";}
+    void ExportRoutes(bool currentOnly=false)
     {
         if(routeGraph is not Graph g||routeOptions is not RouteOptions o||routes.Count==0)throw new InvalidOperationException("无方案可导出");
         var path=Save("路由方案.csv");if(path==null)return;
-        var rows=new List<object?[]>{new object?[]{"资源版本","方案","排序方式","需求芯数","最大跳纤","规避类型","规避节点","总已记录米","未知长度段","零长度段","跳纤","瓶颈空闲","段序","原始ID","中继段","始端","终端","长度米","空闲","总芯","需求后余量"}};
-        for(int i=0;i<routes.Count;i++){var r=routes[i];for(int j=0;j<r.Edges.Length;j++){var e=g.Edges[r.Edges[j]];rows.Add([g.Version,i+1,o.Order,o.Demand,o.MaxJumps,string.Join(';',o.AvoidTypes),string.Join(';',o.AvoidNodes.Select(n=>g.Nodes[n].Name)),r.Length,r.Unknown,r.Zero,r.Jumps,r.Bottleneck,j+1,e.Id,e.Name,g.Nodes[r.Steps.Length>j?r.Steps[j].From:r.Nodes[j]].Name,g.Nodes[r.Steps.Length>j?r.Steps[j].To:r.Nodes[j+1]].Name,e.Length,e.Free,e.Total,e.Free-o.Demand]);}}
+        var rows=new List<object?[]>{new object?[]{"资源版本","方案","排序方式","容量状态","仅看满足需求芯数","需求芯数","最大跳纤","规避类型","规避节点","总已记录米","未知长度段","零长度段","跳纤","瓶颈空闲","段序","原始ID","中继段","始端","终端","长度米","空闲","总芯","需求后余量"}};
+        for(int i=0;i<routes.Count;i++){if(currentOnly&&i!=schemeChoice.SelectedIndex)continue;var r=routes[i];for(int j=0;j<r.Edges.Length;j++){var e=g.Edges[r.Edges[j]];rows.Add([g.Version,i+1,order.Items[(int)o.Order]?.ToString(),r.CapacityStatus(o.Demand),o.RequireCapacity,o.Demand,o.MaxJumps,string.Join(';',o.AvoidTypes),string.Join(';',o.AvoidNodes.Select(n=>g.Nodes[n].Name)),r.Length,r.Unknown,r.Zero,r.Jumps,r.Bottleneck,j+1,e.Id,e.Name,g.Nodes[r.Steps.Length>j?r.Steps[j].From:r.Nodes[j]].Name,g.Nodes[r.Steps.Length>j?r.Steps[j].To:r.Nodes[j+1]].Name,e.Length,e.Free,e.Total,e.Free-o.Demand]);}}
         Csv.Write(path,rows);status.Text="方案已导出；CSV ID 为文本内容，Excel 打开时请按文本列导入。";
     }
     void BuildResources()=>BuildResourceWorkspace();
@@ -103,9 +105,9 @@ public sealed partial class MainForm:Form
         var g=store.Graph;string term=resourceSearch.Text.Trim(),type=resourceType.SelectedItem as string??"全部";int minimum=(int)minFree.Value;Edge[] filtered=[];
         bool ok=await Work("正在筛选资源…",async ct=>{
             filtered=await Task.Run(()=>{var ids=term.Length>0?SearchRaw(term):null;ct.ThrowIfCancellationRequested();return g.Edges.Where(e=>e.Free>=minimum&&(ids==null||ids.Contains(e.Index))&&(type=="全部"||g.Nodes[e.A].Type.Split(';').Contains(type)||g.Nodes[e.B].Type.Split(';').Contains(type))).ToArray();},ct);
-        });if(!ok)return;int pages=Math.Max(1,(filtered.Length+PageSize-1)/PageSize);if(page.Value>pages)page.Value=pages;pageLabel.Text=$"共 {filtered.Length:N0} 条 / {pages} 页（每页100）";
-        resourceGrid.DataSource=filtered.Skip(((int)page.Value-1)*PageSize).Take(PageSize).Select(e=>new{内部序号=e.Index,ID=e.Id,名称=e.Name,始端=g.Nodes[e.A].Name,终端=g.Nodes[e.B].Name,始端类型=g.Nodes[e.A].Type,终端类型=g.Nodes[e.B].Type,长度米=e.Length?.ToString("0.##")??"未知",空闲=e.Free,总芯=e.Total,业务状态=RawStatus(e.Index)}).ToList();
-        if(resourceGrid.Columns.Contains("内部序号"))resourceGrid.Columns["内部序号"].Visible=false;
+        });if(!ok)return;int pages=Math.Max(1,(filtered.Length+resourcePageSize-1)/resourcePageSize);if(page.Value>pages)page.Value=pages;pageLabel.Text=$"共 {filtered.Length:N0} 条 / {pages} 页";
+        resourceGrid.DataSource=filtered.Skip(((int)page.Value-1)*resourcePageSize).Take(resourcePageSize).Select((e,slot)=>new{内部序号=e.Index,序号=((int)page.Value-1)*resourcePageSize+slot+1,始端设施=g.Nodes[e.A].Name,终端设施=g.Nodes[e.B].Name,长度米=e.Length?.ToString("0.##")??"未知",空闲_总芯=$"{e.Free} / {e.Total}",业务状态=RawStatus(e.Index),操作="详情"}).ToList();
+        if(resourceGrid.Columns.Contains("内部序号"))resourceGrid.Columns["内部序号"].Visible=false;foreach(DataGridViewColumn c in resourceGrid.Columns)c.HeaderText=c.Name=="长度米"?"长度（米）":c.Name.Replace("_"," / ");
         status.Text=$"本地数据 · 已就绪    |    中继段 {g.Edges.Length:N0} 条    |    资源快照：{g.Version}";
     }
     async Task ExportResources()
@@ -130,8 +132,8 @@ public sealed partial class MainForm:Form
     {
         if(busy)return;using var file=new OpenFileDialog{Filter=TableInput.Filter};if(file.ShowDialog()!=DialogResult.OK)return;
         using var dialog=new Form{Text="节点类型表 · 格式、工作表及字段映射",Width=680,Height=540,StartPosition=FormStartPosition.CenterParent,Font=Font};
-        var panel=Stack();var enc=new ComboBox{Width=240,DropDownStyle=ComboBoxStyle.DropDownList};enc.Items.AddRange(["自动","UTF-8","GB18030","GBK","utf-16","utf-16BE"]);enc.SelectedIndex=0;
-        var sheet=new ComboBox{Width=300,DropDownStyle=ComboBoxStyle.DropDownList};var nc=new ComboBox{Width=300,DropDownStyle=ComboBoxStyle.DropDownList};var tc=new ComboBox{Width=300,DropDownStyle=ComboBoxStyle.DropDownList};var info=L("");
+        var panel=Stack();var enc=new UiComboBox{Width=240,DropDownStyle=ComboBoxStyle.DropDownList};enc.Items.AddRange(["自动","UTF-8","GB18030","GBK","utf-16","utf-16BE"]);enc.SelectedIndex=0;
+        var sheet=new UiComboBox{Width=300,DropDownStyle=ComboBoxStyle.DropDownList};var nc=new UiComboBox{Width=300,DropDownStyle=ComboBoxStyle.DropDownList};var tc=new UiComboBox{Width=300,DropDownStyle=ComboBoxStyle.DropDownList};var info=L("");
         string? key=null;string detected="自动";
         string Key()=>enc.Text+"\n"+sheet.Text;
         async Task Read()
@@ -151,22 +153,7 @@ public sealed partial class MainForm:Form
         })]);dialog.Controls.Add(panel);await Read();
         if(dialog.ShowDialog(this)==DialogResult.OK){typePreview.DataSource=pendingTypes.Select(x=>new{节点=x.Name,原类型=x.Before,新类型=x.After,校验=x.Status}).ToList();applyTypes.Enabled=pendingTypes.Any(x=>x.Status=="可更新");typeStats.Text=$"预览 {pendingTypes.Count} 行 · 可更新 {pendingTypes.Count(x=>x.Status=="可更新")} · 未匹配 {pendingTypes.Count(x=>x.Status=="未匹配")} · 空类型 {pendingTypes.Count(x=>x.Status=="空类型")} · 冲突 {pendingTypes.Count(x=>x.Status=="同名类型冲突")}";}
     }
-    void BuildImport()
-    {
-        var tab=Tab("数据导入");resourceFormat.Items.AddRange(["标准CSV / Excel","原始导出17列（末列多值）"]);resourceFormat.SelectedIndex=0;encoding.Items.AddRange(["自动","UTF-8","GB18030","GBK","utf-16","utf-16BE"]);encoding.SelectedIndex=0;
-        units.Items.AddRange(["米","千米"]);units.SelectedIndex=0;importPath.Dock=DockStyle.None;
-        var left=Stack();
-        left.Controls.AddRange([L("01  选择资源文件"),importPath,B("选择 CSV / XLS / XLSX",async()=>{
-            if(busy)return;using var d=new OpenFileDialog{Filter=TableInput.Filter};if(d.ShowDialog()!=DialogResult.OK)return;
-            importPath.Text=d.FileName;sheets.Items.Clear();if(Path.GetExtension(d.FileName).Equals(".csv",StringComparison.OrdinalIgnoreCase))resourceFormat.SelectedIndex=await Task.Run(()=>Csv.IsResourceExport(d.FileName,"自动"))?1:0;else resourceFormat.SelectedIndex=0;await ReadPreview();}),L("读取格式"),resourceFormat,L("CSV编码（默认自动）"),encoding,inputInfo,
-            L("Excel工作表（切换后重新预览）"),sheets,L("原表长度单位"),units,B("读取 / 刷新预览",async()=>await ReadPreview()),
-            B("载入附带调测数据",async()=>{if(busy)return;importPath.Text=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","资源","调测中继段.csv"));encoding.SelectedIndex=0;sheets.Items.Clear();units.SelectedIndex=0;await ReadPreview();}),
-            L("02  字段映射（*为必需）"),mappings]);
-        mappings.FlowDirection=FlowDirection.TopDown;mappings.WrapContents=false;mappings.Dock=DockStyle.None;mappings.Width=300;
-        var confirm=Flow();confirm.Controls.AddRange([B("确认校验并替换资源",async()=>await ImportData()),B("停止导入",()=>job?.Cancel()),B("导出上次异常",()=>{if(errorFile==null||!File.Exists(errorFile))throw new InvalidOperationException("暂无异常报告");var p=Save("导入异常.csv");if(p!=null)File.Copy(errorFile,p,true);}),B("回退上一版",()=>{if(busy)return;if(MessageBox.Show("切换到上一版资源？人工类型及设置保留。","确认回退",MessageBoxButtons.YesNo)==DialogResult.Yes){store.Rollback();store.SetSetting("remoteResourceVersion","");RefreshData();}})]);
-        var right=new Panel{Dock=DockStyle.Fill};right.Controls.Add(Card("数据预览 · 前20条，确认后后台全量校验",importGrid));right.Controls.Add(confirm);right.Controls.Add(previewStats);
-        tab.Controls.Add(Columns(30,left,70,right));
-    }
+    void BuildImport()=>BuildImportWorkspace();
 
     async Task ReadPreview()
     {
@@ -183,11 +170,12 @@ public sealed partial class MainForm:Form
             sheets.Enabled=result.info.Format!="CSV";encoding.Enabled=result.info.Format=="CSV";
             inputInfo.Text=$"格式：{result.info.Format}  ·  编码：{result.info.Encoding}";
             headers=result.rows[0].Select(x=>x.Trim()).ToArray();if(headers.Any(string.IsNullOrWhiteSpace)||headers.Distinct().Count()!=headers.Length)throw new InvalidDataException("表头存在空白或重名，请检查表头行");
-            foreach(string field in Store.Fields){var combo=new ComboBox{Width=240,DropDownStyle=ComboBoxStyle.DropDownList};combo.Items.Add("（无）");combo.Items.AddRange(headers);combo.SelectedItem=headers.Contains(field)?field:"（无）";mappings.Controls.Add(L(field+(Store.Required.Contains(field)?"*":"")));mappings.Controls.Add(combo);map[field]=combo;}
-            var data=new DataTable();foreach(var h in headers)data.Columns.Add(h);foreach(var r in result.rows.Skip(1)){var row=data.NewRow();for(int i=0;i<Math.Min(r.Length,headers.Length);i++)row[i]=r[i];data.Rows.Add(row);}importGrid.DataSource=data;
+            foreach(string field in new[]{"始端设施","终端设施","空闲数量","中继纤芯数量","ID","名称","长度","始端类型","终端类型"}){var combo=new UiComboBox{Width=240};combo.Items.Add("（无）");combo.Items.AddRange(headers);combo.SelectedItem=headers.Contains(field)?field:"（无）";map[field]=combo;mappings.Controls.Add(MappingRow(field,combo));combo.SelectedIndexChanged+=(_,_)=>UpdateImportPreviewColumns();}
+            mappings.Height=map.Count*41+5;foreach(Control rowControl in mappings.Controls)rowControl.Width=Math.Max(140,mappings.ClientSize.Width-5);
+            var data=new DataTable();foreach(var h in headers)data.Columns.Add(h);foreach(var r in result.rows.Skip(1)){var row=data.NewRow();for(int i=0;i<Math.Min(r.Length,headers.Length);i++)row[i]=r[i];data.Rows.Add(row);}importGrid.DataSource=data;UpdateImportPreviewColumns();
             detectedEncoding=result.info.Format=="CSV"?result.info.Encoding:enc;previewKey=InputKey();
-            previewStats.Text=$"预览 {data.Rows.Count} 条 · {headers.Length} 个字段 · 缺少自动映射 {Store.Required.Count(f=>!headers.Contains(f))} 项（请在左侧映射）\n全量校验在确认后执行；异常隔离，失败或停止保留原库。";
-            status.Text="预览完成。请核对编码、读取格式、工作表、ID和字段映射后确认导入。";
+            previewStats.Text=$"预览 {data.Rows.Count} 条 · {headers.Length} 个字段 · 必需字段未映射 {Store.Required.Count(f=>map[f].Text=="（无）")} 项\n等待全量校验 · 确认后执行；异常隔离。";
+            status.Text="预览完成。请核对编码、读取格式、工作表、ID和字段映射后确认导入。";importGrid.Focus();if(importMappingBody!=null)importMappingBody.AutoScrollPosition=Point.Empty;
         });
     }
 
@@ -203,13 +191,14 @@ public sealed partial class MainForm:Form
     void RefreshData()
     {
         UpdateStats();ClearRoutes();pendingTypes=[];typePreview.DataSource=null;if(applyTypes!=null)applyTypes.Enabled=false;start?.Clear();end?.Clear();avoid?.Clear();avoidNodes.Items.Clear();var types=store.Graph.Nodes.SelectMany(n=>n.Type.Split(';',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries)).Concat(new[]{"站点","机房","光交箱","分纤箱","未识别"}).Distinct().Order().ToArray();
+        editType.Items.Clear();editType.Items.AddRange(types);
         var checkedTypes=avoidTypes.CheckedItems.Cast<string>().ToHashSet();avoidTypes.Items.Clear();foreach(var t in types)avoidTypes.Items.Add(t,checkedTypes.Contains(t));
         foreach(var c in new[]{resourceType,nodeType}){var old=c.SelectedItem;c.Items.Clear();c.Items.Add("全部");c.Items.AddRange(types);c.SelectedItem=old!=null&&c.Items.Contains(old)?old:"全部";}
         var g=store.Graph;resourceStats.Text=$"{g.Edges.Length:N0} 段 / {g.Nodes.Length:N0} 节点 / 已记录 {g.Edges.Sum(e=>e.Length??0):N2} 米 / 空闲逐段合计 {g.Edges.Sum(e=>(long)e.Free):N0} 芯（非路由数） / 版本 {g.Version}";LoadResources();LoadTypes();LoadClusters();LoadRooms();
     }
     void RestoreRouteSettings()
     {
-        try{if(store.Setting("route") is not string s)return;var r=JsonDocument.Parse(s).RootElement;demand.Value=Math.Clamp(r.GetProperty("demand").GetInt32(),1,99999);jumps.Value=Math.Clamp(r.GetProperty("jumps").GetInt32(),0,100);count.Value=Math.Clamp(r.GetProperty("count").GetInt32(),1,50);order.SelectedIndex=Math.Clamp(r.GetProperty("order").GetInt32(),0,3);start.SelectNode(store.Graph.Nodes.FirstOrDefault(n=>n.Name==r.GetProperty("a").GetString()));end.SelectNode(store.Graph.Nodes.FirstOrDefault(n=>n.Name==r.GetProperty("b").GetString()));var ts=r.GetProperty("types").EnumerateArray().Select(x=>x.GetString()).ToHashSet();for(int i=0;i<avoidTypes.Items.Count;i++)avoidTypes.SetItemChecked(i,ts.Contains(avoidTypes.Items[i].ToString()));foreach(var name in r.GetProperty("nodes").EnumerateArray()){var node=store.Graph.Nodes.FirstOrDefault(n=>n.Name==name.GetString());if(node!=null)avoidNodes.Items.Add(node);}}catch{/* Older or damaged personal query preferences are optional. */}
+        try{if(store.Setting("route") is not string s)return;var r=JsonDocument.Parse(s).RootElement;showingRoute=true;requireCapacity.Checked=!r.TryGetProperty("capacityOnly",out var cap)||cap.GetBoolean();showingRoute=false;demand.Value=Math.Clamp(r.GetProperty("demand").GetInt32(),1,99999);jumps.Value=Math.Clamp(r.GetProperty("jumps").GetInt32(),0,100);count.Value=Math.Clamp(r.GetProperty("count").GetInt32(),1,50);order.SelectedIndex=Math.Clamp(r.GetProperty("order").GetInt32(),0,3);start.SelectNode(store.Graph.Nodes.FirstOrDefault(n=>n.Name==r.GetProperty("a").GetString()));end.SelectNode(store.Graph.Nodes.FirstOrDefault(n=>n.Name==r.GetProperty("b").GetString()));var ts=r.GetProperty("types").EnumerateArray().Select(x=>x.GetString()).ToHashSet();for(int i=0;i<avoidTypes.Items.Count;i++)avoidTypes.SetItemChecked(i,ts.Contains(avoidTypes.Items[i].ToString()));foreach(var name in r.GetProperty("nodes").EnumerateArray()){var node=store.Graph.Nodes.FirstOrDefault(n=>n.Name==name.GetString());if(node!=null)avoidNodes.Items.Add(node);}}catch{/* Older or damaged personal query preferences are optional. */}finally{showingRoute=false;}
     }
     static string? Save(string name) {string dir=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","导出结果"));try{Directory.CreateDirectory(dir);}catch{dir=Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);}using var d=new SaveFileDialog(){FileName=name,Filter="CSV文件|*.csv",InitialDirectory=dir};return d.ShowDialog()==DialogResult.OK?d.FileName:null;}
 
