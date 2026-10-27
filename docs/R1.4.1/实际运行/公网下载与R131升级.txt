@@ -1,0 +1,2 @@
+PASS public pinned bootstrap bytes and SHA256
+PASS public pinned offline bundle -> verified inner ZIP/script -> R1.3.1 fixture upgrade, DB bytes unchanged, temporary extraction cleaned. Shell adapters used on Linux; native GUI separately tested in Wine.

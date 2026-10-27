@@ -2,6 +2,8 @@
 
 [下载完整修订安装包](FiberRouteR1-R1.4.1-install.zip?raw=true) · [管理员PowerShell下载脚本](Download-Install-R1.4.1.ps1?raw=true) · [修改清单](../../docs/R1.4.1/R1.4.1修改清单.md) · [实际运行与验证](../../docs/R1.4.1/实际运行/)
 
+[复制管理员PowerShell命令](管理员PowerShell安装.txt)：关闭软件，在管理员Windows PowerShell完整粘贴，弹窗选择原运行目录，成功后从原快捷方式启动。命令有两个下载入口、重试及固定SHA256校验。
+
 适用于已交付R1.3、R1.3.1、R1.3.2、R1.3.3、R1.3.4及R1.4，包含此前修改，无须逐个安装。关闭主程序、管理方工具和品牌工具，使用PowerShell下载脚本，选择原运行目录。保留数据库与人工记录，从原快捷方式启动，标题R1.4.1。内部patch.zip不要再次解压。
 
 安装后原运行目录新增：
