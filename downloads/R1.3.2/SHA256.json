@@ -36,11 +36,19 @@
     "Sha256": "e9e944762ad5f6d799d4d6d8dc470e6e4593b1d7ee381a267d9ce57434cd8aa0"
   },
   "README.md": {
-    "Size": 2394,
-    "Sha256": "2f1f8fc0d84e571ac508c540bd9060594de8f655ad24117c0a1ab33dbc1cb3f2"
+    "Size": 2446,
+    "Sha256": "6fba7c1b2183fecc928a939897f2639f211d94c920720f97d7be34dff9a36519"
   },
   "验证结果.txt": {
     "Size": 1867,
     "Sha256": "bbd001b58b7889856541cea7883778a1ac8847be2dd9bb860fcf139cfe35318d"
+  },
+  "FiberRouteR1-R1.3.2-source.zip": {
+    "Size": 9360228,
+    "Sha256": "6e89a3e021a09d5f7448200e2cbd108988d6db2f6115ebc873e081cb598e9547"
+  },
+  "制品提交.txt": {
+    "Size": 41,
+    "Sha256": "0330c0cfcb3c1a42f8d5561e741aad0e6ae8d019c2c17c0141f5917a942637b9"
   }
 }

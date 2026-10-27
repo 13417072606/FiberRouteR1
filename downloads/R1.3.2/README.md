@@ -4,6 +4,7 @@
 
 - [安装小补丁脚本](Install-R1.3.2-patch.ps1) · [补丁ZIP，约1MB](FiberRouteR1-R1.3.2-patch.zip)
 - [完整程序和数据下载脚本](Download-R1.3.2.ps1)：首次安装使用，下载5个程序分卷及复用的4个数据分卷，断点续传、逐份/整包校验后合并解压。
+- [源码及说明](FiberRouteR1-R1.3.2-source.zip)
 - [完整程序ZIP](FiberRouteR1-win-x64-R1.3.2.zip)：不包含全量数据库；已有用户优先用小补丁。
 - [12项修改清单](../../docs/R1.3.2修改清单.md) · [实际运行截图](../../docs/R1.3.2-preview/) · [验证记录](验证结果.txt) · [SHA256](SHA256.json)
 
