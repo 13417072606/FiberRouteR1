@@ -49,8 +49,8 @@ if ($OfflineZip) {
         $curl = Get-Command curl.exe -CommandType Application -ErrorAction Stop
         $part = $zip + '.partial'
         $urls = @(
-            'https://api.github.com/repos/13417072606/FiberRouteR1/contents/downloads/R1.3.4/FiberRouteR1-R1.3.4-patch.zip?ref=__ARTIFACT_COMMIT__',
-            'https://raw.githubusercontent.com/13417072606/FiberRouteR1/__ARTIFACT_COMMIT__/downloads/R1.3.4/FiberRouteR1-R1.3.4-patch.zip'
+            'https://api.github.com/repos/13417072606/FiberRouteR1/contents/downloads/R1.3.4/FiberRouteR1-R1.3.4-patch.zip?ref=2855be3afb12821227eb0645205396845eb69f19',
+            'https://raw.githubusercontent.com/13417072606/FiberRouteR1/2855be3afb12821227eb0645205396845eb69f19/downloads/R1.3.4/FiberRouteR1-R1.3.4-patch.zip'
         )
         for ($attempt = 0; $attempt -lt 8; $attempt++) {
             if (Test-Path -LiteralPath $part) {
