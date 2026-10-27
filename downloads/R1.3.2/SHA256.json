@@ -28,12 +28,12 @@
     "Sha256": "55ded76213ec401c443d136403cb8c7e0d16bd475248aed6af77cb84b9ce1047"
   },
   "Download-R1.3.2.ps1": {
-    "Size": 7699,
-    "Sha256": "5cc44e4309670bcf45646fe590690832ecd7656064bfb73ceff2d6e4742ffa02"
+    "Size": 7720,
+    "Sha256": "b0b292b280fe0f864a0540206cf3d8e664c843babb864a0d0daf5332a0fd4aa3"
   },
   "Install-R1.3.2-patch.ps1": {
-    "Size": 9029,
-    "Sha256": "f1b70737a74a53463bff74c3b45a72ecffe20e5ad24d2d5aa2e030afc5aa0e4b"
+    "Size": 9071,
+    "Sha256": "e9e944762ad5f6d799d4d6d8dc470e6e4593b1d7ee381a267d9ce57434cd8aa0"
   },
   "README.md": {
     "Size": 2394,

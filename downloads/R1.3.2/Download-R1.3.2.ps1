@@ -5,7 +5,7 @@ if (!$Folder) { $Folder = Join-Path ([Environment]::GetFolderPath('UserProfile')
 $folder = [IO.Path]::GetFullPath($Folder)
 New-Item -ItemType Directory -Force -Path $folder | Out-Null
 $api = 'https://api.github.com/repos/13417072606/FiberRouteR1/contents/downloads/'
-$artifactRef = '__ARTIFACT_COMMIT__'
+$artifactRef = 'aecf19e5a2e1e3530de35b9e5051e4779d71d51d'
 $headers = @{ Accept = 'application/vnd.github.raw+json'; 'User-Agent' = 'FiberRouteR1-Downloader' }
 $curl = Get-Command curl.exe -CommandType Application -ErrorAction SilentlyContinue
 function Test-Part($path, $size, $sha) {
