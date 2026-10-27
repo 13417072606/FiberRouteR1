@@ -99,11 +99,14 @@ public sealed class PathDiagram : ScrollableControl
     protected override void OnMouseCaptureChanged(EventArgs e){base.OnMouseCaptureChanged(e);if(!Capture){dragging=false;draggedNode=-1;Cursor=Cursors.Hand;}}
     void ShowDetails(int i,Point location)
     {
-        if(graph==null)return;details?.Dispose();var node=nodes[i];var panel=new Panel{Width=430,Height=280,BackColor=Color.White,Padding=new Padding(14),Font=Font};
-        var heading=new Label{Text=node.Name,Dock=DockStyle.Top,Height=48,Font=new Font(Font,FontStyle.Bold),ForeColor=Theme.Ink};
+        if(graph==null)return;details?.Dispose();var node=nodes[i];var panel=new Panel{Width=(int)(460*DpiScale),Height=(int)(300*DpiScale),BackColor=Color.White,Padding=new Padding((int)(14*DpiScale)),Font=Font};
+        var heading=new Label{Text=node.Name,Dock=DockStyle.Top,Height=(int)(52*DpiScale),Font=new Font(Font,FontStyle.Bold),ForeColor=Theme.Ink,AutoEllipsis=true};
         var warning=string.Join("\n\n",Warnings(i));var content=new TextBox{Dock=DockStyle.Fill,Multiline=true,ReadOnly=true,BorderStyle=BorderStyle.None,BackColor=Color.White,ForeColor=Theme.Ink,ScrollBars=ScrollBars.Vertical,Text=(warning.Length>0?"光交归属提示\n"+warning+"\n\n":"")+$"设施成员（{node.Members.Length}）\n"+string.Join("\n",node.Members.Select(id=>graph.Nodes[id].Name))};
-        var close=new UiButton{Text="关闭",Dock=DockStyle.Bottom,Height=34};close.Click+=(_,_)=>details?.Close();panel.Controls.Add(content);panel.Controls.Add(close);panel.Controls.Add(heading);
-        details=new ToolStripDropDown{Padding=new Padding(1),AutoClose=true};details.Items.Add(new ToolStripControlHost(panel){Margin=Padding.Empty,Padding=Padding.Empty});details.Show(this,location);
+        var close=new UiButton{Text="关闭",Dock=DockStyle.Bottom,Height=(int)(34*DpiScale)};close.Click+=(_,_)=>details?.Close();panel.Controls.Add(content);panel.Controls.Add(close);panel.Controls.Add(heading);
+        // ToolStripControlHost.AutoSize measures docked children as their preferred
+        // size and shrinks this panel until the multiline text has no usable area.
+        // Keep the explicit popup size, including at high DPI.
+        details=new ToolStripDropDown{Padding=new Padding(1),AutoClose=true,Font=Font};details.Items.Add(new ToolStripControlHost(panel){AutoSize=false,Size=panel.Size,Margin=Padding.Empty,Padding=Padding.Empty});details.Show(this,location);
     }
     protected override bool IsInputKey(Keys keyData)=>keyData is Keys.Left or Keys.Right or Keys.Home or Keys.End||base.IsInputKey(keyData);
     protected override void OnKeyDown(KeyEventArgs e)

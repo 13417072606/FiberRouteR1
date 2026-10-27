@@ -12,7 +12,7 @@ internal sealed class UiComboBox : ComboBox
     protected override void OnFontChanged(EventArgs e){base.OnFontChanged(e);ItemHeight=Math.Max(24,(int)(Font.Height+10*DeviceDpi/96f));}
     protected override void OnDrawItem(DrawItemEventArgs e)
     {
-        bool selected=(e.State&DrawItemState.Selected)!=0;using var background=new SolidBrush(selected?Theme.Tint:Color.White);e.Graphics.FillRectangle(background,e.Bounds);
+        bool selected=(e.State&DrawItemState.Selected)!=0;using var background=new SolidBrush(selected?Theme.Tint:e.Index==SelectedIndex&&!DroppedDown?BackColor:Color.White);e.Graphics.FillRectangle(background,e.Bounds);
         if(e.Index>=0&&e.Index<Items.Count)TextRenderer.DrawText(e.Graphics,GetItemText(Items[e.Index]),Font,Rectangle.Inflate(e.Bounds,-9,0),Enabled?Theme.Ink:Theme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
         if((e.State&DrawItemState.Focus)!=0)ControlPaint.DrawFocusRectangle(e.Graphics,Rectangle.Inflate(e.Bounds,-2,-2),Theme.Teal,selected?Theme.Tint:Color.White);
     }

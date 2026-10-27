@@ -15,7 +15,7 @@ public sealed partial class MainForm:Form
     readonly PathDiagram pathView=new(){Dock=DockStyle.Fill};
     readonly NumericUpDown demand=Num(1,99999,1),jumps=Num(0,100,8),count=Num(1,50,8),minFree=Num(0,99999,0);
     readonly ComboBox order=new UiComboBox(){DropDownStyle=ComboBoxStyle.DropDownList,Width=180};
-    readonly CheckedListBox avoidTypes=new(){Width=155,Height=112,CheckOnClick=true};
+    readonly TypeChecklist avoidTypes=new();
     readonly ListBox avoidNodes=new(){Width=280,Height=80};
     NodePicker start=null!,end=null!,avoid=null!;
     readonly TextBox resourceSearch=new(){Width=300},typeSearch=new(){Width=240};
@@ -31,7 +31,7 @@ public sealed partial class MainForm:Form
     public MainForm(Store s)
     {
         SuspendLayout();
-        store=s;Text="光路调度智能分析 R1.3.2";Width=1280;Height=800;MinimumSize=new Size(1080,700);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Microsoft YaHei UI",10);BackColor=Theme.Canvas;ForeColor=Theme.Ink;
+        store=s;Text="光路调度智能分析 R1.3.3";Width=1380;Height=950;MinimumSize=new Size(1080,700);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Microsoft YaHei UI",10);BackColor=Theme.Canvas;ForeColor=Theme.Ink;
         AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;
         tabs.Appearance=TabAppearance.FlatButtons;tabs.ItemSize=new Size(1,1);tabs.SizeMode=TabSizeMode.Fixed;
         Controls.Add(tabs);Controls.Add(status);BuildRoutes();BuildResources();BuildTypes();BuildImport();Controls.Add(BuildHeader());InstallLayoutMemory();RefreshData();
@@ -60,11 +60,11 @@ public sealed partial class MainForm:Form
     async Task SearchRoutes()
     {
         if(start.Selected is not Node a||end.Selected is not Node b)throw new InvalidOperationException("请从搜索结果中选择完整起终点");
-        var opts=new RouteOptions(a.Id,b.Id,(int)demand.Value,(int)jumps.Value,(int)count.Value,(RouteOrder)order.SelectedIndex,avoidTypes.CheckedItems.Cast<string>().ToHashSet(),avoidNodes.Items.Cast<Node>().Select(x=>x.Id).ToHashSet(),RequireCapacity:requireCapacity.Checked);
+        var opts=new RouteOptions(a.Id,b.Id,(int)demand.Value,(int)jumps.Value,(int)count.Value,(RouteOrder)order.SelectedIndex,avoidTypes.CheckedTypes.ToHashSet(),avoidNodes.Items.Cast<Node>().Select(x=>x.Id).ToHashSet(),RequireCapacity:requireCapacity.Checked);
         store.SetSetting("route",JsonSerializer.Serialize(new{a=a.Name,b=b.Name,demand=(int)demand.Value,jumps=(int)jumps.Value,count=(int)count.Value,order=order.SelectedIndex,capacityOnly=requireCapacity.Checked,types=opts.AvoidTypes,nodes=avoidNodes.Items.Cast<Node>().Select(x=>x.Name).ToArray()}));
         await Work("正在计算…",async ct=>{
             var g=store.Graph;var result=await Task.Run(()=>Routing.Find(g,opts,ct));routeGraph=g;routeOptions=opts;routes=result.Routes;
-            routeGrid.DataSource=routes.Select((r,i)=>new{方案=i+1,容量状态=r.CapacityStatus(opts.Demand),已记录米=Math.Round(r.Length,2),未知长度段=r.Unknown,零长度段=r.Zero,跳纤=r.Jumps,瓶颈空闲=r.Bottleneck,需求后余量=r.Edges.Length==0?"内部关系未核验":(r.Bottleneck-opts.Demand).ToString()}).ToList();
+            routeGrid.DataSource=routes.Select((r,i)=>new{方案=i+1,容量状态=r.CapacityStatus(opts.Demand),已记录米=Math.Round(r.Length,2),未知长度段=r.Unknown,零长度段=r.Zero,跳纤=r.Jumps,路由最小空闲芯数=r.Bottleneck,需求后余量=r.Edges.Length==0?"内部关系未核验":(r.Bottleneck-opts.Demand).ToString()}).ToList();
             UpdateRouteSummary(result);
             status.Text=$"{routes.Count} 个方案 · 扩展 {result.Expansions:N0} · {result.ElapsedMs} ms · "+(result.Cancelled?"已停止，结果不完整":result.Limited?"达到搜索上限，结果不完整，不能保证最优":routes.Count>=opts.Count?"按所选指标从优到次返回；同值顺序不保证":"搜索完成");ShowRoute();if(routes.Any(x=>x.Transfers.Length>0))status.Text+=" · 含集群内部关系，内部可用芯数未单独核验";
         });
@@ -73,17 +73,16 @@ public sealed partial class MainForm:Form
     {
         if(routeGraph is not Graph g||routeOptions is not RouteOptions o)return;int ix=schemeChoice.SelectedIndex;if(ix<0||ix>=routes.Count)return;var r=routes[ix];
         pathView.SetRoute(g,r);
-        routeMetrics.BackColor=r.Edges.Length>0&&!r.HasCapacity(o.Demand)?Color.FromArgb(255,240,224):Theme.Tint;
-        routeMetrics.Text=$"方案 {ix+1:00}  ·  {r.CapacityStatus(o.Demand)}  ·  {r.Length:0.##} 米  ·  跳纤 {r.Jumps} 次  ·  瓶颈空闲 {r.Bottleneck} 芯\n未知长度 {r.Unknown} 段  ·  零长度 {r.Zero} 段";
+        schemeChoice.BackColor=r.Edges.Length>0&&!r.HasCapacity(o.Demand)?Color.FromArgb(255,240,224):Theme.Tint;
         segments.DataSource=r.Edges.Select((i,j)=>{var e=g.Edges[i];var step=r.Steps.ElementAtOrDefault(j);return new{序号=j+1,起端设施=g.Nodes[step?.From??e.A].Name,终端设施=g.Nodes[step?.To??e.B].Name,长度米=e.Length?.ToString("0.##",CultureInfo.InvariantCulture)??"未知",空闲_总芯=$"{e.Free} / {e.Total}",需求后余量=e.Free-o.Demand};}).ToList();
         foreach(DataGridViewColumn c in segments.Columns)c.HeaderText=c.Name=="长度米"?"长度（米）":c.Name.Replace("_"," / ");
     }
-    void ClearRoutes(){routes=[];routeGraph=null;routeOptions=null;routeGrid.DataSource=null;segments.DataSource=null;pathView.Clear();schemeChoice.Items.Clear();routeSummary.Text="候选路由 · 选择起终点后查询";routeMetrics.Text="";}
+    void ClearRoutes(){routes=[];routeGraph=null;routeOptions=null;routeGrid.DataSource=null;segments.DataSource=null;pathView.Clear();schemeChoice.Items.Clear();schemeChoice.BackColor=Theme.Tint;routeSummary.Text="候选路由 · 选择起终点后查询";}
     void ExportRoutes(bool currentOnly=false)
     {
         if(routeGraph is not Graph g||routeOptions is not RouteOptions o||routes.Count==0)throw new InvalidOperationException("无方案可导出");
         var path=Save("路由方案.csv");if(path==null)return;
-        var rows=new List<object?[]>{new object?[]{"资源版本","方案","排序方式","容量状态","仅看满足需求芯数","需求芯数","最大跳纤","规避类型","规避节点","总已记录米","未知长度段","零长度段","跳纤","瓶颈空闲","段序","原始ID","中继段","始端","终端","长度米","空闲","总芯","需求后余量"}};
+        var rows=new List<object?[]>{new object?[]{"资源版本","方案","排序方式","容量状态","仅看满足需求芯数","需求芯数","最大跳纤","规避类型","规避节点","总已记录米","未知长度段","零长度段","跳纤","路由最小空闲芯数","段序","原始ID","中继段","始端","终端","长度米","空闲","总芯","需求后余量"}};
         for(int i=0;i<routes.Count;i++){if(currentOnly&&i!=schemeChoice.SelectedIndex)continue;var r=routes[i];for(int j=0;j<r.Edges.Length;j++){var e=g.Edges[r.Edges[j]];rows.Add([g.Version,i+1,order.Items[(int)o.Order]?.ToString(),r.CapacityStatus(o.Demand),o.RequireCapacity,o.Demand,o.MaxJumps,string.Join(';',o.AvoidTypes),string.Join(';',o.AvoidNodes.Select(n=>g.Nodes[n].Name)),r.Length,r.Unknown,r.Zero,r.Jumps,r.Bottleneck,j+1,e.Id,e.Name,g.Nodes[r.Steps.Length>j?r.Steps[j].From:r.Nodes[j]].Name,g.Nodes[r.Steps.Length>j?r.Steps[j].To:r.Nodes[j+1]].Name,e.Length,e.Free,e.Total,e.Free-o.Demand]);}}
         Csv.Write(path,rows);status.Text="方案已导出；CSV ID 为文本内容，Excel 打开时请按文本列导入。";
     }
@@ -190,15 +189,15 @@ public sealed partial class MainForm:Form
     }
     void RefreshData()
     {
-        UpdateStats();ClearRoutes();pendingTypes=[];typePreview.DataSource=null;if(applyTypes!=null)applyTypes.Enabled=false;start?.Clear();end?.Clear();avoid?.Clear();avoidNodes.Items.Clear();var types=store.Graph.Nodes.SelectMany(n=>n.Type.Split(';',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries)).Concat(new[]{"站点","机房","光交箱","分纤箱","未识别"}).Distinct().Order().ToArray();
+        UpdateStats();ClearRoutes();pendingTypes=[];typePreview.DataSource=null;if(applyTypes!=null)applyTypes.Enabled=false;start?.Clear();end?.Clear();avoid?.Clear();avoidNodes.Items.Clear();var types=store.Graph.Nodes.SelectMany(n=>n.Type.Split(';',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries)).Concat(new[]{"站点","机房","光交箱","分纤箱","未识别"}).Distinct().OrderBy(t=>t=="未识别"?1:0).ThenBy(t=>t).ToArray();
         editType.Items.Clear();editType.Items.AddRange(types);
-        var checkedTypes=avoidTypes.CheckedItems.Cast<string>().ToHashSet();avoidTypes.Items.Clear();foreach(var t in types)avoidTypes.Items.Add(t,checkedTypes.Contains(t));
+        var checkedTypes=avoidTypes.CheckedTypes.ToHashSet();avoidTypes.SetTypes(types,checkedTypes);
         foreach(var c in new[]{resourceType,nodeType}){var old=c.SelectedItem;c.Items.Clear();c.Items.Add("全部");c.Items.AddRange(types);c.SelectedItem=old!=null&&c.Items.Contains(old)?old:"全部";}
         var g=store.Graph;resourceStats.Text=$"{g.Edges.Length:N0} 段 / {g.Nodes.Length:N0} 节点 / 已记录 {g.Edges.Sum(e=>e.Length??0):N2} 米 / 空闲逐段合计 {g.Edges.Sum(e=>(long)e.Free):N0} 芯（非路由数） / 版本 {g.Version}";LoadResources();LoadTypes();LoadClusters();LoadRooms();
     }
     void RestoreRouteSettings()
     {
-        try{if(store.Setting("route") is not string s)return;var r=JsonDocument.Parse(s).RootElement;showingRoute=true;requireCapacity.Checked=!r.TryGetProperty("capacityOnly",out var cap)||cap.GetBoolean();showingRoute=false;demand.Value=Math.Clamp(r.GetProperty("demand").GetInt32(),1,99999);jumps.Value=Math.Clamp(r.GetProperty("jumps").GetInt32(),0,100);count.Value=Math.Clamp(r.GetProperty("count").GetInt32(),1,50);order.SelectedIndex=Math.Clamp(r.GetProperty("order").GetInt32(),0,3);start.SelectNode(store.Graph.Nodes.FirstOrDefault(n=>n.Name==r.GetProperty("a").GetString()));end.SelectNode(store.Graph.Nodes.FirstOrDefault(n=>n.Name==r.GetProperty("b").GetString()));var ts=r.GetProperty("types").EnumerateArray().Select(x=>x.GetString()).ToHashSet();for(int i=0;i<avoidTypes.Items.Count;i++)avoidTypes.SetItemChecked(i,ts.Contains(avoidTypes.Items[i].ToString()));foreach(var name in r.GetProperty("nodes").EnumerateArray()){var node=store.Graph.Nodes.FirstOrDefault(n=>n.Name==name.GetString());if(node!=null)avoidNodes.Items.Add(node);}}catch{/* Older or damaged personal query preferences are optional. */}finally{showingRoute=false;}
+        try{if(store.Setting("route") is not string s)return;var r=JsonDocument.Parse(s).RootElement;showingRoute=true;requireCapacity.Checked=!r.TryGetProperty("capacityOnly",out var cap)||cap.GetBoolean();showingRoute=false;demand.Value=Math.Clamp(r.GetProperty("demand").GetInt32(),1,99999);jumps.Value=Math.Clamp(r.GetProperty("jumps").GetInt32(),0,100);count.Value=Math.Clamp(r.GetProperty("count").GetInt32(),1,50);order.SelectedIndex=Math.Clamp(r.GetProperty("order").GetInt32(),0,3);start.SelectNode(store.Graph.Nodes.FirstOrDefault(n=>n.Name==r.GetProperty("a").GetString()));end.SelectNode(store.Graph.Nodes.FirstOrDefault(n=>n.Name==r.GetProperty("b").GetString()));var ts=r.GetProperty("types").EnumerateArray().Select(x=>x.GetString()??"").ToHashSet();avoidTypes.SetCheckedTypes(ts);foreach(var name in r.GetProperty("nodes").EnumerateArray()){var node=store.Graph.Nodes.FirstOrDefault(n=>n.Name==name.GetString());if(node!=null)avoidNodes.Items.Add(node);}}catch{/* Older or damaged personal query preferences are optional. */}finally{showingRoute=false;}
     }
     static string? Save(string name) {string dir=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","导出结果"));try{Directory.CreateDirectory(dir);}catch{dir=Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);}using var d=new SaveFileDialog(){FileName=name,Filter="CSV文件|*.csv",InitialDirectory=dir};return d.ShowDialog()==DialogResult.OK?d.FileName:null;}
 
