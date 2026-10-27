@@ -1,0 +1,14 @@
+{
+  "FiberRouteR1-R1.4.1-install.zip": {
+    "Size": 7421109,
+    "Sha256": "effe400ffa09c74cfc5573db0432d87bab014c96955296a79b904a128aed47f6"
+  },
+  "Install-R1.4.1-patch.ps1": {
+    "Size": 9555,
+    "Sha256": "69fa86907b0eb432ad1bab4b2c935ebe4460157d50488b8a16c858c409a952d4"
+  },
+  "FiberRouteR1-R1.4.1-patch.zip": {
+    "Size": 7418274,
+    "Sha256": "6bd58a109622c037f24c2f7fae685f82c3a823cfb1fe019c6cb73845fcd6d107"
+  }
+}
