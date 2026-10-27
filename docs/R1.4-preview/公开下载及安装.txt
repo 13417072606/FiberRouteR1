@@ -1,0 +1,13 @@
+正在下载 R1.4 安装包（1/4）…
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+curl: (22) The requested URL returned error: 403
+正在下载 R1.4 安装包（2/4）…
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0 10 6745k   10  704k    0     0   395k      0  0:00:17  0:00:01  0:00:16  395k 76 6745k   76 5129k    0     0  1826k      0  0:00:03  0:00:02  0:00:01 1825k100 6745k  100 6745k    0     0  2145k      0  0:00:03  0:00:03 --:--:-- 2146k
+SUCCESS: R1.4 patch verified and installed. Existing databases preserved: /tmp/r14-installer-check/134/光路调度智能分析R1.3
+请从原来的“光路调度智能分析.exe”启动，窗口标题应为 R1.4。数据库、人工确认和数据目录保持。
+R1.4 已安装。请从原快捷方式启动，首次启动会整理区域和来源信息。
+已校验的离线安装包保留在：/tmp/r14-public-download-check/FiberRouteR1-R1.4-install.zip

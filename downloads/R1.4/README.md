@@ -18,4 +18,15 @@ R1.4包括统一分页与每页数量、区域、完整换行、全局排序/快
 
 验证：核心151项；实际Windows界面在Wine10下96/144DPI各55项；全量272,561条中继段、264,608节点、277,159条来源证据；既有208.21米和2044.87米样例通过。原生Windows及管理方国内生产HTTPS尚待现场验证。
 
+
+管理员PowerShell直接执行（校验脚本后启动，安装时会选择原运行目录）：
+
+```powershell
+$s = Join-Path $env:TEMP 'FiberRouteR1-R1.4-install.ps1'
+curl.exe --fail --location --tlsv1.2 --retry 3 --output $s 'https://raw.githubusercontent.com/13417072606/FiberRouteR1/r1-revised-20261025/downloads/R1.4/Download-Install-R1.4.ps1'
+if ($LASTEXITCODE -ne 0) { throw '下载失败，请重新运行' }
+if ((Get-FileHash -LiteralPath $s -Algorithm SHA256).Hash -ne 'fbecd3f85f9bdd573aa0a6870cf6771c03d3501c22998b286a5e5eeb21b2d733') { throw '下载脚本校验失败' }
+powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File $s
+```
+
 各文件大小与SHA256见[校验清单](SHA256.json)。旧版交付文件不变。
