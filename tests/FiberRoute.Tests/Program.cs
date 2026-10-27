@@ -23,6 +23,7 @@ if(args.Length==2&&args[0]=="--r13-verify"){
  if(a<0||b<0)throw new Exception("full golden endpoints missing");var rr=Routing.Find(g,new(a,b,1,1,8,RouteOrder.Distance,[],[]));if(rr.Limited||!rr.Routes.Any(r=>Math.Abs(r.Length-208.21)<1e-8&&r.Jumps==1))throw new Exception("full golden route failed");
  Console.WriteLine($"FULL golden route 208.21m / 1 jump PASS; edges={g.Edges.Length} nodes={g.Nodes.Length}; standalone reopen PASS");return;
 }
+if(args.Length==3&&args[0]=="--export-preview"){RouteWorkbookChecks.Preview(args[1],args[2]);return;}
 int checks=0;
 void Check(bool ok,string label){checks++;if(!ok)throw new Exception("FAIL "+label);Console.WriteLine("PASS "+label);}
 string root=Path.Combine(Path.GetTempPath(),"fiber-tests-"+Guid.NewGuid());Directory.CreateDirectory(root);
@@ -48,6 +49,7 @@ if(args.Contains("--benchmark"))
 }
 try
 {
+    RouteWorkbookChecks.Run(Check,root);
     var imported=await store.ImportAsync(sample,"UTF-8",mapping,1,null,default);var g=store.Graph;
     Check(imported.Accepted==12&&imported.Nodes==20,"sample 12 edges / 20 nodes");Check(Math.Abs(g.Edges.Sum(x=>x.Length??0)-1659.56)<.00001,"sample 1659.56 m");Check(g.Edges.Sum(x=>x.Free)==40,"sample 40 aggregate cores");Check(g.Edges[0].Id=="441100000000097471404159","long ID exact text");
     int a=Array.FindIndex(g.Nodes,n=>n.Name.EndsWith("-GF271")),b=Array.FindIndex(g.Nodes,n=>n.Name.EndsWith("-GF272")),middle=Array.FindIndex(g.Nodes,n=>n.Name=="潮南区家美社区FG/GJ07");

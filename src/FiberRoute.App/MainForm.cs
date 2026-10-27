@@ -31,7 +31,7 @@ public sealed partial class MainForm:Form
     public MainForm(Store s)
     {
         SuspendLayout();
-        store=s;Text="光路调度智能分析 R1.3.3";Width=1380;Height=950;MinimumSize=new Size(1080,700);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Microsoft YaHei UI",10);BackColor=Theme.Canvas;ForeColor=Theme.Ink;
+        store=s;Text="光路调度智能分析 R1.3.4";Width=1380;Height=950;MinimumSize=new Size(1080,700);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Microsoft YaHei UI",10);BackColor=Theme.Canvas;ForeColor=Theme.Ink;
         AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;
         tabs.Appearance=TabAppearance.FlatButtons;tabs.ItemSize=new Size(1,1);tabs.SizeMode=TabSizeMode.Fixed;
         Controls.Add(tabs);Controls.Add(status);BuildRoutes();BuildResources();BuildTypes();BuildImport();Controls.Add(BuildHeader());InstallLayoutMemory();RefreshData();
@@ -80,11 +80,20 @@ public sealed partial class MainForm:Form
     void ClearRoutes(){routes=[];routeGraph=null;routeOptions=null;routeGrid.DataSource=null;segments.DataSource=null;pathView.Clear();schemeChoice.Items.Clear();schemeChoice.BackColor=Theme.Tint;routeSummary.Text="候选路由 · 选择起终点后查询";}
     void ExportRoutes(bool currentOnly=false)
     {
-        if(routeGraph is not Graph g||routeOptions is not RouteOptions o||routes.Count==0)throw new InvalidOperationException("无方案可导出");
-        var path=Save("路由方案.csv");if(path==null)return;
-        var rows=new List<object?[]>{new object?[]{"资源版本","方案","排序方式","容量状态","仅看满足需求芯数","需求芯数","最大跳纤","规避类型","规避节点","总已记录米","未知长度段","零长度段","跳纤","路由最小空闲芯数","段序","原始ID","中继段","始端","终端","长度米","空闲","总芯","需求后余量"}};
-        for(int i=0;i<routes.Count;i++){if(currentOnly&&i!=schemeChoice.SelectedIndex)continue;var r=routes[i];for(int j=0;j<r.Edges.Length;j++){var e=g.Edges[r.Edges[j]];rows.Add([g.Version,i+1,order.Items[(int)o.Order]?.ToString(),r.CapacityStatus(o.Demand),o.RequireCapacity,o.Demand,o.MaxJumps,string.Join(';',o.AvoidTypes),string.Join(';',o.AvoidNodes.Select(n=>g.Nodes[n].Name)),r.Length,r.Unknown,r.Zero,r.Jumps,r.Bottleneck,j+1,e.Id,e.Name,g.Nodes[r.Steps.Length>j?r.Steps[j].From:r.Nodes[j]].Name,g.Nodes[r.Steps.Length>j?r.Steps[j].To:r.Nodes[j+1]].Name,e.Length,e.Free,e.Total,e.Free-o.Demand]);}}
-        Csv.Write(path,rows);status.Text="方案已导出；CSV ID 为文本内容，Excel 打开时请按文本列导入。";
+        try
+        {
+            if(routeGraph==null||routeOptions==null||routes.Count==0)throw new InvalidOperationException("无方案可导出");
+            string directory=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","导出结果"));try{Directory.CreateDirectory(directory);}catch{directory=Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);}
+            using var dialog=new SaveFileDialog{FileName="路由方案.xlsx",Filter="Excel工作簿|*.xlsx",DefaultExt="xlsx",AddExtension=true,InitialDirectory=directory};
+            if(dialog.ShowDialog(this)!=DialogResult.OK)return;WriteRouteWorkbook(dialog.FileName,currentOnly);
+        }
+        catch(Exception ex){status.Text="导出失败："+ex.Message;MessageBox.Show(this,ex.Message,"导出失败",MessageBoxButtons.OK,MessageBoxIcon.Error);}
+    }
+    void WriteRouteWorkbook(string path,bool currentOnly)
+    {
+        if(routeGraph is not Graph graph||routeOptions is not RouteOptions options||routes.Count==0)throw new InvalidOperationException("无方案可导出");
+        var selected=routes.Select((route,i)=>(route,i)).Where(x=>!currentOnly||x.i==schemeChoice.SelectedIndex).Select(x=>ExportPlan.FromRoute(graph,x.route,options,x.i+1)).ToArray();
+        RouteWorkbook.Write(path,selected);status.Text=$"已导出 {selected.Length} 条路由：路由总览含跳纤路由，各方案分别列出逐段资源。";
     }
     void BuildResources()=>BuildResourceWorkspace();
     IEnumerable<Edge> FilterResources()

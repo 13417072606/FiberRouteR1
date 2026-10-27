@@ -1,3 +1,13 @@
+# 光路调度智能分析 R1.3.4
+
+[下载最新补丁安装包](downloads/R1.3.4/FiberRouteR1-R1.3.4-install.zip?raw=true) · [Excel导出样例](downloads/R1.3.4/Route-Export-Sample.xlsx?raw=true) · [样例ZIP](downloads/R1.3.4/Route-Export-Sample.zip?raw=true) · [修改清单](docs/R1.3.4修改清单.md)
+
+导出方案已正式改为Excel：“路由总览”新增跳纤路由，以箭头串联实际设施；每条方案单独明细。删除资源追溯、字段说明及指定说明段落。当前方案与全部候选均可导出，保留原方案编号和子表跳转。
+
+补丁适用于R1.3～R1.3.3，解压后双击“安装补丁.cmd”，保留数据库和人工记录，无须重下全量数据。Excel写入不依赖Office或联网。完整新装程序仍复用下方R1.3.2交付。
+
+---
+
 # 光路调度智能分析 R1.3.3
 
 [最新小补丁与安装包](downloads/R1.3.3/) · [本次修改清单](docs/R1.3.3修改清单.md) · [导出表格模板（待确认）](docs/导出模板/路由方案导出模板-待确认.xlsx) · [实际运行截图](docs/R1.3.3-preview/)
