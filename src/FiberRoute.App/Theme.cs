@@ -12,6 +12,8 @@ internal static class Theme
     {
         "已确认" or "在网" => (Color.FromArgb(222,247,238),Color.FromArgb(0,119,84)),
         "需核对" or "在建" => (Color.FromArgb(255,241,215),Color.FromArgb(166,92,0)),
+        "已暂停" => (Color.FromArgb(255,233,237),Color.FromArgb(169,54,73)),
+        "已启用" or "已纳入" => (Color.FromArgb(222,247,238),Color.FromArgb(0,119,84)),
         "待确认" or "未识别" => (Color.FromArgb(233,240,248),Color.FromArgb(82,108,140)),
         "分纤箱" => (Color.FromArgb(239,231,255),Color.FromArgb(102,59,181)),
         "光交箱" => (Color.FromArgb(225,240,255),Color.FromArgb(0,107,181)),
@@ -63,6 +65,7 @@ internal sealed class UiButton:Button
     public bool Navigation {get;set;}
     public bool Pill {get;set;}
     public string Glyph {get;set;}="";
+    public string Tone {get;set;}="";
     bool hover,pressed;
     public UiButton(){FlatStyle=FlatStyle.Flat;FlatAppearance.BorderSize=0;UseVisualStyleBackColor=false;BackColor=Color.White;Cursor=Cursors.Hand;Height=42;Padding=new Padding(12,6,12,6);Margin=new Padding(4);SetStyle(ControlStyles.UserPaint|ControlStyles.OptimizedDoubleBuffer,true);}
     protected override void OnPaintBackground(PaintEventArgs e)=>e.Graphics.Clear(Parent?.BackColor??Color.White);
@@ -73,8 +76,9 @@ internal sealed class UiButton:Button
     protected override void OnPaint(PaintEventArgs e)
     {
         var g=e.Graphics;float scale=DeviceDpi/96f;g.Clear(Parent?.BackColor??Color.White);g.SmoothingMode=SmoothingMode.AntiAlias;Color fill=Primary?Theme.Teal:Selected&&!Navigation?Theme.Tint:hover?Color.FromArgb(237,246,248):Color.White;Color ink=Primary?Color.White:Selected?Theme.Teal:Theme.Ink;if(!Enabled){fill=Color.FromArgb(239,243,247);ink=Theme.Muted;}
+        if(Selected&&Tone.Length>0){var colors=Theme.BadgeColors(Tone);fill=colors.Back;ink=colors.Fore;}
         if(Navigation){g.Clear(Color.White);if(Selected)using(var p=new Pen(Theme.Teal,4*scale){StartCap=LineCap.Round,EndCap=LineCap.Round})g.DrawLine(p,15*scale,Height-3*scale,Width-15*scale,Height-3*scale);}
-        else {using var path=Theme.Round(new RectangleF(1,1,Width-3,Height-3),Pill?Height/2f:7);using var b=new SolidBrush(pressed?ControlPaint.Dark(fill,.04f):fill);g.FillPath(b,path);using var p=new Pen(Primary||Selected?Theme.Teal:Theme.Line);g.DrawPath(p,path);}
+        else {using var path=Theme.Round(new RectangleF(1,1,Width-3,Height-3),Pill?Height/2f:7);using var b=new SolidBrush(pressed?ControlPaint.Dark(fill,.04f):fill);g.FillPath(b,path);using var p=new Pen(Selected&&Tone.Length>0?ink:Primary||Selected?Theme.Teal:Theme.Line);g.DrawPath(p,path);}
         int left=(int)((Glyph.Length>0?36:8)*scale),icon=(int)(21*scale);if(Glyph.Length>0)Theme.Glyph(g,Glyph,new Rectangle((int)(12*scale),(Height-icon)/2,icon,icon),ink);
         TextRenderer.DrawText(g,Text,Font,new Rectangle(left,2,Width-left-(int)(8*scale),Height-5),ink,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
         if(Focused&&ShowFocusCues)ControlPaint.DrawFocusRectangle(g,new Rectangle(5,5,Width-11,Height-11),ink,fill);

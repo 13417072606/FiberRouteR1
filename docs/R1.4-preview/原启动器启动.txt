@@ -1,0 +1,1 @@
+PASS actual self-contained launcher opens R1.4 and consumes the room baseline

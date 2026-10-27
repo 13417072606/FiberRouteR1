@@ -31,11 +31,7 @@ public sealed partial class Store
     static IEnumerable<string[]> ReadTypeRows(string path,string? sheet)
     {
         if(Path.GetExtension(path).Equals(".csv",StringComparison.OrdinalIgnoreCase))
-        {
-            string encoding=Csv.DetectEncoding(path);using var reader=new StreamReader(path,Csv.EncodingFor(encoding),false);var header=(reader.ReadLine()??"").TrimStart('\ufeff').Split(',');
-            if(header.Length>20&&header[0]=="ID"&&header[1]=="设施名称")
-            {int room=Array.FindIndex(header,x=>x is "机房名称" or "所属机房");yield return ["设施名称","机房名称"];string? line;while((line=reader.ReadLine())!=null){if(line.Length==0)continue;var fields=line.Split([','],Math.Max(3,room+2));yield return [fields.Length>1?fields[1]:"",room>=0&&fields.Length>room?fields[room]:""];}yield break;}
-        }
+        {foreach(var row in Csv.Read(path,Csv.DetectEncoding(path)))yield return row;yield break;}
         foreach(var row in TableInput.Read(path,"自动",sheet,"__not_used__"))yield return row;
     }
     public Dictionary<string,TypeAssignment> TypeAssignments()

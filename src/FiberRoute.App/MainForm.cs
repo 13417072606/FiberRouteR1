@@ -31,7 +31,7 @@ public sealed partial class MainForm:Form
     public MainForm(Store s)
     {
         SuspendLayout();
-        store=s;Text="光路调度智能分析 R1.3.4";Width=1380;Height=950;MinimumSize=new Size(1080,700);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Microsoft YaHei UI",10);BackColor=Theme.Canvas;ForeColor=Theme.Ink;
+        store=s;Text="光路调度智能分析 R"+DisplayVersion;Width=1380;Height=950;MinimumSize=new Size(1080,700);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Microsoft YaHei UI",10);BackColor=Theme.Canvas;ForeColor=Theme.Ink;
         AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;
         tabs.Appearance=TabAppearance.FlatButtons;tabs.ItemSize=new Size(1,1);tabs.SizeMode=TabSizeMode.Fixed;
         Controls.Add(tabs);Controls.Add(status);BuildRoutes();BuildResources();BuildTypes();BuildImport();Controls.Add(BuildHeader());InstallLayoutMemory();RefreshData();
@@ -98,9 +98,8 @@ public sealed partial class MainForm:Form
     void BuildResources()=>BuildResourceWorkspace();
     IEnumerable<Edge> FilterResources()
     {
-        var g=store.Graph;string term=resourceSearch.Text.Trim();string type=resourceType.SelectedItem as string??"全部";HashSet<int>? ids=null;
-        if(term.Length>0)ids=SearchRaw(term);
-        return g.Edges.Where(e=>e.Free>=minFree.Value&&(ids==null||ids.Contains(e.Index))&&(type=="全部"||g.Nodes[e.A].Type.Split(';').Contains(type)||g.Nodes[e.B].Type.Split(';').Contains(type)));
+        var g=store.Graph;string term=resourceSearch.Text.Trim(),type=resourceType.Text,from=resourceStartArea.Text,to=resourceEndArea.Text,business=resourceBusiness.Text;var ids=term.Length>0?SearchRaw(term):null;int minimum=(int)minFree.Value;
+        return g.Edges.Where(e=>e.Free>=minimum&&(ids==null||ids.Contains(e.Index))&&(type=="全部"||type.Length==0||g.Nodes[e.A].Type.Split(';').Contains(type)||g.Nodes[e.B].Type.Split(';').Contains(type))&&(from.Length==0||from=="全部区域"||Area(e.StartRegion)==from)&&(to.Length==0||to=="全部区域"||Area(e.EndRegion)==to)&&(business.Length==0||business=="全部状态"||Area(e.BusinessStatus)==business));
     }
     HashSet<int> SearchRaw(string term)
     {
@@ -110,12 +109,13 @@ public sealed partial class MainForm:Form
     async void LoadResources()
     {
         if(busy){resourceRefreshPending=true;return;}
-        var g=store.Graph;string term=resourceSearch.Text.Trim(),type=resourceType.SelectedItem as string??"全部";int minimum=(int)minFree.Value;Edge[] filtered=[];
+        var g=store.Graph;string term=resourceSearch.Text.Trim(),type=resourceType.Text,from=resourceStartArea.Text,to=resourceEndArea.Text,business=resourceBusiness.Text;int minimum=(int)minFree.Value;ResourceRow[] filtered=[];
         bool ok=await Work("正在筛选资源…",async ct=>{
-            filtered=await Task.Run(()=>{var ids=term.Length>0?SearchRaw(term):null;ct.ThrowIfCancellationRequested();return g.Edges.Where(e=>e.Free>=minimum&&(ids==null||ids.Contains(e.Index))&&(type=="全部"||g.Nodes[e.A].Type.Split(';').Contains(type)||g.Nodes[e.B].Type.Split(';').Contains(type))).ToArray();},ct);
-        });if(!ok)return;int pages=Math.Max(1,(filtered.Length+resourcePageSize-1)/resourcePageSize);if(page.Value>pages)page.Value=pages;pageLabel.Text=$"共 {filtered.Length:N0} 条 / {pages} 页";
-        resourceGrid.DataSource=filtered.Skip(((int)page.Value-1)*resourcePageSize).Take(resourcePageSize).Select((e,slot)=>new{内部序号=e.Index,序号=((int)page.Value-1)*resourcePageSize+slot+1,始端设施=g.Nodes[e.A].Name,终端设施=g.Nodes[e.B].Name,长度米=e.Length?.ToString("0.##")??"未知",空闲_总芯=$"{e.Free} / {e.Total}",业务状态=RawStatus(e.Index),操作="详情"}).ToList();
+            filtered=await Task.Run(()=>{var ids=term.Length>0?SearchRaw(term):null;ct.ThrowIfCancellationRequested();return g.Edges.Where(e=>e.Free>=minimum&&(ids==null||ids.Contains(e.Index))&&(type=="全部"||type.Length==0||g.Nodes[e.A].Type.Split(';').Contains(type)||g.Nodes[e.B].Type.Split(';').Contains(type))&&(from.Length==0||from=="全部区域"||Area(e.StartRegion)==from)&&(to.Length==0||to=="全部区域"||Area(e.EndRegion)==to)&&(business.Length==0||business=="全部状态"||Area(e.BusinessStatus)==business)).Select(e=>new ResourceRow(0,e.Index,g.Nodes[e.A].Name,Area(e.StartRegion),g.Nodes[e.B].Name,Area(e.EndRegion),e.Length,$"{e.Free} / {e.Total}",e.BusinessStatus,"详情")).ToArray();},ct);
+        });if(!ok)return;filtered=Ordered(resourceGrid,filtered);resourcePageSize=resourcePager.PageSize;resourcePager.Set(filtered.Length,(int)page.Value);page.Value=resourcePager.Page;int skip=((int)page.Value-1)*resourcePageSize;
+        resourceGrid.DataSource=filtered.Skip(skip).Take(resourcePageSize).Select((r,i)=>r with{序号=skip+i+1}).ToList();
         if(resourceGrid.Columns.Contains("内部序号"))resourceGrid.Columns["内部序号"].Visible=false;foreach(DataGridViewColumn c in resourceGrid.Columns)c.HeaderText=c.Name=="长度米"?"长度（米）":c.Name.Replace("_"," / ");
+        if(resourceGrid.Columns.Contains("长度米")){resourceGrid.Columns["长度米"].DefaultCellStyle.Format="0.##";resourceGrid.Columns["长度米"].DefaultCellStyle.NullValue="未知";}
         status.Text=$"本地数据 · 已就绪    |    中继段 {g.Edges.Length:N0} 条    |    资源快照：{g.Version}";
     }
     async Task ExportResources()
@@ -198,7 +198,7 @@ public sealed partial class MainForm:Form
     }
     void RefreshData()
     {
-        UpdateStats();ClearRoutes();pendingTypes=[];typePreview.DataSource=null;if(applyTypes!=null)applyTypes.Enabled=false;start?.Clear();end?.Clear();avoid?.Clear();avoidNodes.Items.Clear();var types=store.Graph.Nodes.SelectMany(n=>n.Type.Split(';',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries)).Concat(new[]{"站点","机房","光交箱","分纤箱","未识别"}).Distinct().OrderBy(t=>t=="未识别"?1:0).ThenBy(t=>t).ToArray();
+        UpdateStats();ClearRoutes();RefreshAreaChoices();pendingTypes=[];typePreview.DataSource=null;if(applyTypes!=null)applyTypes.Enabled=false;start?.Clear();end?.Clear();avoid?.Clear();avoidNodes.Items.Clear();var types=store.Graph.Nodes.SelectMany(n=>n.Type.Split(';',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries)).Concat(new[]{"站点","机房","光交箱","分纤箱","未识别"}).Distinct().OrderBy(t=>t=="未识别"?1:0).ThenBy(t=>t).ToArray();
         editType.Items.Clear();editType.Items.AddRange(types);
         var checkedTypes=avoidTypes.CheckedTypes.ToHashSet();avoidTypes.SetTypes(types,checkedTypes);
         foreach(var c in new[]{resourceType,nodeType}){var old=c.SelectedItem;c.Items.Clear();c.Items.Add("全部");c.Items.AddRange(types);c.SelectedItem=old!=null&&c.Items.Contains(old)?old:"全部";}

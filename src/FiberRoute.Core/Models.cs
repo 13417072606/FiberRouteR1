@@ -1,9 +1,9 @@
 namespace FiberRoute.Core;
-public sealed record Node(int Id, string Name, string Type, bool Confirmed, string Source="", string Status="", string Reason="")
+public sealed record Node(int Id, string Name, string Type, bool Confirmed, string Source="", string Status="", string Reason="",string Region="")
 {
     public string Confirmation => Status.Length>0?Status:Confirmed?"已确认":"待确认";
 }
-public sealed record Edge(int Index, string Id, string Name, int A, int B, double? Length, int Free, int Total, string Raw);
+public sealed record Edge(int Index, string Id, string Name, int A, int B, double? Length, int Free, int Total, string Raw,string StartRegion="",string EndRegion="",string BusinessStatus="");
 public sealed class Graph(Node[] nodes, Edge[] edges, string version)
 {
     public Node[] Nodes { get; } = nodes;

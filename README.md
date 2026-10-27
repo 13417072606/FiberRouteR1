@@ -1,4 +1,16 @@
+# 光路调度智能分析 R1.4
+
+[补丁安装包与管理员PowerShell下载说明](downloads/R1.4/) · [修改清单](docs/R1.4修改清单.md) · [实际运行截图及验证](docs/R1.4-preview/) · [机房来源复核](docs/R1.4-planning/Room-Affiliation-Origin-Audit.xlsx?raw=true) · [管理方在线更新发布指南](docs/R1.4-planning/Online-Update-Publishing.md)
+
+统一分页及每页数量，补充区域，修复长名称换行，支持跨页排序和需核对快捷筛选；疑似安装位置的机房归属保留来源并暂停归并。交付独立的软件/数据在线更新客户端及管理方发布工具。暂未提供生产服务地址，两个按钮准确提示“更新服务未配置”。
+
+补丁适用于已交付R1.3～R1.3.4，保留数据库及人工记录。安装后首次启动整理区域和来源基线，完成后清理安装基线。当前完整新装基础仍使用既有R1.3.2完整包，再安装R1.4补丁。
+
+---
+
 # 光路调度智能分析 R1.3.4
+
+[R1.4需求、五张设计预览与来源复核](docs/R1.4-planning/)
 
 [下载最新补丁安装包](downloads/R1.3.4/FiberRouteR1-R1.3.4-install.zip?raw=true) · [Excel导出样例](downloads/R1.3.4/Route-Export-Sample.xlsx?raw=true) · [样例ZIP](downloads/R1.3.4/Route-Export-Sample.zip?raw=true) · [修改清单](docs/R1.3.4修改清单.md)
 

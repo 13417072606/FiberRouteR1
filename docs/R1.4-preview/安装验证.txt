@@ -1,0 +1,8 @@
+PASS R13 upgrade + repeat, all payload hashes and customer DB bytes preserved
+PASS R131 upgrade + repeat, all payload hashes and customer DB bytes preserved
+PASS R132 upgrade + repeat, all payload hashes and customer DB bytes preserved
+PASS R133 upgrade + repeat, all payload hashes and customer DB bytes preserved
+PASS R134 upgrade + repeat, all payload hashes and customer DB bytes preserved
+PASS truncated download rejected without modifying existing program
+PASS unknown base rejected before any program file replaced
+PASS installation write conflict rolls back newly created and changed program files

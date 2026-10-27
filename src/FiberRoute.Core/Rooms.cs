@@ -10,6 +10,7 @@ public sealed partial class Store
 {
     // Room affiliation is an explicit field, never a station name, upstream room or name prefix.
     static bool HasRoom(string room)=>room.Trim() is not ("" or "--" or "无" or "未知" or "未填写");
+    public static bool SuspiciousRoom(string room)=>Regex.IsMatch(room,@"挂墙|壁挂",RegexOptions.IgnoreCase);
     static bool IsCabinet(Node n)=>n.Type.Split(';').Contains("光交箱")||Regex.IsMatch(n.Name,@"(?:^|[/\-])GJ\d*$",RegexOptions.IgnoreCase);
     static bool IsRoomFacility(Node n)=>IsCabinet(n)||n.Type.Split(';').Contains("机房")||Regex.IsMatch(n.Name,@"(?:^|[/\-])(?:ODF|ODB)[A-Z0-9]*(?:$|[/\-])",RegexOptions.IgnoreCase);
 
@@ -42,7 +43,7 @@ public sealed partial class Store
     public void ApplyRoomFiles(IEnumerable<(string Path,string Type,string? Sheet)> files,CancellationToken ct=default)
     {
         var inputs=files.ToArray();var values=PreviewRoomFiles(inputs,ct);
-        ApplyRoomRows(values.Select(x=>new RoomSeed(x.Name,x.Room,x.Source)),inputs.Select(f=>"类型表："+Path.GetFileName(f.Path)),ct);
+        ApplyRoomRows(values.Select(x=>new RoomSeed(x.Name,x.Room,x.Source)),inputs.Select(f=>"类型表："+Path.GetFileName(f.Path)),ct);ApplyFacilityEvidence(inputs,ct);
     }
     public void ApplyRoomBaseline(string path,CancellationToken ct=default)
     {
@@ -67,15 +68,20 @@ public sealed partial class Store
         using var c=Open(Personal);using(var q=c.CreateCommand()){q.CommandText="SELECT name,room,source FROM room_members";using var r=q.ExecuteReader();while(r.Read())values.Add((r.GetString(0),r.GetString(1),r.GetString(2)));}
         var choices=new Dictionary<string,(string Room,bool Enabled)>();using(var q=c.CreateCommand()){q.CommandText="SELECT name,room,enabled FROM room_choices";using var r=q.ExecuteReader();while(r.Read())choices[r.GetString(0)]=(r.GetString(1),r.GetInt32(2)==1);}
         var known=g.Nodes.ToDictionary(n=>n.Name,StringComparer.Ordinal);
+        var sourceNames=values.Select(x=>x.Name).ToHashSet(StringComparer.Ordinal);
+        foreach(var choice in choices.Where(x=>!sourceNames.Contains(x.Key)&&known.ContainsKey(x.Key)))values.Add((choice.Key,choice.Value.Room,"人工确认（原来源已移除）"));
         return values.Where(x=>HasRoom(x.Room)&&known.TryGetValue(x.Name,out var n)&&IsRoomFacility(n)).GroupBy(x=>x.Name,StringComparer.Ordinal).Select(group=>{
             var n=known[group.Key];bool cabinet=IsCabinet(n);var rooms=group.Select(x=>x.Room).Distinct(StringComparer.Ordinal).ToArray();string room=rooms.Length==1?rooms[0]:string.Join("；",rooms),reason=rooms.Length>1?"同一设施对应多个所属机房":"",source=string.Join('；',group.Select(x=>x.Source).Distinct());bool enable=rooms.Length==1;
-            if(choices.TryGetValue(n.Name,out var choice)&&rooms.Contains(choice.Room,StringComparer.Ordinal)){room=choice.Room;reason="";source+="；人工确认";enable=choice.Enabled;}
+            if(choices.TryGetValue(n.Name,out var choice)){source+="；人工确认";if(rooms.Contains(choice.Room,StringComparer.Ordinal)){room=choice.Room;reason="";enable=choice.Enabled;}else{reason="源数据与既有人工确认归属不一致；原人工归属："+choice.Room;enable=false;}}
+            if(!sourceNames.Contains(n.Name)){reason="原所属机房来源已移除，保留人工记录并暂停归并";enable=false;}
+            if(rooms.Any(SuspiciousRoom)){reason="疑似安装位置（挂墙/壁挂），所属机房需要人工复核";enable=false;}
             return new RoomAssignment(n.Name,room,source,reason.Length>0?"需核对":"已确认",reason.Length>0?reason:!enable?"已人工暂停归并":"",enable,cabinet);
         }).OrderBy(x=>x.Room,StringComparer.Ordinal).ThenBy(x=>x.Name,StringComparer.Ordinal).ToList();
     }
     public void ConfirmRoom(string name,string room,bool enabled)
     {
         var match=RoomAssignments().FirstOrDefault(x=>x.Name==name)??throw new InvalidDataException("未找到设施的所属机房记录");
+        if(enabled&&SuspiciousRoom(room))throw new InvalidDataException("该名称疑似安装位置，请先核对并更正源表中的真实所属机房，再重新导入。当前已暂停归并。");
         if(!match.Room.Split('；').Contains(room,StringComparer.Ordinal))throw new InvalidDataException("只能从表格已有的所属机房中选择，请先更正并导入源表。");
         using var c=Open(Personal);using var q=c.CreateCommand();q.CommandText="INSERT OR REPLACE INTO room_choices VALUES($n,$r,$e)";q.Parameters.AddWithValue("$n",name);q.Parameters.AddWithValue("$r",room);q.Parameters.AddWithValue("$e",enabled?1:0);q.ExecuteNonQuery();Reload();
     }

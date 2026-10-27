@@ -1,0 +1,2 @@
+FULL DIAG: suspect=146, wall=146, enabled=0, nonreview=0
+FULL R1.4 PASS: edges=272561; nodes=264608; explicit_node_areas=264164; quarantine=146; evidence=277159; type_rows_preserved=277154; source_H163942=PASS; 208.21m=PASS; 2044.87m=PASS; elapsed_ms=5051

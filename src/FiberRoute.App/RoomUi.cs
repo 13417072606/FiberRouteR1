@@ -4,22 +4,45 @@ public sealed partial class MainForm
 {
     readonly DataGridView roomGrid=Grid();readonly TextBox roomSearch=new(){Width=300,PlaceholderText="搜索机房或成员设施"};
     List<IGrouping<string,RoomAssignment>> visibleRooms=[];TabControl? maintenanceTabs;readonly NumericUpDown roomPage=Num(1,99999,1);readonly Label roomPageInfo=L("");
+    readonly ComboBox roomArea=new UiComboBox{Width=140},roomRouteFilter=new UiComboBox{Width=140};
+    readonly TextBox roomDetails=new(){Dock=DockStyle.Fill,Multiline=true,ReadOnly=true,ScrollBars=ScrollBars.Vertical,BorderStyle=BorderStyle.None,BackColor=Color.White};
+    string roomState="全部";FlowLayoutPanel? roomStatusChips;Graph? cachedRoomGraph;List<RoomAssignment> cachedRoomData=[];
+    void RefreshRoomAreaChoices()=>FillChoices(roomArea,store.Graph.Nodes.Select(n=>Area(n.Region)),"全部区域");
     void BuildRoomManagement(TabControl inner)
     {
-        maintenanceTabs=inner;var tab=new TabPage("机房归属"){Padding=new Padding(12),BackColor=Color.White};inner.TabPages.Add(tab);
-        var actions=Flow();actions.Controls.AddRange([roomSearch,B("筛选",LoadRooms),B("查看成员与确认",ShowRoomMembers),B("导入所属机房表",ImportRoomTables),B("导出归属清单",()=>{var p=Save("机房归属.csv");if(p!=null)Csv.Write(p,new[]{new object?[]{"设施名称","所属机房","确认状态","参与机房整体路由","来源","原因"}}.Concat(store.RoomAssignments().Select(x=>new object?[]{x.Name,x.Room,x.Status,x.Enabled,x.Source,x.Reason})));})]);
-        var note=new Label{Dock=DockStyle.Top,Height=62,Text="以明确的所属机房为核心归并 ODF / ODB；保留实际设施和中继段。明确且无冲突的光交归属参与计算，在路径图内显示提示。\n仅使用所属机房字段，不使用上联机房、站点或名称相似度推断。",ForeColor=Theme.Muted,Padding=new Padding(8)};
-        var pager=Flow();pager.Dock=DockStyle.Bottom;pager.Controls.AddRange([roomPageInfo,B("上一页",()=>{if(roomPage.Value>1)roomPage.Value--;LoadRooms();}),roomPage,B("跳转",LoadRooms),B("下一页",()=>{roomPage.Value++;LoadRooms();})]);tab.Controls.Add(roomGrid);tab.Controls.Add(pager);tab.Controls.Add(actions);tab.Controls.Add(note);roomGrid.CellDoubleClick+=(_,e)=>{if(e.RowIndex>=0)ShowRoomMembers();};
+        maintenanceTabs=inner;var tab=new TabPage("机房归属"){Padding=new Padding(12),BackColor=Theme.Canvas};inner.TabPages.Add(tab);
+        var left=new Surface{Dock=DockStyle.Fill,Padding=new Padding(12)};var right=Card("归属详情与来源",roomDetails);
+        var actionButtons=Flow();actionButtons.Dock=DockStyle.Bottom;actionButtons.BackColor=Color.White;actionButtons.Controls.AddRange([B("查看来源",ShowRoomEvidence),B("查看成员",ShowRoomMembers)]);right.Controls.Add(actionButtons);
+        roomRouteFilter.Items.AddRange(["全部归并状态","已纳入","部分纳入","已暂停"]);roomRouteFilter.SelectedIndex=0;
+        var actions=Flow();actions.BackColor=Color.White;roomSearch.Width=220;var frame=InputFrame(roomSearch);frame.Width=230;actions.Controls.AddRange([frame,roomArea,roomRouteFilter,B("重置",()=>{buildingFilters=true;roomSearch.Clear();roomArea.SelectedIndex=roomRouteFilter.SelectedIndex=0;buildingFilters=false;roomState="全部";roomPage.Value=1;LoadRooms();}),B("导入所属机房表",ImportRoomTables),B("导出筛选清单",()=>{var p=Save("机房归属.csv");if(p!=null)Csv.Write(p,new[]{new object?[]{"设施名称","所属机房","确认状态","参与机房整体路由","来源","原因"}}.Concat(visibleRooms.SelectMany(g=>g).Select(x=>new object?[]{x.Name,x.Room,x.Status,x.Enabled,x.Source,x.Reason})));})]);
+        roomStatusChips=StatusChips(()=>roomState,value=>{roomState=value;roomPage.Value=1;LoadRooms();});left.Controls.Add(roomGrid);ConfigurePager(roomPager,"rooms",()=>{roomPage.Value=roomPager.Page;LoadRooms();});left.Controls.Add(roomPager);left.Controls.Add(actions);left.Controls.Add(roomStatusChips);tab.Controls.Add(Columns(73,left,27,right));
+        tab.Controls.Add(new Label{Text="以真实所属机房为核心，异常归属复核前暂停归并；保留实际设施和中继段。",Dock=DockStyle.Top,Height=38,ForeColor=Theme.Muted,Padding=new Padding(6)});
+        Sortable(roomGrid,()=>{roomPage.Value=1;LoadRooms();});roomGrid.SelectionChanged+=(_,_)=>LoadRoomDetails();roomGrid.CellDoubleClick+=(_,e)=>{if(e.RowIndex>=0)ShowRoomMembers();};roomGrid.CellContentClick+=(_,e)=>{if(e.RowIndex>=0&&e.ColumnIndex>=0&&roomGrid.Columns[e.ColumnIndex].Name=="操作")ShowRoomMembers();};
+        var timer=new System.Windows.Forms.Timer{Interval=300};roomSearch.TextChanged+=(_,_)=>{timer.Stop();timer.Start();};timer.Tick+=(_,_)=>{timer.Stop();if(!buildingFilters){roomPage.Value=1;LoadRooms();}};FormClosed+=(_,_)=>timer.Dispose();foreach(var box in new[]{roomArea,roomRouteFilter})box.SelectedIndexChanged+=(_,_)=>{if(!buildingFilters){roomPage.Value=1;LoadRooms();}};
     }
     void LoadRooms()
     {
-        if(maintenanceTabs==null)return;string term=roomSearch.Text.Trim();visibleRooms=store.RoomAssignments().Where(x=>x.Room.Contains(term,StringComparison.OrdinalIgnoreCase)||x.Name.Contains(term,StringComparison.OrdinalIgnoreCase)).GroupBy(x=>x.Room,StringComparer.Ordinal).OrderBy(x=>x.Key,StringComparer.Ordinal).ToList();
-        int pages=Math.Max(1,(visibleRooms.Count+99)/100);if(roomPage.Value>pages)roomPage.Value=pages;int skip=((int)roomPage.Value-1)*100;roomPageInfo.Text=$"共 {visibleRooms.Count:N0} 个机房归属 / {pages} 页";
-        roomGrid.DataSource=visibleRooms.Skip(skip).Take(100).Select((g,i)=>new{序号=i+skip+1,所属机房=g.Key,设施数=g.Count(),已纳入=g.Count(x=>x.Enabled),已暂停光交箱=g.Count(x=>x.IsCabinet&&!x.Enabled),确认状态=g.Any(x=>x.Status=="需核对")?"需核对":"已确认",成员=string.Join("；",g.Select(x=>x.Name))}).ToList();
+        if(maintenanceTabs==null)return;if(!ReferenceEquals(cachedRoomGraph,store.Graph)){cachedRoomGraph=store.Graph;cachedRoomData=store.RoomAssignments();}
+        string term=roomSearch.Text.Trim(),area=roomArea.Text,route=roomRouteFilter.Text;var regions=store.Graph.Nodes.ToDictionary(n=>n.Name,n=>Area(n.Region),StringComparer.Ordinal);var all=cachedRoomData.GroupBy(x=>x.Room,StringComparer.Ordinal).ToArray();
+        string State(IGrouping<string,RoomAssignment> g)=>g.Any(x=>x.Status=="需核对")?"需核对":g.All(x=>x.Status=="已确认")?"已确认":"待确认";
+        string Routing(IGrouping<string,RoomAssignment> g)=>g.All(x=>x.Enabled)?"已纳入":g.Any(x=>x.Enabled)?"部分纳入":"已暂停";
+        visibleRooms=all.Where(g=>(term.Length==0||g.Key.Contains(term,StringComparison.OrdinalIgnoreCase)||g.Any(x=>x.Name.Contains(term,StringComparison.OrdinalIgnoreCase)))&&(roomState=="全部"||State(g)==roomState)&&(area.Length==0||area=="全部区域"||g.Any(x=>regions.GetValueOrDefault(x.Name,"未提供")==area))&&(route.Length==0||route=="全部归并状态"||Routing(g)==route)).OrderBy(g=>g.Key,StringComparer.CurrentCulture).ToList();
+        var rows=Ordered(roomGrid,visibleRooms.Select(g=>new RoomRow(0,g.Key,g.Count(),g.Count(x=>x.Enabled),State(g),Routing(g),"查看成员")));roomPager.Set(rows.Length,(int)roomPage.Value);roomPage.Value=roomPager.Page;int skip=(roomPager.Page-1)*roomPager.PageSize;
+        roomGrid.DataSource=rows.Skip(skip).Take(roomPager.PageSize).Select((r,i)=>r with{序号=skip+i+1}).ToList();if(roomGrid.Columns.Contains("所属机房"))roomGrid.Columns["所属机房"].HeaderText="所属机房原值";UpdateStatusCounts(roomStatusChips,all.Select(State),roomState);LoadRoomDetails();
+    }
+    IGrouping<string,RoomAssignment>? SelectedRoom()=>roomGrid.CurrentRow?.Cells["所属机房"].Value is string name?visibleRooms.FirstOrDefault(g=>g.Key==name):null;
+    void LoadRoomDetails()
+    {
+        if(SelectedRoom() is not {} group){roomDetails.Clear();return;}var member=group.First();string region=store.Graph.Nodes.FirstOrDefault(n=>n.Name==member.Name)?.Region??"";
+        roomDetails.Text=$"所属机房原值：{group.Key}\r\n\r\n设施完整名称：{member.Name}\r\n\r\n区域：{Area(region)}\r\n确认状态：{member.Status}\r\n归并状态："+(member.Enabled?"已纳入":"已暂停")+$"\r\n\r\n{ProvenanceText(member.Name,member.Room)}\r\n\r\n核对原因：{member.Reason}";
+    }
+    void ShowRoomEvidence()
+    {
+        if(SelectedRoom() is not {} group)return;using var dialog=new Form{Text="归属来源 · "+group.Key,Width=780,Height=600,Font=Font,StartPosition=FormStartPosition.CenterParent};dialog.Controls.Add(new TextBox{Dock=DockStyle.Fill,Multiline=true,ReadOnly=true,ScrollBars=ScrollBars.Vertical,BackColor=Color.White,Text=string.Join("\r\n\r\n",group.Select(x=>x.Name+"\r\n"+ProvenanceText(x.Name,x.Room)))});dialog.ShowDialog(this);
     }
     void ShowRoomMembers()
     {
-        if(roomGrid.CurrentRow?.Cells["序号"].Value is not int ix||ix<1||ix>visibleRooms.Count)return;string room=visibleRooms[ix-1].Key;
+        if(SelectedRoom() is not {} selectedGroup)return;string room=selectedGroup.Key;
         using var d=new Form{Text="机房成员 · "+room,Width=1100,Height=650,Font=Font,StartPosition=FormStartPosition.CenterParent};var grid=Grid();List<RoomAssignment> rows=[];
         void Load(){rows=store.RoomAssignments().Where(x=>x.Room==room||x.Room.Split('；').Contains(room)).ToList();grid.DataSource=rows.Select((x,i)=>new{序号=i+1,设施名称=x.Name,所属机房=x.Room,确认状态=x.Status,参与整体路由=x.Enabled,原因=x.Reason,来源=x.Source}).ToList();grid.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.DisplayedCells;grid.AutoResizeColumnHeadersHeight();}
         async Task Set(bool enable)

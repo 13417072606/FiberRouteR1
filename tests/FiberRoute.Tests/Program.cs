@@ -24,6 +24,7 @@ if(args.Length==2&&args[0]=="--r13-verify"){
  Console.WriteLine($"FULL golden route 208.21m / 1 jump PASS; edges={g.Edges.Length} nodes={g.Nodes.Length}; standalone reopen PASS");return;
 }
 if(args.Length==3&&args[0]=="--export-preview"){RouteWorkbookChecks.Preview(args[1],args[2]);return;}
+if(args.Length==3&&args[0]=="--r14-full-verify"){R14Checks.Full(args[1],args[2]);return;}
 int checks=0;
 void Check(bool ok,string label){checks++;if(!ok)throw new Exception("FAIL "+label);Console.WriteLine("PASS "+label);}
 string root=Path.Combine(Path.GetTempPath(),"fiber-tests-"+Guid.NewGuid());Directory.CreateDirectory(root);
@@ -104,6 +105,7 @@ try
     await ImportChecks.Run(root,Check);
     await R13Checks.Run(root,Check);
     await RoomChecks.Run(root,Check);
+    await R14Checks.Run(root,Check);
     Console.WriteLine($"ALL PASS: {checks} checks");
 }finally{Directory.Delete(root,true);}
 sealed class ImmediateProgress(Action<ImportProgress> callback):IProgress<ImportProgress>{public void Report(ImportProgress value)=>callback(value);}

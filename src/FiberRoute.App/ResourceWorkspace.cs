@@ -17,15 +17,14 @@ public sealed partial class MainForm
     void BuildResourceWorkspace()
     {
         var tab=Tab("中继段资源");var surface=new Surface{Dock=DockStyle.Fill,Padding=new Padding(12)};resourceSearch.PlaceholderText="搜索名称、ID、设施、站点或机房";
-        var top=new TableLayoutPanel{Dock=DockStyle.Top,Height=54,ColumnCount=7,RowCount=1,BackColor=Color.White};top.RowStyles.Add(new(SizeType.Percent,100));
-        foreach(var style in new[]{new ColumnStyle(SizeType.Percent,100),new ColumnStyle(SizeType.Absolute,82),new ColumnStyle(SizeType.Absolute,102),new ColumnStyle(SizeType.Absolute,108),new ColumnStyle(SizeType.Absolute,82),new ColumnStyle(SizeType.Absolute,70),new ColumnStyle(SizeType.Absolute,154)})top.ColumnStyles.Add(style);
-        top.Controls.Add(InputFrame(resourceSearch),0,0);top.Controls.Add(new Label{Text="端点类型",Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleRight,Padding=new Padding(0,0,5,0)},1,0);resourceType.Dock=DockStyle.Fill;resourceType.Margin=new Padding(3,9,3,6);top.Controls.Add(resourceType,2,0);
-        top.Controls.Add(new Label{Text="最少空闲芯数",Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleRight,Padding=new Padding(0,0,5,0)},3,0);var number=InputFrame(minFree);number.Dock=DockStyle.Fill;number.Margin=new Padding(3,6,3,6);minFree.BorderStyle=BorderStyle.None;top.Controls.Add(number,4,0);
-        var reset=ActionButton("重置",()=>{resourceSearch.Clear();resourceType.SelectedItem="全部";minFree.Value=0;page.Value=1;LoadResources();});reset.Dock=DockStyle.Fill;reset.Margin=new Padding(4,4,4,8);top.Controls.Add(reset,5,0);var export=AsyncButton("导出筛选结果",ExportResources,"export",true);export.Dock=DockStyle.Fill;export.Margin=new Padding(4,4,0,8);top.Controls.Add(export,6,0);
-        var pager=new Panel{Dock=DockStyle.Bottom,Height=49,BackColor=Color.White};pageLabel.Dock=DockStyle.Fill;pageLabel.TextAlign=ContentAlignment.MiddleLeft;pageLabel.AutoSize=false;pager.Controls.Add(pageLabel);
-        pageSizeChoice.Items.AddRange(["20条","50条","100条"]);pageSizeChoice.SelectedIndex=2;var controls=Flow();controls.AutoSize=false;controls.Dock=DockStyle.Right;controls.Width=560;controls.Height=48;controls.Padding=new Padding(0,4,0,0);controls.BackColor=Color.White;page.Width=76;controls.Controls.AddRange([L("每页"),pageSizeChoice,B("上一页",()=>{if(page.Value>1)page.Value--;LoadResources();}),page,B("跳转",LoadResources),B("下一页",()=>{page.Value++;LoadResources();})]);pager.Controls.Add(controls);
-        pageSizeChoice.SelectedIndexChanged+=(_,_)=>{resourcePageSize=pageSizeChoice.SelectedIndex switch{0=>20,1=>50,_=>100};page.Value=1;LoadResources();};
-        surface.Controls.Add(resourceGrid);surface.Controls.Add(pager);surface.Controls.Add(top);tab.Controls.Add(surface);tab.Controls.Add(Stats());tab.Controls.Add(PageIntro("中继段资源","查询导入的中继段，核对两端设施与纤芯资源"));
+        var top=new Panel{Dock=DockStyle.Top,Height=102,BackColor=Color.White};
+        var first=Flow();first.AutoSize=false;first.Height=50;first.Padding=Padding.Empty;var input=InputFrame(resourceSearch);input.Width=330;
+        first.Controls.AddRange([input,L("始端区域"),resourceStartArea,L("终端区域"),resourceEndArea,B("重置",()=>{buildingFilters=true;resourceSearch.Clear();resourceType.SelectedItem="全部";resourceStartArea.SelectedIndex=resourceEndArea.SelectedIndex=resourceBusiness.SelectedIndex=0;minFree.Value=0;buildingFilters=false;page.Value=1;LoadResources();})]);
+        var second=Flow();second.AutoSize=false;second.Height=48;second.Padding=Padding.Empty;second.Controls.AddRange([L("端点类型"),resourceType,L("最少空闲芯数"),minFree,L("业务状态"),resourceBusiness,B("导出筛选结果",ExportResources)]);second.Dock=DockStyle.Bottom;top.Controls.Add(second);top.Controls.Add(first);
+        ConfigurePager(resourcePager,"resources",()=>{page.Value=resourcePager.Page;LoadResources();});
+        Sortable(resourceGrid,()=>{page.Value=1;LoadResources();});
+        foreach(var filter in new[]{resourceStartArea,resourceEndArea,resourceBusiness})filter.SelectedIndexChanged+=(_,_)=>{if(!buildingFilters&&IsHandleCreated){page.Value=1;LoadResources();}};
+        surface.Controls.Add(resourceGrid);surface.Controls.Add(resourcePager);surface.Controls.Add(top);tab.Controls.Add(surface);tab.Controls.Add(Stats());tab.Controls.Add(PageIntro("中继段资源","查询导入的中继段，核对两端设施与纤芯资源"));
         var timer=new System.Windows.Forms.Timer{Interval=350};resourceSearch.TextChanged+=(_,_)=>{timer.Stop();timer.Start();};timer.Tick+=(_,_)=>{timer.Stop();page.Value=1;LoadResources();};FormClosed+=(_,_)=>timer.Dispose();resourceType.SelectedIndexChanged+=(_,_)=>{if(IsHandleCreated){page.Value=1;LoadResources();}};minFree.ValueChanged+=(_,_)=>{if(IsHandleCreated){page.Value=1;LoadResources();}};
         resourceGrid.CellDoubleClick+=(_,e)=>{if(e.RowIndex>=0)ResourceDetail();};resourceGrid.CellContentClick+=(_,e)=>{if(e.RowIndex>=0&&e.ColumnIndex>=0&&resourceGrid.Columns[e.ColumnIndex].Name=="操作")ResourceDetail();};resourceGrid.CellPainting+=PaintResourceFacility;
     }
@@ -37,7 +36,7 @@ public sealed partial class MainForm
         if(resourceGrid.Rows[e.RowIndex].Cells["内部序号"].Value is not int index||index<0||index>=store.Graph.Edges.Length)return;
         var edge=store.Graph.Edges[index];var node=store.Graph.Nodes[name=="始端设施"?edge.A:edge.B];e.PaintBackground(e.ClipBounds,true);
         var font=e.CellStyle?.Font??Font;int badgeWidth=Math.Min(92*DeviceDpi/96,TextRenderer.MeasureText(node.Type,font).Width+14);var bounds=e.CellBounds;
-        var text=new Rectangle(bounds.X+9,bounds.Y+4,Math.Max(36,bounds.Width-badgeWidth-25),bounds.Height-8);TextRenderer.DrawText(e.Graphics!,node.Name,font,text,Theme.Ink,TextFormatFlags.VerticalCenter|TextFormatFlags.WordBreak|TextFormatFlags.EndEllipsis);
+        var text=new Rectangle(bounds.X+9,bounds.Y+4,Math.Max(36,bounds.Width-badgeWidth-25),bounds.Height-8);TextRenderer.DrawText(e.Graphics!,WrapCellText(node.Name,font,text.Width),font,text,Theme.Ink,TextFormatFlags.VerticalCenter|TextFormatFlags.WordBreak|TextFormatFlags.NoPrefix);
         Theme.Badge(e.Graphics!,node.Type,font,new Rectangle(bounds.Right-badgeWidth-7,bounds.Y+(bounds.Height-25*DeviceDpi/96)/2,badgeWidth,25*DeviceDpi/96));e.Handled=true;
     }
 }

@@ -16,9 +16,9 @@ internal static class Program
             System.Diagnostics.Process? app=null;
             try
             {
-                for(int i=0;i<450;i++){app=System.Diagnostics.Process.GetProcessesByName("FiberRouteR1").FirstOrDefault(p=>p.MainWindowTitle.Contains("R1.3.4"));if(app!=null)break;Thread.Sleep(100);}
-                if(app==null)throw new Exception("original launcher did not open R1.3.4");Thread.Sleep(1500);var rect=new int[4];if(GetWindowRect(app.MainWindowHandle,rect)&&rect[2]>rect[0]&&rect[3]>rect[1]){using var bmp=new Bitmap(rect[2]-rect[0],rect[3]-rect[1]);using(var g=Graphics.FromImage(bmp))g.CopyFromScreen(new Point(rect[0],rect[1]),Point.Empty,bmp.Size);bmp.Save(Path.Combine(root,"完整程序启动-运行截图.png"));}
-                if(File.Exists(Path.Combine(root,"数据","机房归属基线.json")))throw new Exception("owned baseline was not consumed and cleaned");Console.WriteLine("PASS actual self-contained launcher opens R1.3.4 and consumes the room baseline");
+                for(int i=0;i<450;i++){app=System.Diagnostics.Process.GetProcessesByName("FiberRouteR1").FirstOrDefault(p=>p.MainWindowTitle.Contains("R1.4"));if(app!=null)break;Thread.Sleep(100);}
+                if(app==null)throw new Exception("original launcher did not open R1.4");Thread.Sleep(1500);var rect=new int[4];if(GetWindowRect(app.MainWindowHandle,rect)&&rect[2]>rect[0]&&rect[3]>rect[1]){using var bmp=new Bitmap(rect[2]-rect[0],rect[3]-rect[1]);using(var g=Graphics.FromImage(bmp))g.CopyFromScreen(new Point(rect[0],rect[1]),Point.Empty,bmp.Size);bmp.Save(Path.Combine(root,"完整程序启动-运行截图.png"));}
+                if(File.Exists(Path.Combine(root,"数据","机房归属基线.json")))throw new Exception("owned baseline was not consumed and cleaned");Console.WriteLine("PASS actual self-contained launcher opens R1.4 and consumes the room baseline");
             }
             finally{if(app!=null){app.CloseMainWindow();if(!app.WaitForExit(10000))app.Kill();app.Dispose();}}return;
         }
@@ -100,6 +100,7 @@ internal static class Program
                 // Exercise popup lifetime while typing using the actual timer and dropdown.
                 tabs.SelectedIndex=0;start.Clear();var input=(TextBox)typeof(NodePicker).GetField("input",Hidden)!.GetValue(start)!;input.Focus();input.Text="GF271";await Idle(500);var popup=(ToolStripDropDown)typeof(NodePicker).GetField("dropdown",Hidden)!.GetValue(start)!;Check(popup.Visible&&input.ContainsFocus,"endpoint search popup remains open while typing");
                 var list=(ListBox)typeof(NodePicker).GetField("list",Hidden)!.GetValue(start)!;Check(list.Items.Count==1,"endpoint search filters exact fixture result");list.SelectedIndex=0;SendMessageW(list.Handle,0x201,(IntPtr)1,PointAt(15,15));SendMessageW(list.Handle,0x202,IntPtr.Zero,PointAt(15,15));await Idle();Check(start.Selected?.Name==startName&&!popup.Visible,"mouse click commits endpoint and closes dropdown");
+                await R14UiChecks.Run(form,s,output,Check,Idle,Shot);
                 log.Add("ALL PASS: "+passed+" UI checks; DeviceDpi="+form.DeviceDpi+"; Font="+form.Font.Name);File.WriteAllLines(Path.Combine(output,"ui-checks.txt"),log);form.Close();
             }
             catch(Exception e){log.Add("FAIL "+e);File.WriteAllLines(Path.Combine(output,"ui-checks.txt"),log);Environment.ExitCode=1;form.Close();}

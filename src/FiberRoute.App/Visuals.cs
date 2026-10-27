@@ -47,7 +47,7 @@ public sealed partial class MainForm
     {
         grid.CellPainting+=(_,e)=>{
             if(e.RowIndex<0||e.ColumnIndex<0)return;string column=grid.Columns[e.ColumnIndex].Name;
-            if(column is not ("类型" or "节点类型" or "确认状态" or "业务状态" or "容量状态"))return;
+            if(column is not ("类型" or "节点类型" or "确认状态" or "业务状态" or "容量状态" or "路由状态" or "归并状态"))return;
             string value=e.FormattedValue?.ToString()??"";if(value.Length==0)return;e.PaintBackground(e.ClipBounds,true);
             var bounds=new Rectangle(e.CellBounds.X+9,e.CellBounds.Y+Math.Max(3,(e.CellBounds.Height-26*grid.DeviceDpi/96)/2),e.CellBounds.Width-18,26*grid.DeviceDpi/96);
             Theme.Badge(e.Graphics!,value,e.CellStyle?.Font??grid.Font,bounds);e.Handled=true;
@@ -56,6 +56,7 @@ public sealed partial class MainForm
     void PrepareGrid(DataGridView grid)
     {
         PaintBadges(grid);
+        grid.CellFormatting+=(_,e)=>{if(e.RowIndex<0||e.ColumnIndex<0||e.Value is not string text)return;string column=grid.Columns[e.ColumnIndex].Name;if(column is "类型" or "节点类型" or "确认状态" or "业务状态" or "容量状态" or "路由状态" or "归并状态")return;var style=e.CellStyle!;e.Value=WrapCellText(text,style.Font??grid.Font,grid.Columns[e.ColumnIndex].Width-style.Padding.Horizontal-(int)(6*grid.DeviceDpi/96f));e.FormattingApplied=true;};
         // Row headers stay hidden; users can still resize rows at the cell boundary or with
         // the context menu when borderless rows make the grip hard to find.
         var menu=grid.ContextMenuStrip??new ContextMenuStrip();grid.ContextMenuStrip=menu;

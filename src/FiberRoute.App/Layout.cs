@@ -24,7 +24,7 @@ public sealed partial class MainForm
     {if(controls.Length==1)return controls[0];return Split(controls[0],Rows(weights.Skip(1).ToArray(),controls.Skip(1).ToArray()),Orientation.Horizontal,weights[0]/weights.Sum());}
     Control Split(Control first,Control second,Orientation orientation,float fraction)
     {
-        string id="split-v3-"+splitSerial++;var split=new SplitContainer{Dock=DockStyle.Fill,Orientation=orientation,SplitterWidth=12,BackColor=Theme.Canvas,Panel1MinSize=80,Panel2MinSize=80};first.Dock=second.Dock=DockStyle.Fill;split.Panel1.Controls.Add(first);split.Panel2.Controls.Add(second);savedSplits[id]=split;
+        string id="split-v4-"+splitSerial++;var split=new SplitContainer{Dock=DockStyle.Fill,Orientation=orientation,SplitterWidth=12,BackColor=Theme.Canvas,Panel1MinSize=80,Panel2MinSize=80};first.Dock=second.Dock=DockStyle.Fill;split.Panel1.Controls.Add(first);split.Panel2.Controls.Add(second);savedSplits[id]=split;
         bool applied=false;split.SizeChanged+=(_,_)=>{int size=orientation==Orientation.Vertical?split.ClientSize.Width:split.ClientSize.Height;if(applied||size<400)return;applied=true;float ratio=float.TryParse(store.Setting("layout-"+id),System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var old)?old:fraction;split.SplitterDistance=Math.Clamp((int)(size*ratio),80,size-92);};Shown+=(_,_)=>BeginInvoke((Action)(()=>{int size=orientation==Orientation.Vertical?split.ClientSize.Width:split.ClientSize.Height;if(size<200)return;float ratio=float.TryParse(store.Setting("layout-"+id),System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var old)?old:fraction;split.SplitterDistance=Math.Clamp((int)(size*ratio),80,size-92);}));return split;
     }
     Control Stats()
@@ -46,14 +46,14 @@ public sealed partial class MainForm
     {
         int index=0;foreach(var grid in new[]{routeGrid,segments,resourceGrid,typeGrid,importGrid,typePreview,clusterGrid,assignmentGrid,roomGrid})
         {
-            string key="grid-v3-"+index++;grid.Name=key;
+            string key="grid-v4-"+index++;grid.Name=key;
             try{if(store.Setting(key) is string json)gridStates[grid]=JsonSerializer.Deserialize<GridState>(json)!;}catch{}
             PrepareGrid(grid);grid.DataBindingComplete+=(_,_)=>FitGrid(grid);
             grid.SizeChanged+=(_,_)=>{if(!gridStates.ContainsKey(grid))FitGrid(grid);};
-            grid.FontChanged+=(_,_)=>grid.AutoResizeColumnHeadersHeight();grid.ColumnHeadersDefaultCellStyle.Font=new Font(Font.FontFamily,10,FontStyle.Bold);
+            grid.FontChanged+=(_,_)=>{grid.AutoResizeColumnHeadersHeight();QueueRowMeasure(grid);};grid.ColumnHeadersDefaultCellStyle.Font=new Font(Font.FontFamily,10,FontStyle.Bold);
             var menu=new ContextMenuStrip();menu.Items.Add("列设置…",null,(_,_)=>ShowColumns(grid));menu.Items.Add("自动适应内容",null,(_,_)=>{grid.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.DisplayedCells);grid.AutoResizeRows(DataGridViewAutoSizeRowsMode.DisplayedCells);RememberGrid(grid);});menu.Items.Add("设置选中行高度…",null,(_,_)=>SetRowHeight(grid));menu.Items.Add("恢复默认布局",null,(_,_)=>{gridStates.Remove(grid);store.SetSetting(key,"");FitGrid(grid);});grid.ContextMenuStrip=menu;
             grid.MouseDown+=(_,e)=>{var hit=grid.HitTest(e.X,e.Y);if(e.Button==MouseButtons.Left&&hit.Type is DataGridViewHitTestType.ColumnHeader or DataGridViewHitTestType.RowHeader or DataGridViewHitTestType.TopLeftHeader)gridGestures.Add(grid);};grid.MouseUp+=(_,_)=>{if(gridGestures.Remove(grid))RememberGrid(grid);};
-            grid.ColumnWidthChanged+=(_,_)=>{if(gridGestures.Contains(grid))RememberGrid(grid);};grid.ColumnDisplayIndexChanged+=(_,_)=>{if(gridGestures.Contains(grid))RememberGrid(grid);};grid.RowHeightChanged+=(_,_)=>{if(gridGestures.Contains(grid))RememberGrid(grid);};
+            grid.ColumnWidthChanged+=(_,_)=>{if(gridGestures.Contains(grid))RememberGrid(grid);if(!remembering)QueueRowMeasure(grid);};grid.ColumnDisplayIndexChanged+=(_,_)=>{if(gridGestures.Contains(grid))RememberGrid(grid);};grid.RowHeightChanged+=(_,_)=>{if(gridGestures.Contains(grid))RememberGrid(grid);};
         }
         FormClosing+=(_,_)=>{if(busy)return;foreach(var pair in gridStates)store.SetSetting(pair.Key.Name,JsonSerializer.Serialize(pair.Value));foreach(var pair in savedSplits){var s=pair.Value;int size=s.Orientation==Orientation.Vertical?s.ClientSize.Width:s.ClientSize.Height;if(size>0)store.SetSetting("layout-"+pair.Key,((float)s.SplitterDistance/size).ToString(System.Globalization.CultureInfo.InvariantCulture));}};
     }
@@ -64,7 +64,7 @@ public sealed partial class MainForm
         try
         {
             var savedState=gridStates.GetValueOrDefault(grid);
-            float savedScale=grid.DeviceDpi/(float)Math.Max(1,savedState?.Dpi??grid.DeviceDpi);foreach(DataGridViewColumn c in grid.Columns){var saved=savedState?.Columns.FirstOrDefault(x=>x.Name==c.Name);c.MinimumWidth=(int)(48*grid.DeviceDpi/96f);c.AutoSizeMode=DataGridViewAutoSizeColumnMode.None;c.Visible=c.Name=="内部序号"?false:saved?.Visible??!(grid==typeGrid&&c.Name=="原因");if(saved!=null)c.Width=Math.Max(c.MinimumWidth,(int)(saved.Width*savedScale));}
+            float savedScale=grid.DeviceDpi/(float)Math.Max(1,savedState?.Dpi??grid.DeviceDpi);foreach(DataGridViewColumn c in grid.Columns){var saved=savedState?.Columns.FirstOrDefault(x=>x.Name==c.Name);c.MinimumWidth=(int)(48*grid.DeviceDpi/96f);c.AutoSizeMode=DataGridViewAutoSizeColumnMode.None;c.Visible=c.Name is "内部序号" or "内部标识"?false:saved?.Visible??!(grid==typeGrid&&c.Name=="原因");if(saved!=null)c.Width=Math.Max(c.MinimumWidth,(int)(saved.Width*savedScale));}
             if(savedState!=null){int orderIndex=0;foreach(var col in savedState.Columns.OrderBy(c=>c.Order)){if(grid.Columns.Contains(col.Name))grid.Columns[col.Name].DisplayIndex=orderIndex++;}}
             else foreach(DataGridViewColumn c in grid.Columns)c.DisplayIndex=c.Index;
             if(savedState==null)
@@ -72,13 +72,13 @@ public sealed partial class MainForm
                 var columns=grid.Columns.Cast<DataGridViewColumn>().Where(c=>c.Visible).ToArray();int Weight(DataGridViewColumn c)=>c.Name.Contains("设施")||c.Name is "名称" or "始端" or "终端" or "成员"?4:c.Name.Contains("ID")?2:1;int available=Math.Max(320,grid.ClientSize.Width-(grid.RowHeadersVisible?grid.RowHeadersWidth:0)-SystemInformation.VerticalScrollBarWidth-3),total=columns.Sum(Weight);
                 int Initial(DataGridViewColumn c)=>(int)((c.Name.Contains("设施")||c.Name is "名称" or "始端" or "终端" or "成员" or "所属机房"?grid==resourceGrid?240:200:c.Name is "序号" or "操作"?70:c.Name=="空闲_总芯"?116:c.Name=="需求后余量"?120:c.Name is "确认状态" or "类型"?86:c.Name.Contains("ID")?150:100)*grid.DeviceDpi/96f);int extra=Math.Max(0,available-columns.Sum(Initial));foreach(var c in columns)c.Width=Initial(c)+extra*Weight(c)/Math.Max(1,total);
             }
-            int minRow=(int)(38*grid.DeviceDpi/96f);foreach(DataGridViewRow row in grid.Rows)row.Height=Math.Max(minRow,savedState!=null?(int)(savedState.Height*savedScale):minRow);if(savedState==null)grid.AutoResizeRows(DataGridViewAutoSizeRowsMode.DisplayedCells);grid.AutoResizeColumnHeadersHeight();
+            MeasureRows(grid);grid.AutoResizeColumnHeadersHeight();
         }finally{remembering=false;}
     }
-    void RememberGrid(DataGridView grid){if(remembering||grid.Columns.Count==0||!Visible)return;remembering=true;try{gridStates[grid]=new(grid.Columns.Cast<DataGridViewColumn>().Select(c=>new ColumnState(c.Name,c.Width,c.DisplayIndex,c.Visible)).ToArray(),grid.CurrentRow?.Height??48,grid.DeviceDpi);}finally{remembering=false;}}
+    void RememberGrid(DataGridView grid){if(remembering||grid.Columns.Count==0||!Visible)return;remembering=true;try{gridStates[grid]=new(grid.Columns.Cast<DataGridViewColumn>().Select(c=>new ColumnState(c.Name,c.Width,c.DisplayIndex,c.Visible)).ToArray(),rowMinimum.GetValueOrDefault(grid,gridStates.GetValueOrDefault(grid)?.Height??38*grid.DeviceDpi/96),grid.DeviceDpi);}finally{remembering=false;}}
     void SetRowHeight(DataGridView grid)
     {
-        if(grid.CurrentRow==null)return;using var d=new Form{Text="行高",Width=340,Height=175,Font=Font,StartPosition=FormStartPosition.CenterParent};var n=Num(24,600,Math.Clamp(grid.CurrentRow.Height,24,600));n.Dock=DockStyle.Top;d.Controls.Add(n);var ok=B("应用到本表",()=>{foreach(DataGridViewRow row in grid.Rows)row.Height=(int)n.Value;RememberGrid(grid);d.Close();});ok.Dock=DockStyle.Bottom;d.Controls.Add(ok);d.ShowDialog(this);
+        if(grid.CurrentRow==null)return;using var d=new Form{Text="行高",Width=340,Height=175,Font=Font,StartPosition=FormStartPosition.CenterParent};var n=Num(24,600,Math.Clamp(grid.CurrentRow.Height,24,600));n.Dock=DockStyle.Top;d.Controls.Add(n);var ok=B("应用到本表",()=>{rowMinimum[grid]=(int)n.Value;RememberGrid(grid);MeasureRows(grid);d.Close();});ok.Dock=DockStyle.Bottom;d.Controls.Add(ok);d.ShowDialog(this);
     }
     void ShowColumns(DataGridView grid){using var d=new Form{Text="列设置 · 拖动表头可调整顺序",Width=420,Height=520,Font=Font};var list=new CheckedListBox{Dock=DockStyle.Fill,CheckOnClick=true};foreach(DataGridViewColumn c in grid.Columns)list.Items.Add(c.HeaderText,c.Visible);var ok=B("应用",()=>{for(int i=0;i<grid.Columns.Count;i++)grid.Columns[i].Visible=list.GetItemChecked(i);RememberGrid(grid);d.Close();});ok.Dock=DockStyle.Bottom;d.Controls.Add(list);d.Controls.Add(ok);d.ShowDialog(this);}
     void CreateDesktopShortcut()
@@ -90,6 +90,6 @@ public sealed partial class MainForm
     }
     void ShowSettings()
     {
-        if(busy){MessageBox.Show("请先等待任务结束。");return;}using var d=new Form{Text="数据与布局设置",Width=650,Height=460,Font=Font};var panel=Stack();var info=L("当前数据库目录："+store.Root);info.MaximumSize=new Size(580,0);panel.Controls.AddRange([info,L("数据库与程序分开保存，可选择D盘；原始Excel不重复留存。"),B("打开数据目录",()=>Process.Start(new ProcessStartInfo(store.Root){UseShellExecute=true})),B("选择数据目录并重启",()=>{using var pick=new FolderBrowserDialog{Description="选择包含resources.db和personal.db的数据文件夹，或新的空文件夹"};if(pick.ShowDialog()!=DialogResult.OK)return;string root=Path.GetFullPath(pick.SelectedPath);_=new Store(root);Program.SaveRoot(root);var restart=new ProcessStartInfo(Application.ExecutablePath){UseShellExecute=false};restart.ArgumentList.Add("--wait-pid");restart.ArgumentList.Add(Environment.ProcessId.ToString());Process.Start(restart);Application.Exit();}),B("创建桌面快捷方式",CreateDesktopShortcut),B("恢复表格和分隔区布局",()=>{foreach(var g in gridStates.Keys.ToArray())store.SetSetting(g.Name,"");foreach(var key in savedSplits.Keys)store.SetSetting("layout-"+key,"");gridStates.Clear();MessageBox.Show("已恢复，下次打开应用默认布局。");}),L("R1.3.4 · 数据保存在本机，支持脱离运营商内网运行。")]);d.Controls.Add(panel);d.ShowDialog(this);
+        if(busy){MessageBox.Show("请先等待任务结束。");return;}using var dialog=BuildSettingsDialog();dialog.ShowDialog(this);
     }
 }

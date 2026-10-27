@@ -36,8 +36,8 @@ public sealed partial class Store
     {
         using var c=Open(path);
         var ns=new List<Node>();using(var q=c.CreateCommand()){q.CommandText="SELECT id,name,type FROM nodes ORDER BY id";using var r=q.ExecuteReader();while(r.Read()){var name=r.GetString(1);bool confirmed=manual.TryGetValue(name,out var type);ns.Add(new(r.GetInt32(0),name,confirmed?type!:r.GetString(2),confirmed));}}
-        var es=new List<Edge>();using(var q=c.CreateCommand()){q.CommandText="SELECT id,business_id,name,a,b,length,free,total FROM edges ORDER BY id";using var r=q.ExecuteReader();while(r.Read())es.Add(new(r.GetInt32(0),r.GetString(1),r.GetString(2),r.GetInt32(3),r.GetInt32(4),r.IsDBNull(5)?null:r.GetDouble(5),r.GetInt32(6),r.GetInt32(7),""));}
-        using var v=c.CreateCommand();v.CommandText="SELECT value FROM meta WHERE name='version'";var graph=new Graph(Decorate(ns.ToArray()),es.ToArray(),v.ExecuteScalar() as string??"未知");
+        var es=new List<Edge>();using(var q=c.CreateCommand()){q.CommandText="SELECT id,business_id,name,a,b,length,free,total,CASE WHEN json_valid(raw) THEN COALESCE(json_extract(raw,'$.始端区域'),'') ELSE '' END,CASE WHEN json_valid(raw) THEN COALESCE(json_extract(raw,'$.终端区域'),'') ELSE '' END,CASE WHEN json_valid(raw) THEN COALESCE(json_extract(raw,'$.业务状态'),'') ELSE '' END FROM edges ORDER BY id";using var r=q.ExecuteReader();while(r.Read())es.Add(new(r.GetInt32(0),r.GetString(1),r.GetString(2),r.GetInt32(3),r.GetInt32(4),r.IsDBNull(5)?null:r.GetDouble(5),r.GetInt32(6),r.GetInt32(7),"",r.GetString(8).Trim(),r.GetString(9).Trim(),r.GetString(10).Trim()));}
+        using var v=c.CreateCommand();v.CommandText="SELECT value FROM meta WHERE name='version'";var graph=new Graph(WithRegions(Decorate(ns.ToArray()),es.ToArray()),es.ToArray(),v.ExecuteScalar() as string??"未知");
         EnsureResourceRooms(c);graph.SetClusters(RoutingGroups(graph,ResourceRooms(c)));return graph;
     }
     public string Raw(int index) {using var c=Open(Database);using var q=c.CreateCommand();q.CommandText="SELECT raw FROM edges WHERE id=$i";q.Parameters.AddWithValue("$i",index);return q.ExecuteScalar() as string??"{}";}

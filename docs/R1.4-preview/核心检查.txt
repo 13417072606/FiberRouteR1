@@ -1,0 +1,152 @@
+PASS workbook sequence preserves start, intermediate and end transfers without duplicate adjacent names
+PASS workbook follows oriented route steps rather than stored edge directions
+PASS workbook contains only overview and selected numbered route sheets
+PASS overview exports exact arrow-separated route including XML characters
+PASS shortage routes export actual negative remainder and clear capacity status
+PASS overview and detail hyperlinks preserve original route numbers
+PASS deleted explanation and removed-sheet references are absent
+PASS actual internal transfers remain separate from real segment capacities
+PASS independent Excel reader opens generated workbook and Chinese headings
+PASS internal-only route never fabricates available capacity
+PASS unknown length and real zero length remain distinct in Excel
+PASS failed export preserves existing workbook and cleans temporary files
+PASS facility text remains literal rather than an Excel formula
+PASS sample 12 edges / 20 nodes
+PASS sample 1659.56 m
+PASS sample 40 aggregate cores
+PASS long ID exact text
+PASS A route exists
+PASS A length / jumps / capacity / residual
+PASS B insufficient cores
+PASS C avoid type
+PASS D avoid node
+PASS E zero jumps
+PASS F endpoint type exemption
+PASS G zero length allowed
+PASS explicit endpoint conflict rejected
+PASS route cancellation
+PASS queue upper bound reported
+PASS expansion upper bound reported
+PASS time upper bound reported
+PASS manual multi-label type changes routing
+PASS manual types survive resource replacement
+PASS type import conflicts / unknown / empty preview
+PASS type preview creates no nodes and changes nothing
+PASS quoted multiline CSV and invalid isolation
+PASS trim exact endpoints / missing length retained
+PASS leading zeros preserved
+PASS anomaly report header + 2 records
+PASS resource rollback preserves manual settings
+PASS mid-import cancellation preserves original database
+PASS failed import preserves original database
+PASS GBK import + km conversion
+PASS GB18030 import + km conversion
+PASS 400 random multigraph ordering comparisons against exhaustive oracle
+PASS RSA-PSS signed manifest verification
+PASS tampered manifest rejected
+PASS program ZIP layout and license extraction
+PASS update ZIP traversal rejected
+PASS update cannot overwrite personal exports
+PASS automatic utf8 / strict text / ID / quoted multiline
+PASS automatic utf8bom / strict text / ID / quoted multiline
+PASS automatic gbk / strict text / ID / quoted multiline
+PASS automatic gb18030 / strict text / ID / quoted multiline
+PASS automatic utf16 / strict text / ID / quoted multiline
+PASS automatic utf16be / strict text / ID / quoted multiline
+PASS automatic utf16nobom / strict text / ID / quoted multiline
+PASS GB18030 four-byte character
+PASS xls native format and sheet discovery
+PASS xls actual import / mapping / exact long ID / zero and missing length
+PASS xls numeric ID precision risk rejects and preserves database
+PASS xls native type preview / conflicts / unknown / blank / no mutation
+PASS xls missing sheet actionable error
+PASS xls cancellation retains original
+PASS xlsx native format and sheet discovery
+PASS xlsx actual import / mapping / exact long ID / zero and missing length
+PASS xlsx numeric ID precision risk rejects and preserves database
+PASS xlsx native type preview / conflicts / unknown / blank / no mutation
+PASS xlsx missing sheet actionable error
+PASS xlsx cancellation retains original
+PASS invalid UTF-8 BOM payload never replaced silently
+PASS Excel binary never parsed as CSV text
+PASS invalid Excel gives format error
+PASS corrupt Excel container rejected
+PASS cluster disabled cannot bridge disconnected devices
+PASS unconfirmed cluster cannot connect routing
+PASS cluster hard rules and exact real endpoints Candidates
+PASS cluster hard rules and exact real endpoints Distance
+PASS cluster hard rules and exact real endpoints Jumps
+PASS cluster hard rules and exact real endpoints Capacity
+PASS cluster cannot bypass real capacity
+PASS cluster does not erase actual hop
+PASS cluster type exclusion enforced
+PASS avoiding either cluster member excludes logical node
+PASS cluster member avoid endpoint conflict rejected
+PASS reverse cluster path retains direction
+PASS same cluster endpoint relation has no invented capacity or resource
+PASS capacity filter can explicitly include a clearly marked shortage reference
+PASS reference routes still enforce exclusions and hop limits
+PASS endpoint type exemption remains after its UI wording is removed
+PASS sufficient routes precede shortage references without inventing capacity on zero-free edges
+PASS default capacity filter never returns shortage routes
+PASS zero-segment room relation does not claim verified capacity
+PASS cluster routing cancellation
+PASS automatic identification is pending, not abnormal
+PASS real asset type table tolerates duplicate unused headers and confirms exact matches
+PASS unmatched type mapping retained for future resource snapshots
+PASS type import flags manual conflict without overwriting manual value
+PASS manual correction clears abnormal state
+PASS conflicting type tables require review
+PASS type transaction cancellation preserves metadata
+PASS reciprocal cluster rows deduplicated and table import confirms
+PASS persisted cluster builds logical graph
+PASS restart preserves types clusters status
+PASS overlap and missing members do not silently merge
+PASS explicit raw 17-column export preserves literal quotes and final multi-value field
+PASS identical periodic resource import skips DB replacement
+PASS full cluster refresh removes stale table groups and retains manual groups
+PASS table refresh preserves conflicting manual cluster and flags review
+PASS 320 random contracted multigraph comparisons against independent exhaustive oracle
+PASS ODF and ODB with explicit room affiliation route as one room core
+PASS room aggregation retains all real resources and names the room core
+PASS unambiguous cabinet room affiliation participates without a startup approval gate
+PASS explicit user suspension overrides default cabinet affiliation
+PASS room field does not automatically contract non ODF ODB cabinet facilities
+PASS explicit cabinet room confirmation enables its real segments
+PASS room aggregation never bypasses real segment capacity
+PASS explicit cluster cannot silently bridge two different room cores
+PASS conflicting explicit room fields are quarantined and upstream room is not used
+PASS human choice resolves a room affiliation conflict using a supplied room value
+PASS reopen retains room choices and cabinet approval
+PASS user can suspend cabinet aggregation without deleting real resources
+PASS periodic room update replaces same source rows and does not accumulate obsolete affiliations
+PASS compact room baseline is applied once and exposes conflicts rather than guessing
+PASS human room choice cannot invent an unavailable affiliation
+PASS R1.3 database migration reconstructs explicit resource room fields
+PASS cancelled affiliation refresh preserves previous room rows
+PASS R1.4 resource area and business fields survive loading with both endpoint areas distinct
+PASS R1.4 full CSV parser preserves commas, multiline cells, duplicate auxiliary headers and exact source row
+PASS typed area is displayed and wall-location room is quarantined rather than auto-confirmed
+PASS suspect wall location cannot be enabled as a room without correcting its source
+PASS unchanged evidence import skips duplicate writes
+PASS source CSV is not copied into the customer database directory
+PASS new same-source evidence replaces obsolete rows without accumulating copies
+PASS data publishing emits normalized databases and manifest without personal.db or original tables
+PASS published catalogue contains no administrator settings or residual private setting bytes
+PASS data preview detects adds, changes, removals, exact duplicates and human type conflict
+PASS preparing data update never changes either live database
+PASS online data apply replaces resource snapshot and preserves customer type and settings
+PASS customer room choice survives a conflicting server affiliation and is exposed for review
+PASS identical subsequent data update ignores existing unchanged records
+PASS cancelled data preparation preserves the active resource snapshot
+PASS resource room-only auxiliary change is included in data diff instead of being ignored
+PASS resource room-only update applies the new source while retaining human conflict for review
+PASS cloud cluster conflict preserves human members and visibly pauses logical merge
+PASS removed affiliation source retains customer choice for review instead of silently dropping it
+PASS publisher creates public client configuration and missing service remains explicitly unconfigured
+PASS management release produces client-verifiable signed independent data channel
+PASS online check and download validate signed release, declared bytes and content hash
+PASS invalid download hash is rejected and temporary package cleaned
+PASS update download cannot silently redirect to an unrelated origin
+PASS program version and data compatibility checks distinguish new, current and incompatible releases
+ALL PASS: 151 checks
