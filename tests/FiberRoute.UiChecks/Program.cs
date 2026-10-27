@@ -10,6 +10,15 @@ internal static class Program
     [STAThread] static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if(args.Length==3&&args[0]=="--r141-real-ui")
+        {
+            string target=args[2];Directory.CreateDirectory(target);using var real=new MainForm(new Store(args[1]));real.Shown+=async(_,_)=>{try{await Task.Delay(1500);var tabs=(TabControl)typeof(MainForm).GetField("tabs",Hidden)!.GetValue(real)!;tabs.SelectedIndex=1;await Task.Delay(1500);var pager=typeof(MainForm).GetField("resourcePager",Hidden)!.GetValue(real)!;pager.GetType().GetMethod("Go",Hidden)!.Invoke(pager,[3]);await Task.Delay(1000);using(var image=new Bitmap(real.ClientSize.Width,real.ClientSize.Height)){using(var g=Graphics.FromImage(image))g.CopyFromScreen(real.PointToScreen(Point.Empty),Point.Empty,real.ClientSize);image.Save(Path.Combine(target,"R1.4.1-真实资源-实际运行.png"));}using var settings=(Form)typeof(MainForm).GetMethod("BuildSettingsDialog",Hidden)!.Invoke(real,null)!;settings.Show(real);await Task.Delay(500);using(var image=new Bitmap(settings.ClientSize.Width,settings.ClientSize.Height)){using(var g=Graphics.FromImage(image))g.CopyFromScreen(settings.PointToScreen(Point.Empty),Point.Empty,settings.ClientSize);image.Save(Path.Combine(target,"R1.4.1-真实设置-实际运行.png"));}settings.Close();Console.WriteLine("PASS real full-data resource and settings windows captured");}catch(Exception e){Console.WriteLine(e);Environment.ExitCode=1;}finally{real.Close();}};Application.Run(real);return;
+        }
+        if(args.Length==2&&args[0]=="--publisher-delivery-check")
+        {
+            string root=Path.GetFullPath(args[1]);using var launcher=System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Path.Combine(root,"管理方发布工具.exe")){UseShellExecute=false,WorkingDirectory=root})!;System.Diagnostics.Process? app=null;
+            try{for(int i=0;i<300;i++){app=System.Diagnostics.Process.GetProcessesByName("FiberRoute.Publisher").FirstOrDefault(p=>p.MainWindowTitle.Contains("管理方发布工具"));if(app!=null)break;Thread.Sleep(100);}if(app==null)throw new Exception("native publisher launcher did not open the wizard");Console.WriteLine("PASS native management EXE opens the graphical publishing wizard without a console");}finally{if(app!=null){app.CloseMainWindow();if(!app.WaitForExit(10000))app.Kill();app.Dispose();}}return;
+        }
         if(args.Length==2&&args[0]=="--delivery-check")
         {
             string root=Path.GetFullPath(args[1]);using var launcher=System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Path.Combine(root,"光路调度智能分析.exe")){UseShellExecute=false,WorkingDirectory=root})!;
@@ -101,6 +110,7 @@ internal static class Program
                 tabs.SelectedIndex=0;start.Clear();var input=(TextBox)typeof(NodePicker).GetField("input",Hidden)!.GetValue(start)!;input.Focus();input.Text="GF271";await Idle(500);var popup=(ToolStripDropDown)typeof(NodePicker).GetField("dropdown",Hidden)!.GetValue(start)!;Check(popup.Visible&&input.ContainsFocus,"endpoint search popup remains open while typing");
                 var list=(ListBox)typeof(NodePicker).GetField("list",Hidden)!.GetValue(start)!;Check(list.Items.Count==1,"endpoint search filters exact fixture result");list.SelectedIndex=0;SendMessageW(list.Handle,0x201,(IntPtr)1,PointAt(15,15));SendMessageW(list.Handle,0x202,IntPtr.Zero,PointAt(15,15));await Idle();Check(start.Selected?.Name==startName&&!popup.Visible,"mouse click commits endpoint and closes dropdown");
                 await R14UiChecks.Run(form,s,output,Check,Idle,Shot);
+                await R141UiChecks.Run(form,s,output,Check,Idle,Shot);
                 log.Add("ALL PASS: "+passed+" UI checks; DeviceDpi="+form.DeviceDpi+"; Font="+form.Font.Name);File.WriteAllLines(Path.Combine(output,"ui-checks.txt"),log);form.Close();
             }
             catch(Exception e){log.Add("FAIL "+e);File.WriteAllLines(Path.Combine(output,"ui-checks.txt"),log);Environment.ExitCode=1;form.Close();}

@@ -106,6 +106,7 @@ try
     await R13Checks.Run(root,Check);
     await RoomChecks.Run(root,Check);
     await R14Checks.Run(root,Check);
+await R141Checks.Run(root,Check);
     Console.WriteLine($"ALL PASS: {checks} checks");
 }finally{Directory.Delete(root,true);}
 sealed class ImmediateProgress(Action<ImportProgress> callback):IProgress<ImportProgress>{public void Report(ImportProgress value)=>callback(value);}

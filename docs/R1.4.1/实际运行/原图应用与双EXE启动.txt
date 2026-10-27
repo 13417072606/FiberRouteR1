@@ -1,0 +1,2 @@
+PASS actual self-contained launcher opens R1.4 and consumes the room baseline
+PASS native management EXE opens the graphical publishing wizard without a console

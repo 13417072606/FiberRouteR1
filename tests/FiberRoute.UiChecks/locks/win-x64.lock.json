@@ -72,6 +72,12 @@
           "System.Text.Encoding.CodePages": "[8.0.0, )"
         }
       },
+      "fiberroute.publisher": {
+        "type": "Project",
+        "dependencies": {
+          "FiberRoute.Core": "[1.0.0, )"
+        }
+      },
       "FiberRouteR1": {
         "type": "Project",
         "dependencies": {

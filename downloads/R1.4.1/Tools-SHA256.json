@@ -1,0 +1,26 @@
+{
+  "FiberRouteR1-Publisher-win-x64-R1.4.1.zip": {
+    "Size": 71661431,
+    "Sha256": "6db2a21449ecd6c0ac378f909478d72d531fa67195439aa7399472d62e54ead6"
+  },
+  "FiberRouteR1-Publisher-win-x64-R1.4.1.zip.part001": {
+    "Size": 20000000,
+    "Sha256": "f7e7056e74110ea60a0afdebb5f89f30b097917d5a9453d1bd94d7d499bfe489"
+  },
+  "FiberRouteR1-Publisher-win-x64-R1.4.1.zip.part002": {
+    "Size": 20000000,
+    "Sha256": "42410cd42d29b1c6626d2a01338df37b5c231b85be3960e3f186df5dc89537ef"
+  },
+  "FiberRouteR1-Publisher-win-x64-R1.4.1.zip.part003": {
+    "Size": 20000000,
+    "Sha256": "8c866c87f537731b51101259f59a301f6828c07b7e989a7a51b392531d572738"
+  },
+  "FiberRouteR1-Publisher-win-x64-R1.4.1.zip.part004": {
+    "Size": 11661431,
+    "Sha256": "029e029a4bf8de89a10b2ef26c131731e64193dc3aae5679a8ad7c32ea157d2e"
+  },
+  "FiberRouteR1-Windows-Server-Kit-R1.4.1.zip": {
+    "Size": 5235,
+    "Sha256": "c531bc99bbb6349f90e25c2fbbe9c5341da86c4fec2719af8eb73064f195f1b3"
+  }
+}

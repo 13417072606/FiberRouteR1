@@ -1,3 +1,13 @@
+# 光路调度智能分析 R1.4.1
+
+[修订包与管理员PowerShell下载](downloads/R1.4.1/) · [修改清单](docs/R1.4.1/R1.4.1修改清单.md) · [实际运行及验证](docs/R1.4.1/实际运行/) · [管理方EXE指南](docs/R1.4.1/管理方EXE使用说明.md)
+
+按确认图落实设置页和中继段资源页：独立的始端/终端类型列与筛选、单行筛选、完整分页及DPI布局。管理方工具改为可双击的图形EXE；新增直接选原PNG的整套图标替换工具，避免重画。
+
+原PNG尚未作为文件收到，交付包不冒充已预置原图；可在本机选择原PNG替换。单位Windows服务器部署资料已备好，真实外网网址仍待提供，当前无活动更新服务配置。
+
+---
+
 # 光路调度智能分析 R1.4
 
 [补丁安装包与管理员PowerShell下载说明](downloads/R1.4/) · [修改清单](docs/R1.4修改清单.md) · [实际运行截图及验证](docs/R1.4-preview/) · [机房来源复核](docs/R1.4-planning/Room-Affiliation-Origin-Audit.xlsx?raw=true) · [管理方在线更新发布指南](docs/R1.4-planning/Online-Update-Publishing.md)

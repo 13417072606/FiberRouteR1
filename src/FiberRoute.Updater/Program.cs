@@ -17,6 +17,10 @@ try
         if(File.Exists(dest)){Directory.CreateDirectory(Path.GetDirectoryName(old)!);File.Copy(dest,old,true);}else old="";
         replaced.Add((dest,old.Length==0?null:old));Directory.CreateDirectory(Path.GetDirectoryName(dest)!);File.Copy(source,dest,true);
     }
+    string brand=Path.Combine(root,"程序","FiberRoute.Brand.exe");if(File.Exists(Path.Combine(root,"资源","品牌原图.png"))&&File.Exists(brand))
+    {
+        using var apply=Process.Start(new ProcessStartInfo(brand){UseShellExecute=false,Arguments="--apply-existing",WorkingDirectory=root})??throw new IOException("品牌图标组件未启动");if(!apply.WaitForExit(60000)){try{apply.Kill();apply.WaitForExit(2000);}catch{}throw new TimeoutException("品牌图标应用超时");}if(apply.ExitCode!=0)throw new IOException("原品牌图标恢复失败，程序升级已取消，请查看品牌替换失败.txt");
+    }
     Process.Start(new ProcessStartInfo(args[3]){UseShellExecute=true});File.Delete(zip);return 0;
 }
 catch(Exception e)

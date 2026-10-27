@@ -5,29 +5,29 @@ namespace FiberRoute.App;
 internal sealed class ModernPager : UserControl
 {
     readonly Label summary=new(){Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleLeft,AutoEllipsis=true};
-    readonly UiComboBox size=new(){Width=78};readonly TextBox jump=new(){Width=42,Text="1",TextAlign=HorizontalAlignment.Center,BorderStyle=BorderStyle.None,Dock=DockStyle.Fill};
-    readonly FlowLayoutPanel numbers=new(){AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,Size=Size.Empty,WrapContents=false,Margin=Padding.Empty};readonly FlowLayoutPanel actions=new(){Dock=DockStyle.Right,Width=520,WrapContents=false,Padding=new Padding(0,7,0,0)};
-    readonly UiButton previous,next;bool suppress;int total;
-    public int Page {get;private set;}=1;public int PageSize {get;private set;}=50;
-    public event Action? Changed;
+    readonly UiComboBox size=new(){Width=88};readonly TextBox jump=new(){Width=44,Text="1",TextAlign=HorizontalAlignment.Center,BorderStyle=BorderStyle.None};
+    readonly FlowLayoutPanel numbers=new(){AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,WrapContents=false,Margin=Padding.Empty,Padding=Padding.Empty};
+    readonly FlowLayoutPanel actions=new(){AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,WrapContents=false,Margin=Padding.Empty,Padding=Padding.Empty,Dock=DockStyle.Fill};
+    readonly UiButton previous,next;bool suppress,layingOut;int total;
+    public int Page {get;private set;}=1;public int PageSize {get;private set;}=50;public event Action? Changed;
+    UiButton MakeButton(string text,Action click,int minimum=34){var b=new UiButton{Text=text,Height=34,MinimumSize=Size.Empty,Margin=new Padding(2,0,2,0),Padding=Padding.Empty};b.Width=Math.Max(minimum,TextRenderer.MeasureText(text,Font,Size.Empty,TextFormatFlags.NoPadding).Width+24);b.Click+=(_,_)=>click();return b;}
     public ModernPager()
     {
-        Dock=DockStyle.Bottom;Height=52;BackColor=Color.White;size.Items.AddRange(["20条","50条","100条","200条"]);size.SelectedIndex=1;size.Margin=new Padding(4,2,8,0);
-        UiButton Button(string text,Action click,int width=32){var b=new UiButton{Text=text,Width=width,Height=33,MinimumSize=Size.Empty,Margin=new Padding(2,0,2,0),Padding=Padding.Empty};b.Click+=(_,_)=>click();return b;}
-        previous=Button("‹",()=>Go(Page-1));next=Button("›",()=>Go(Page+1));var confirm=Button("确定",()=>{if(int.TryParse(jump.Text,out int p))Go(p);else jump.Text=Page.ToString();},52);
-        var frame=new Surface{Width=46,Height=33,Padding=new Padding(6,7,6,2),Margin=new Padding(3,0,3,0),BackColor=Color.White};frame.Controls.Add(jump);
-        actions.Controls.AddRange([new Label{Text="每页",AutoSize=true,Margin=new Padding(0,7,0,0)},size,previous,numbers,next,new Label{Text="跳至",AutoSize=true,Margin=new Padding(6,7,0,0)},frame,confirm]);jump.KeyDown+=(_,e)=>{if(e.KeyCode==Keys.Enter){confirm.PerformClick();e.SuppressKeyPress=true;}};
-        Controls.Add(summary);Controls.Add(actions);size.SelectedIndexChanged+=(_,_)=>{if(suppress)return;PageSize=new[]{20,50,100,200}[Math.Max(0,size.SelectedIndex)];Page=1;Changed?.Invoke();};
+        Dock=DockStyle.Bottom;Height=52;BackColor=Color.White;size.Items.AddRange(["20条","50条","100条","200条"]);size.SelectedIndex=1;size.Margin=new Padding(4,0,8,0);
+        previous=MakeButton("‹",()=>Go(Page-1));next=MakeButton("›",()=>Go(Page+1));var confirm=MakeButton("确定",()=>{if(int.TryParse(jump.Text,out int p))Go(p);else jump.Text=Page.ToString();},64);
+        var frame=new Surface{Width=52,Height=34,Padding=new Padding(5),Margin=new Padding(3,0,3,0)};frame.Controls.Add(jump);void PlaceJump(){jump.Width=frame.ClientSize.Width-10;jump.Location=new Point(5,Math.Max(0,(frame.Height-jump.Height)/2));}frame.SizeChanged+=(_,_)=>PlaceJump();jump.FontChanged+=(_,_)=>PlaceJump();PlaceJump();
+        actions.Controls.AddRange([new Label{Text="每页",AutoSize=true,Margin=new Padding(0,7,0,0)},size,previous,numbers,next,new Label{Text="跳至",AutoSize=true,Margin=new Padding(7,7,0,0)},frame,new Label{Text="页",AutoSize=true,Margin=new Padding(0,7,5,0)},confirm]);
+        var layout=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=2,RowCount=1,BackColor=Color.White,Padding=new Padding(0,8,0,0)};layout.ColumnStyles.Add(new(SizeType.Percent,100));layout.ColumnStyles.Add(new(SizeType.AutoSize));layout.RowStyles.Add(new(SizeType.Percent,100));layout.Controls.Add(summary,0,0);layout.Controls.Add(actions,1,0);Controls.Add(layout);
+        jump.KeyDown+=(_,e)=>{if(e.KeyCode==Keys.Enter){confirm.PerformClick();e.SuppressKeyPress=true;}};size.SelectedIndexChanged+=(_,_)=>{if(suppress)return;PageSize=new[]{20,50,100,200}[Math.Max(0,size.SelectedIndex)];Page=1;Changed?.Invoke();};
     }
     public void Configure(int pageSize){PageSize=new[]{20,50,100,200}.Contains(pageSize)?pageSize:50;suppress=true;size.SelectedIndex=Array.IndexOf(new[]{20,50,100,200},PageSize);suppress=false;}
     public void Set(int count,int page)
     {
-        total=count;Page=Math.Clamp(page,1,Math.Max(1,(count+PageSize-1)/PageSize));int pages=Math.Max(1,(count+PageSize-1)/PageSize);summary.Text=count==0?"无匹配记录":$"第 {(Page-1)*PageSize+1:N0}–{Math.Min(Page*PageSize,count):N0} 条，共 {count:N0} 条";jump.Text=Page.ToString();previous.Enabled=count>0&&Page>1;next.Enabled=count>0&&Page<pages;
-        foreach(Control c in numbers.Controls.Cast<Control>().ToArray())c.Dispose();numbers.Controls.Clear();float scale=DeviceDpi/96f;var shown=new SortedSet<int>{Math.Max(1,Page-1),Page,Math.Min(pages,Page+1)};if(ClientSize.Width>850*scale){shown.Add(1);shown.Add(pages);}int last=0;
-        foreach(int p in shown){if(last>0&&p-last>1)numbers.Controls.Add(new Label{Text="…",AutoSize=true,Margin=new Padding(0,(int)(7*scale),0,0)});int go=p;var b=new UiButton{Text=p.ToString(),Width=(int)((p>99?45:32)*scale),Height=(int)(33*scale),Margin=new Padding((int)(2*scale),0,(int)(2*scale),0),Padding=Padding.Empty,Primary=p==Page,Enabled=count>0};b.Click+=(_,_)=>Go(go);numbers.Controls.Add(b);last=p;}
-        actions.Width=Math.Min((int)(650*scale),Math.Max((int)(470*scale),ClientSize.Width-(int)(120*scale)));
+        if(layingOut)return;layingOut=true;try{total=count;Page=Math.Clamp(page,1,Math.Max(1,(count+PageSize-1)/PageSize));int pages=Math.Max(1,(count+PageSize-1)/PageSize);summary.Text=count==0?"无匹配记录":$"第 {(Page-1)*PageSize+1:N0}–{Math.Min(Page*PageSize,count):N0} 条，共 {count:N0} 条";jump.Text=Page.ToString();previous.Enabled=count>0&&Page>1;next.Enabled=count>0&&Page<pages;
+        foreach(Control c in numbers.Controls.Cast<Control>().ToArray())c.Dispose();numbers.Controls.Clear();float scale=DeviceDpi/96f;int slots=ClientSize.Width>1000*scale?5:3,start=Math.Clamp(Page-slots/2,1,Math.Max(1,pages-slots+1));var shown=new SortedSet<int>(Enumerable.Range(start,Math.Min(slots,pages-start+1)));if(ClientSize.Width>1000*scale){shown.Add(1);shown.Add(pages);}int last=0;
+        foreach(int p in shown){if(last>0&&p-last>1)numbers.Controls.Add(new Label{Text="…",AutoSize=true,Margin=new Padding(0,(int)(7*scale),0,0)});int go=p;var b=MakeButton(p.ToString(),()=>Go(go),(int)(34*scale));b.Width=Math.Max((int)(34*scale),TextRenderer.MeasureText(b.Text,Font,Size.Empty,TextFormatFlags.NoPadding).Width+(int)(24*scale));b.Height=(int)(34*scale);b.Primary=p==Page;b.Enabled=count>0;numbers.Controls.Add(b);last=p;}}finally{layingOut=false;}
     }
-    protected override void OnSizeChanged(EventArgs e){base.OnSizeChanged(e);if(actions!=null&&numbers!=null&&IsHandleCreated)Set(total,Page);}
+    protected override void OnSizeChanged(EventArgs e){base.OnSizeChanged(e);if(numbers!=null&&IsHandleCreated)Set(total,Page);}
     void Go(int page){int next=Math.Clamp(page,1,Math.Max(1,(total+PageSize-1)/PageSize));if(next==Page)return;Page=next;Changed?.Invoke();}
 }
 

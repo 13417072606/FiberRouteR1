@@ -1,0 +1,2 @@
+PASS actual updater success restart=True customer bytes preserved, package cleaned
+PASS actual updater rollback restart=True customer bytes preserved, package cleaned

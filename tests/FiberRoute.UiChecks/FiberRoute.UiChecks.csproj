@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0-windows</TargetFramework><UseWindowsForms>true</UseWindowsForms><EnableWindowsTargeting>true</EnableWindowsTargeting><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
-  <ItemGroup><ProjectReference Include="../../src/FiberRoute.App/FiberRoute.App.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../../src/FiberRoute.App/FiberRoute.App.csproj" /><ProjectReference Include="../../src/FiberRoute.Publisher/FiberRoute.Publisher.csproj"/></ItemGroup>
   <ItemGroup><Content Include="../../assets/调测中继段.csv" Link="fixture.csv" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
 </Project>

@@ -21,9 +21,9 @@ internal static class Theme
         _ when text.Contains("不足") => (Color.FromArgb(255,235,224),Color.FromArgb(168,64,24)),
         _ => (Tint,Teal)
     };
-    public static void Badge(Graphics g,string text,Font font,Rectangle bounds)
+    public static void Badge(Graphics g,string text,Font font,Rectangle bounds,(Color Back,Color Fore)? palette=null)
     {
-        var colors=BadgeColors(text);int width=Math.Min(bounds.Width,TextRenderer.MeasureText(text,font).Width+14);
+        var colors=palette??BadgeColors(text);int width=Math.Min(bounds.Width,TextRenderer.MeasureText(text,font).Width+14);
         if(width<=0||bounds.Height<=0)return;var rect=new Rectangle(bounds.X,bounds.Y,width,bounds.Height);
         using var path=Round(rect,5);using var b=new SolidBrush(colors.Back);g.FillPath(b,path);
         TextRenderer.DrawText(g,text,font,Rectangle.Inflate(rect,-5,0),colors.Fore,TextFormatFlags.VerticalCenter|TextFormatFlags.HorizontalCenter|TextFormatFlags.EndEllipsis);
@@ -33,6 +33,11 @@ internal static class Theme
         var state=g.Save();g.TranslateTransform(bounds.X,bounds.Y);g.ScaleTransform(bounds.Width/24f,bounds.Height/24f);g.SmoothingMode=SmoothingMode.AntiAlias;using var p=new Pen(color,1.8f){StartCap=LineCap.Round,EndCap=LineCap.Round,LineJoin=LineJoin.Round};
         switch(kind)
         {
+            case "software":using(var b=new SolidBrush(color)){g.FillRectangle(b,4,14,4,8);g.FillRectangle(b,10,9,4,13);g.FillRectangle(b,16,3,4,19);}break;
+            case "desktop":g.DrawRectangle(p,2,3,20,14);g.DrawLine(p,12,17,12,22);g.DrawLine(p,7,22,17,22);break;
+            case "grid":g.DrawRectangle(p,2,3,20,18);g.DrawLine(p,2,9,22,9);g.DrawLine(p,9,3,9,21);break;
+            case "info":g.DrawEllipse(p,2,2,20,20);g.DrawLine(p,12,10,12,17);g.DrawEllipse(p,11.5f,6,1,1);break;
+            case "link":g.DrawArc(p,3,10,13,9,35,290);g.DrawArc(p,8,3,13,9,215,290);g.DrawLine(p,8,16,16,8);break;
             case "list":g.DrawRectangle(p,5,2,14,20);for(int y=7;y<20;y+=5){g.DrawLine(p,9,y,16,y);}break;
             case "network":g.DrawLine(p,12,6,5,18);g.DrawLine(p,12,6,19,18);g.DrawEllipse(p,9,1,6,6);g.DrawEllipse(p,2,17,6,6);g.DrawEllipse(p,16,17,6,6);break;
             case "database":g.DrawEllipse(p,3,3,18,6);g.DrawLine(p,3,6,3,19);g.DrawLine(p,21,6,21,19);g.DrawArc(p,3,9,18,6,0,180);g.DrawArc(p,3,16,18,6,0,180);break;
@@ -55,7 +60,7 @@ internal sealed class Surface:Panel
 {
     public Color SurfaceColor {get;set;}=Color.White;
     public Color BorderColor {get;set;}=Theme.Line;
-    public Surface(){DoubleBuffered=true;BackColor=Theme.Canvas;Padding=new Padding(16);}
+    public Surface(){DoubleBuffered=true;BackColor=Color.White;Padding=new Padding(16);}
     protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;using var path=Theme.Round(new RectangleF(0,0,Width-1,Height-1),10);using var fill=new SolidBrush(SurfaceColor);using var pen=new Pen(BorderColor);e.Graphics.FillPath(fill,path);e.Graphics.DrawPath(pen,path);}
 }
 internal sealed class UiButton:Button
@@ -65,7 +70,7 @@ internal sealed class UiButton:Button
     public bool Navigation {get;set;}
     public bool Pill {get;set;}
     public string Glyph {get;set;}="";
-    public string Tone {get;set;}="";
+    public string Tone {get;set;}="";public bool Accent {get;set;}
     bool hover,pressed;
     public UiButton(){FlatStyle=FlatStyle.Flat;FlatAppearance.BorderSize=0;UseVisualStyleBackColor=false;BackColor=Color.White;Cursor=Cursors.Hand;Height=42;Padding=new Padding(12,6,12,6);Margin=new Padding(4);SetStyle(ControlStyles.UserPaint|ControlStyles.OptimizedDoubleBuffer,true);}
     protected override void OnPaintBackground(PaintEventArgs e)=>e.Graphics.Clear(Parent?.BackColor??Color.White);
@@ -75,12 +80,12 @@ internal sealed class UiButton:Button
     protected override void OnMouseUp(MouseEventArgs e){pressed=false;Invalidate();base.OnMouseUp(e);}
     protected override void OnPaint(PaintEventArgs e)
     {
-        var g=e.Graphics;float scale=DeviceDpi/96f;g.Clear(Parent?.BackColor??Color.White);g.SmoothingMode=SmoothingMode.AntiAlias;Color fill=Primary?Theme.Teal:Selected&&!Navigation?Theme.Tint:hover?Color.FromArgb(237,246,248):Color.White;Color ink=Primary?Color.White:Selected?Theme.Teal:Theme.Ink;if(!Enabled){fill=Color.FromArgb(239,243,247);ink=Theme.Muted;}
+        var g=e.Graphics;float scale=DeviceDpi/96f;g.Clear(Parent?.BackColor??Color.White);g.SmoothingMode=SmoothingMode.AntiAlias;Color fill=Primary?Theme.Teal:Selected&&!Navigation?Theme.Tint:hover?Color.FromArgb(237,246,248):Color.White;Color ink=Primary?Color.White:Selected||Accent?Theme.Teal:Theme.Ink;if(!Enabled){fill=Color.FromArgb(239,243,247);ink=Theme.Muted;}
         if(Selected&&Tone.Length>0){var colors=Theme.BadgeColors(Tone);fill=colors.Back;ink=colors.Fore;}
         if(Navigation){g.Clear(Color.White);if(Selected)using(var p=new Pen(Theme.Teal,4*scale){StartCap=LineCap.Round,EndCap=LineCap.Round})g.DrawLine(p,15*scale,Height-3*scale,Width-15*scale,Height-3*scale);}
-        else {using var path=Theme.Round(new RectangleF(1,1,Width-3,Height-3),Pill?Height/2f:7);using var b=new SolidBrush(pressed?ControlPaint.Dark(fill,.04f):fill);g.FillPath(b,path);using var p=new Pen(Selected&&Tone.Length>0?ink:Primary||Selected?Theme.Teal:Theme.Line);g.DrawPath(p,path);}
+        else {using var path=Theme.Round(new RectangleF(1,1,Width-3,Height-3),Pill?Height/2f:7);using Brush b=Primary?new LinearGradientBrush(ClientRectangle,Color.FromArgb(0,147,158),Color.FromArgb(0,126,139),35):new SolidBrush(pressed?ControlPaint.Dark(fill,.04f):fill);g.FillPath(b,path);using var p=new Pen(Selected&&Tone.Length>0?ink:Primary||Selected||Accent?Theme.Teal:Theme.Line);g.DrawPath(p,path);}
         int left=(int)((Glyph.Length>0?36:8)*scale),icon=(int)(21*scale);if(Glyph.Length>0)Theme.Glyph(g,Glyph,new Rectangle((int)(12*scale),(Height-icon)/2,icon,icon),ink);
-        TextRenderer.DrawText(g,Text,Font,new Rectangle(left,2,Width-left-(int)(8*scale),Height-5),ink,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
-        if(Focused&&ShowFocusCues)ControlPaint.DrawFocusRectangle(g,new Rectangle(5,5,Width-11,Height-11),ink,fill);
+        TextRenderer.DrawText(g,Text,Font,new Rectangle(left,2,Width-left-(int)(8*scale),Height-5),ink,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|TextFormatFlags.NoPadding);
+        if(Focused&&ShowFocusCues){using var focus=new Pen(ink,1.3f);using var ring=Theme.Round(new RectangleF(4,4,Width-9,Height-9),4);g.DrawPath(focus,ring);}
     }
 }

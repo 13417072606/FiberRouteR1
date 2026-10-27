@@ -35,6 +35,7 @@ public sealed partial class MainForm:Form
         AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;
         tabs.Appearance=TabAppearance.FlatButtons;tabs.ItemSize=new Size(1,1);tabs.SizeMode=TabSizeMode.Fixed;
         Controls.Add(tabs);Controls.Add(status);BuildRoutes();BuildResources();BuildTypes();BuildImport();Controls.Add(BuildHeader());InstallLayoutMemory();RefreshData();
+        EventHandler icons=(_,_)=>{if(Icon!=null)foreach(Form child in Application.OpenForms.Cast<Form>().ToArray())if(child!=this&&!child.IsDisposed&&!ReferenceEquals(child.Icon,Icon))child.Icon=Icon;};Application.Idle+=icons;FormClosed+=(_,_)=>Application.Idle-=icons;
         FormClosing+=(_,e)=>{if(busy){job?.Cancel();e.Cancel=true;MessageBox.Show("正在停止后台任务，完成后可关闭。");}};
         Shown+=(_,_)=>RestoreRouteSettings();
         AutoScaleDimensions=new SizeF(96,96);ResumeLayout(true);
@@ -98,9 +99,10 @@ public sealed partial class MainForm:Form
     void BuildResources()=>BuildResourceWorkspace();
     IEnumerable<Edge> FilterResources()
     {
-        var g=store.Graph;string term=resourceSearch.Text.Trim(),type=resourceType.Text,from=resourceStartArea.Text,to=resourceEndArea.Text,business=resourceBusiness.Text;var ids=term.Length>0?SearchRaw(term):null;int minimum=(int)minFree.Value;
-        return g.Edges.Where(e=>e.Free>=minimum&&(ids==null||ids.Contains(e.Index))&&(type=="全部"||type.Length==0||g.Nodes[e.A].Type.Split(';').Contains(type)||g.Nodes[e.B].Type.Split(';').Contains(type))&&(from.Length==0||from=="全部区域"||Area(e.StartRegion)==from)&&(to.Length==0||to=="全部区域"||Area(e.EndRegion)==to)&&(business.Length==0||business=="全部状态"||Area(e.BusinessStatus)==business));
+        var g=store.Graph;string term=resourceSearch.Text.Trim(),type=resourceType.Text,endType=resourceEndType.Text,from=resourceStartArea.Text,to=resourceEndArea.Text,business=resourceBusiness.Text;var ids=term.Length>0?SearchRaw(term):null;int minimum=(int)minFree.Value;
+        return g.Edges.Where(e=>e.Free>=minimum&&(ids==null||ids.Contains(e.Index))&&TypeMatches(g.Nodes[e.A].Type,type)&&TypeMatches(g.Nodes[e.B].Type,endType)&&(from.Length==0||from=="全部区域"||Area(e.StartRegion)==from)&&(to.Length==0||to=="全部区域"||Area(e.EndRegion)==to)&&(business.Length==0||business=="全部状态"||Area(e.BusinessStatus)==business));
     }
+    static bool TypeMatches(string actual,string selected)=>string.IsNullOrEmpty(selected)||selected is "全部" or "全部类型"||actual.Split(';',StringSplitOptions.TrimEntries).Contains(selected);
     HashSet<int> SearchRaw(string term)
     {
         var ids=new HashSet<int>();if(!File.Exists(store.Database))return ids;
@@ -109,9 +111,9 @@ public sealed partial class MainForm:Form
     async void LoadResources()
     {
         if(busy){resourceRefreshPending=true;return;}
-        var g=store.Graph;string term=resourceSearch.Text.Trim(),type=resourceType.Text,from=resourceStartArea.Text,to=resourceEndArea.Text,business=resourceBusiness.Text;int minimum=(int)minFree.Value;ResourceRow[] filtered=[];
+        var g=store.Graph;string term=resourceSearch.Text.Trim(),type=resourceType.Text,endType=resourceEndType.Text,from=resourceStartArea.Text,to=resourceEndArea.Text,business=resourceBusiness.Text;int minimum=(int)minFree.Value;ResourceRow[] filtered=[];
         bool ok=await Work("正在筛选资源…",async ct=>{
-            filtered=await Task.Run(()=>{var ids=term.Length>0?SearchRaw(term):null;ct.ThrowIfCancellationRequested();return g.Edges.Where(e=>e.Free>=minimum&&(ids==null||ids.Contains(e.Index))&&(type=="全部"||type.Length==0||g.Nodes[e.A].Type.Split(';').Contains(type)||g.Nodes[e.B].Type.Split(';').Contains(type))&&(from.Length==0||from=="全部区域"||Area(e.StartRegion)==from)&&(to.Length==0||to=="全部区域"||Area(e.EndRegion)==to)&&(business.Length==0||business=="全部状态"||Area(e.BusinessStatus)==business)).Select(e=>new ResourceRow(0,e.Index,g.Nodes[e.A].Name,Area(e.StartRegion),g.Nodes[e.B].Name,Area(e.EndRegion),e.Length,$"{e.Free} / {e.Total}",e.BusinessStatus,"详情")).ToArray();},ct);
+            filtered=await Task.Run(()=>{var ids=term.Length>0?SearchRaw(term):null;ct.ThrowIfCancellationRequested();return g.Edges.Where(e=>e.Free>=minimum&&(ids==null||ids.Contains(e.Index))&&TypeMatches(g.Nodes[e.A].Type,type)&&TypeMatches(g.Nodes[e.B].Type,endType)&&(from.Length==0||from=="全部区域"||Area(e.StartRegion)==from)&&(to.Length==0||to=="全部区域"||Area(e.EndRegion)==to)&&(business.Length==0||business=="全部状态"||Area(e.BusinessStatus)==business)).Select(e=>new ResourceRow(0,e.Index,g.Nodes[e.A].Name,g.Nodes[e.A].Type,Area(e.StartRegion),g.Nodes[e.B].Name,g.Nodes[e.B].Type,Area(e.EndRegion),e.Length,$"{e.Free} / {e.Total}",e.BusinessStatus,"详情")).ToArray();},ct);
         });if(!ok)return;filtered=Ordered(resourceGrid,filtered);resourcePageSize=resourcePager.PageSize;resourcePager.Set(filtered.Length,(int)page.Value);page.Value=resourcePager.Page;int skip=((int)page.Value-1)*resourcePageSize;
         resourceGrid.DataSource=filtered.Skip(skip).Take(resourcePageSize).Select((r,i)=>r with{序号=skip+i+1}).ToList();
         if(resourceGrid.Columns.Contains("内部序号"))resourceGrid.Columns["内部序号"].Visible=false;foreach(DataGridViewColumn c in resourceGrid.Columns)c.HeaderText=c.Name=="长度米"?"长度（米）":c.Name.Replace("_"," / ");
@@ -129,7 +131,7 @@ public sealed partial class MainForm:Form
             {
             var wanted=selected.Select(e=>e.Index).ToHashSet();
             using var c=new Microsoft.Data.Sqlite.SqliteConnection(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(){DataSource=store.Database,Pooling=false}.ToString());c.Open();using var q=c.CreateCommand();q.CommandText="SELECT id,raw FROM edges ORDER BY id";using var reader=q.ExecuteReader();string[]? hs=null;
-            while(reader.Read()){ct.ThrowIfCancellationRequested();if(!wanted.Contains(reader.GetInt32(0)))continue;var row=JsonSerializer.Deserialize<Dictionary<string,string>>(reader.GetString(1))!;if(hs==null){hs=row.Keys.ToArray();w.WriteLine(Csv.Line(hs));}w.WriteLine(Csv.Line(hs.Select(h=>row.GetValueOrDefault(h,""))));}
+            while(reader.Read()){ct.ThrowIfCancellationRequested();if(!wanted.Contains(reader.GetInt32(0)))continue;var row=JsonSerializer.Deserialize<Dictionary<string,string>>(reader.GetString(1))!;var edge=store.Graph.Edges[reader.GetInt32(0)];row["始端类型"]=store.Graph.Nodes[edge.A].Type;row["终端类型"]=store.Graph.Nodes[edge.B].Type;if(hs==null){hs=row.Keys.ToArray();w.WriteLine(Csv.Line(hs));}w.WriteLine(Csv.Line(hs.Select(h=>row.GetValueOrDefault(h,""))));}
             }
             ct.ThrowIfCancellationRequested();File.Move(temp,path,true);
             }finally{if(File.Exists(temp))File.Delete(temp);}
@@ -201,7 +203,7 @@ public sealed partial class MainForm:Form
         UpdateStats();ClearRoutes();RefreshAreaChoices();pendingTypes=[];typePreview.DataSource=null;if(applyTypes!=null)applyTypes.Enabled=false;start?.Clear();end?.Clear();avoid?.Clear();avoidNodes.Items.Clear();var types=store.Graph.Nodes.SelectMany(n=>n.Type.Split(';',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries)).Concat(new[]{"站点","机房","光交箱","分纤箱","未识别"}).Distinct().OrderBy(t=>t=="未识别"?1:0).ThenBy(t=>t).ToArray();
         editType.Items.Clear();editType.Items.AddRange(types);
         var checkedTypes=avoidTypes.CheckedTypes.ToHashSet();avoidTypes.SetTypes(types,checkedTypes);
-        foreach(var c in new[]{resourceType,nodeType}){var old=c.SelectedItem;c.Items.Clear();c.Items.Add("全部");c.Items.AddRange(types);c.SelectedItem=old!=null&&c.Items.Contains(old)?old:"全部";}
+        buildingFilters=true;foreach(var c in new[]{resourceType,resourceEndType,nodeType}){var old=c.SelectedItem;c.Items.Clear();string all=c==nodeType?"全部":"全部类型";c.Items.Add(all);c.Items.AddRange(types);c.SelectedItem=old!=null&&c.Items.Contains(old)?old:all;}buildingFilters=false;
         var g=store.Graph;resourceStats.Text=$"{g.Edges.Length:N0} 段 / {g.Nodes.Length:N0} 节点 / 已记录 {g.Edges.Sum(e=>e.Length??0):N2} 米 / 空闲逐段合计 {g.Edges.Sum(e=>(long)e.Free):N0} 芯（非路由数） / 版本 {g.Version}";LoadResources();LoadTypes();LoadClusters();LoadRooms();
     }
     void RestoreRouteSettings()

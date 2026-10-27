@@ -1,0 +1,1 @@
+PASS native management EXE opens the graphical publishing wizard without a console

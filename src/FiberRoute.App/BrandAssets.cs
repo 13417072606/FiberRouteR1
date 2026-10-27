@@ -11,6 +11,12 @@ internal static class BrandAssets
     {
         if(!File.Exists(OriginalPath))return (null,null);
         using var source=Image.FromFile(OriginalPath);var image=new Bitmap(source);
+        byte[] bytes=CreateIconBytes(source);
+try{Directory.CreateDirectory(Path.GetDirectoryName(IconPath)!);if(!File.Exists(IconPath)||!File.ReadAllBytes(IconPath).SequenceEqual(bytes))File.WriteAllBytes(IconPath,bytes);}catch(IOException){}catch(UnauthorizedAccessException){}
+        using var stream=new MemoryStream(bytes);using var icon=new Icon(stream);return (image,(Icon)icon.Clone());
+    }
+    internal static byte[] CreateIconBytes(Image source)
+    {
         var payloads=new List<(int Size,byte[] Data)>();
         foreach(int size in new[]{16,24,32,48,64,128,256})
         {
@@ -27,7 +33,7 @@ internal static class BrandAssets
             foreach(var p in payloads){writer.Write((byte)(p.Size==256?0:p.Size));writer.Write((byte)(p.Size==256?0:p.Size));writer.Write((byte)0);writer.Write((byte)0);writer.Write((ushort)1);writer.Write((ushort)32);writer.Write(p.Data.Length);writer.Write(offset);offset+=p.Data.Length;}
             foreach(var p in payloads)writer.Write(p.Data);
         }
-        byte[] bytes=stream.ToArray();try{Directory.CreateDirectory(Path.GetDirectoryName(IconPath)!);if(!File.Exists(IconPath)||!File.ReadAllBytes(IconPath).SequenceEqual(bytes))File.WriteAllBytes(IconPath,bytes);}catch(IOException){}catch(UnauthorizedAccessException){}
-        stream.Position=0;using var icon=new Icon(stream);return (image,(Icon)icon.Clone());
+        return stream.ToArray();
     }
+
 }

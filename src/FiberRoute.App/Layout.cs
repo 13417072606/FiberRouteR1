@@ -15,7 +15,7 @@ public sealed partial class MainForm
     static FlowLayoutPanel Stack()
     {
         var p=new FlowLayoutPanel{Dock=DockStyle.Fill,AutoScroll=true,FlowDirection=FlowDirection.TopDown,WrapContents=false,Padding=new Padding(8),BackColor=Color.White};
-        p.SizeChanged+=(_,_)=>{foreach(Control c in p.Controls)c.Width=Math.Max(120,p.ClientSize.Width-38);};p.ControlAdded+=(_,e)=>{if(e.Control!=null)e.Control.Width=Math.Max(120,p.ClientSize.Width-38);};return p;
+        p.SizeChanged+=(_,_)=>{foreach(Control c in p.Controls)c.Width=Math.Max(120,p.ClientSize.Width-38*p.DeviceDpi/96);};p.ControlAdded+=(_,e)=>{if(e.Control!=null)e.Control.Width=Math.Max(120,p.ClientSize.Width-38*p.DeviceDpi/96);};return p;
     }
     static Control Field(string title,Control control){var p=new FlowLayoutPanel{Height=40,Width=285,WrapContents=false};p.Controls.Add(new Label{Text=title,Width=155,Margin=new Padding(3,7,3,3)});p.Controls.Add(control);return p;}
     static Control Card(string title,Control body){var p=new Surface{Dock=DockStyle.Fill,Padding=new Padding(10),Margin=new Padding(4)};body.Dock=DockStyle.Fill;p.Controls.Add(body);p.Controls.Add(new Label{Text=title,Dock=DockStyle.Top,Height=30,AutoEllipsis=true,BackColor=Color.White,Font=new Font("Microsoft YaHei UI",10.5f,FontStyle.Bold),ForeColor=Theme.Ink});return p;}
@@ -28,7 +28,7 @@ public sealed partial class MainForm
         bool applied=false;split.SizeChanged+=(_,_)=>{int size=orientation==Orientation.Vertical?split.ClientSize.Width:split.ClientSize.Height;if(applied||size<400)return;applied=true;float ratio=float.TryParse(store.Setting("layout-"+id),System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var old)?old:fraction;split.SplitterDistance=Math.Clamp((int)(size*ratio),80,size-92);};Shown+=(_,_)=>BeginInvoke((Action)(()=>{int size=orientation==Orientation.Vertical?split.ClientSize.Width:split.ClientSize.Height;if(size<200)return;float ratio=float.TryParse(store.Setting("layout-"+id),System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var old)?old:fraction;split.SplitterDistance=Math.Clamp((int)(size*ratio),80,size-92);}));return split;
     }
     Control Stats()
-    {var p=new TableLayoutPanel{Dock=DockStyle.Top,Height=110,ColumnCount=4,RowCount=1,Padding=new Padding(0,0,0,12)};var labels=new Label[4];for(int i=0;i<4;i++){p.ColumnStyles.Add(new(SizeType.Percent,25));labels[i]=new StatTile{Dock=DockStyle.Fill,Margin=new Padding(i==0?0:6,0,i==3?0:6,0),Glyph=new[]{"list","network","database","ruler"}[i]};p.Controls.Add(labels[i],i,0);}statViews.Add(labels);return p;}
+    {var p=new TableLayoutPanel{Dock=DockStyle.Top,Height=122,ColumnCount=4,RowCount=1,Padding=new Padding(0,0,0,12)};var labels=new Label[4];for(int i=0;i<4;i++){p.ColumnStyles.Add(new(SizeType.Percent,25));labels[i]=new StatTile{Dock=DockStyle.Fill,Margin=new Padding(i==0?0:6,0,i==3?0:6,0),Glyph=new[]{"link","network","database","ruler"}[i]};p.Controls.Add(labels[i],i,0);}statViews.Add(labels);return p;}
     void UpdateStats(){var g=store.Graph;string[] values=[$"中继段总数\n{g.Edges.Length:N0} 条",$"连接节点\n{g.Nodes.Length:N0} 个",$"空闲纤芯合计\n{g.Edges.Sum(e=>(long)e.Free):N0} 芯\n按中继段累加，非路由数",$"已记录总长度\n{g.Edges.Sum(e=>e.Length??0):N2} 米\n未知长度 {g.Edges.Count(e=>e.Length==null):N0} 段"];foreach(var view in statViews)for(int i=0;i<4;i++)view[i].Text=values[i];}
     Control BuildHeader()
     {
@@ -46,16 +46,20 @@ public sealed partial class MainForm
     {
         int index=0;foreach(var grid in new[]{routeGrid,segments,resourceGrid,typeGrid,importGrid,typePreview,clusterGrid,assignmentGrid,roomGrid})
         {
-            string key="grid-v4-"+index++;grid.Name=key;
+            string key=(grid==resourceGrid?"grid-v5-":"grid-v4-")+index++;grid.Name=key;
             try{if(store.Setting(key) is string json)gridStates[grid]=JsonSerializer.Deserialize<GridState>(json)!;}catch{}
             PrepareGrid(grid);grid.DataBindingComplete+=(_,_)=>FitGrid(grid);
             grid.SizeChanged+=(_,_)=>{if(!gridStates.ContainsKey(grid))FitGrid(grid);};
-            grid.FontChanged+=(_,_)=>{grid.AutoResizeColumnHeadersHeight();QueueRowMeasure(grid);};grid.ColumnHeadersDefaultCellStyle.Font=new Font(Font.FontFamily,10,FontStyle.Bold);
+            grid.FontChanged+=(_,_)=>{SizeGridHeaders(grid);QueueRowMeasure(grid);};grid.ColumnHeadersDefaultCellStyle.Font=new Font(Font.FontFamily,10,FontStyle.Bold);
             var menu=new ContextMenuStrip();menu.Items.Add("列设置…",null,(_,_)=>ShowColumns(grid));menu.Items.Add("自动适应内容",null,(_,_)=>{grid.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.DisplayedCells);grid.AutoResizeRows(DataGridViewAutoSizeRowsMode.DisplayedCells);RememberGrid(grid);});menu.Items.Add("设置选中行高度…",null,(_,_)=>SetRowHeight(grid));menu.Items.Add("恢复默认布局",null,(_,_)=>{gridStates.Remove(grid);store.SetSetting(key,"");FitGrid(grid);});grid.ContextMenuStrip=menu;
             grid.MouseDown+=(_,e)=>{var hit=grid.HitTest(e.X,e.Y);if(e.Button==MouseButtons.Left&&hit.Type is DataGridViewHitTestType.ColumnHeader or DataGridViewHitTestType.RowHeader or DataGridViewHitTestType.TopLeftHeader)gridGestures.Add(grid);};grid.MouseUp+=(_,_)=>{if(gridGestures.Remove(grid))RememberGrid(grid);};
             grid.ColumnWidthChanged+=(_,_)=>{if(gridGestures.Contains(grid))RememberGrid(grid);if(!remembering)QueueRowMeasure(grid);};grid.ColumnDisplayIndexChanged+=(_,_)=>{if(gridGestures.Contains(grid))RememberGrid(grid);};grid.RowHeightChanged+=(_,_)=>{if(gridGestures.Contains(grid))RememberGrid(grid);};
         }
         FormClosing+=(_,_)=>{if(busy)return;foreach(var pair in gridStates)store.SetSetting(pair.Key.Name,JsonSerializer.Serialize(pair.Value));foreach(var pair in savedSplits){var s=pair.Value;int size=s.Orientation==Orientation.Vertical?s.ClientSize.Width:s.ClientSize.Height;if(size>0)store.SetSetting("layout-"+pair.Key,((float)s.SplitterDistance/size).ToString(System.Globalization.CultureInfo.InvariantCulture));}};
+    }
+    void SizeGridHeaders(DataGridView grid)
+    {
+        grid.AutoResizeColumnHeadersHeight();if(grid==resourceGrid)grid.ColumnHeadersHeight=Math.Max(grid.ColumnHeadersHeight,48*grid.DeviceDpi/96);
     }
     bool remembering;
     void FitGrid(DataGridView grid)
@@ -70,9 +74,14 @@ public sealed partial class MainForm
             if(savedState==null)
             {
                 var columns=grid.Columns.Cast<DataGridViewColumn>().Where(c=>c.Visible).ToArray();int Weight(DataGridViewColumn c)=>c.Name.Contains("设施")||c.Name is "名称" or "始端" or "终端" or "成员"?4:c.Name.Contains("ID")?2:1;int available=Math.Max(320,grid.ClientSize.Width-(grid.RowHeadersVisible?grid.RowHeadersWidth:0)-SystemInformation.VerticalScrollBarWidth-3),total=columns.Sum(Weight);
-                int Initial(DataGridViewColumn c)=>(int)((c.Name.Contains("设施")||c.Name is "名称" or "始端" or "终端" or "成员" or "所属机房"?grid==resourceGrid?240:200:c.Name is "序号" or "操作"?70:c.Name=="空闲_总芯"?116:c.Name=="需求后余量"?120:c.Name is "确认状态" or "类型"?86:c.Name.Contains("ID")?150:100)*grid.DeviceDpi/96f);int extra=Math.Max(0,available-columns.Sum(Initial));foreach(var c in columns)c.Width=Initial(c)+extra*Weight(c)/Math.Max(1,total);
+                int Initial(DataGridViewColumn c)
+                {
+                    if(grid==resourceGrid)return (int)((c.Name switch{"序号"=>54,"始端设施"=>210,"始端类型" or "终端类型"=>94,"始端区域" or "终端区域"=>90,"终端设施"=>244,"长度米"=>92,"空闲_总芯"=>104,"业务状态"=>88,"操作"=>64,_=>70})*grid.DeviceDpi/96f);
+                    return (int)((c.Name.Contains("设施")||c.Name is "名称" or "始端" or "终端" or "成员" or "所属机房"?200:c.Name is "序号" or "操作"?70:c.Name=="空闲_总芯"?116:c.Name=="需求后余量"?120:c.Name is "确认状态" or "类型"?86:c.Name.Contains("ID")?150:100)*grid.DeviceDpi/96f);
+                }
+                int extra=Math.Max(0,available-columns.Sum(Initial));foreach(var c in columns)c.Width=Initial(c)+extra*Weight(c)/Math.Max(1,total);
             }
-            MeasureRows(grid);grid.AutoResizeColumnHeadersHeight();
+            MeasureRows(grid);SizeGridHeaders(grid);
         }finally{remembering=false;}
     }
     void RememberGrid(DataGridView grid){if(remembering||grid.Columns.Count==0||!Visible)return;remembering=true;try{gridStates[grid]=new(grid.Columns.Cast<DataGridViewColumn>().Select(c=>new ColumnState(c.Name,c.Width,c.DisplayIndex,c.Visible)).ToArray(),rowMinimum.GetValueOrDefault(grid,gridStates.GetValueOrDefault(grid)?.Height??38*grid.DeviceDpi/96),grid.DeviceDpi);}finally{remembering=false;}}

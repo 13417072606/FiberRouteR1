@@ -9,12 +9,16 @@ internal sealed class UiComboBox : ComboBox
         DrawMode=DrawMode.OwnerDrawFixed;FlatStyle=FlatStyle.Flat;BackColor=Color.White;ForeColor=Theme.Ink;
         DropDownStyle=ComboBoxStyle.DropDownList;IntegralHeight=false;DropDownHeight=300;
     }
-    protected override void OnFontChanged(EventArgs e){base.OnFontChanged(e);ItemHeight=Math.Max(24,(int)(Font.Height+10*DeviceDpi/96f));}
+    protected override void OnFontChanged(EventArgs e){base.OnFontChanged(e);ItemHeight=Math.Max(28,(int)(Font.Height+14*DeviceDpi/96f));}
+    protected override void WndProc(ref Message message)
+    {
+        base.WndProc(ref message);if(message.Msg==0xF&&IsHandleCreated){using var g=CreateGraphics();float scale=DeviceDpi/96f;g.Clear(BackColor);g.SmoothingMode=SmoothingMode.AntiAlias;using var outline=Theme.Round(new RectangleF(0,0,Width-1,Height-1),5*scale);using var pen=new Pen(Focused?Theme.Teal:Theme.Line);g.DrawPath(pen,outline);int arrow=(int)(21*scale);TextRenderer.DrawText(g,Text,Font,new Rectangle((int)(8*scale),0,Math.Max(5,Width-arrow-(int)(12*scale)),Height),Enabled?Theme.Ink:Theme.Muted,TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|TextFormatFlags.NoPadding);Theme.Glyph(g,"chevron",new Rectangle(Width-arrow,(Height-(int)(14*scale))/2,(int)(14*scale),(int)(14*scale)),Theme.Ink);}
+    }
     protected override void OnDrawItem(DrawItemEventArgs e)
     {
         bool selected=(e.State&DrawItemState.Selected)!=0;using var background=new SolidBrush(selected?Theme.Tint:e.Index==SelectedIndex&&!DroppedDown?BackColor:Color.White);e.Graphics.FillRectangle(background,e.Bounds);
-        if(e.Index>=0&&e.Index<Items.Count)TextRenderer.DrawText(e.Graphics,GetItemText(Items[e.Index]),Font,Rectangle.Inflate(e.Bounds,-9,0),Enabled?Theme.Ink:Theme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
-        if((e.State&DrawItemState.Focus)!=0)ControlPaint.DrawFocusRectangle(e.Graphics,Rectangle.Inflate(e.Bounds,-2,-2),Theme.Teal,selected?Theme.Tint:Color.White);
+        if(e.Index>=0&&e.Index<Items.Count)TextRenderer.DrawText(e.Graphics,GetItemText(Items[e.Index]),Font,Rectangle.Inflate(e.Bounds,-6,0),Enabled?Theme.Ink:Theme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|TextFormatFlags.NoPadding);
+
     }
 }
 internal sealed class UiCheckBox : CheckBox
@@ -40,23 +44,29 @@ public sealed partial class MainForm
         var frame=new Surface{Dock=DockStyle.Fill,Height=40,Padding=new Padding(9,6,9,6),Margin=new Padding(0,3,0,3),BackColor=Color.White};
         if(input is TextBox box)box.BorderStyle=BorderStyle.None;
         input.Dock=DockStyle.None;frame.Controls.Add(input);
-        void Place(){input.Width=Math.Max(30,frame.ClientSize.Width-18);input.Location=new Point(9,Math.Max(4,(frame.ClientSize.Height-input.Height)/2));}
+        void Place(){int inset=9*frame.DeviceDpi/96;input.Width=Math.Max(30,frame.ClientSize.Width-2*inset);input.Location=new Point(inset,Math.Max(4*frame.DeviceDpi/96,(frame.ClientSize.Height-input.Height)/2));}
         frame.SizeChanged+=(_,_)=>Place();input.FontChanged+=(_,_)=>Place();Place();return frame;
     }
-    static void PaintBadges(DataGridView grid)
+    void PaintBadges(DataGridView grid)
     {
         grid.CellPainting+=(_,e)=>{
             if(e.RowIndex<0||e.ColumnIndex<0)return;string column=grid.Columns[e.ColumnIndex].Name;
-            if(column is not ("类型" or "节点类型" or "确认状态" or "业务状态" or "容量状态" or "路由状态" or "归并状态"))return;
+            if(column is not ("类型" or "始端类型" or "终端类型" or "节点类型" or "确认状态" or "业务状态" or "容量状态" or "路由状态" or "归并状态"))return;
             string value=e.FormattedValue?.ToString()??"";if(value.Length==0)return;e.PaintBackground(e.ClipBounds,true);
+            if(grid==resourceGrid&&column is "始端类型" or "终端类型")
+            {
+                var font=e.CellStyle?.Font??grid.Font;float scale=grid.DeviceDpi/96f;int width=Math.Max(25,e.CellBounds.Width-(int)(30*scale));var tags=value.Split(';',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries).Select(tag=>(Tag:tag,Text:WrapCellText(tag,font,width))).ToArray();int total=tags.Sum(t=>t.Text.Split('\n').Length*font.Height+(int)(8*scale))+Math.Max(0,tags.Length-1)*(int)(4*scale),y=e.CellBounds.Y+Math.Max(3,(e.CellBounds.Height-total)/2);
+                foreach(var tag in tags){var colors=tag.Tag=="光交箱"?(Color.FromArgb(212,249,238),Color.FromArgb(0,136,111)):tag.Tag=="光终端盒"?(Color.FromArgb(213,244,248),Color.FromArgb(0,128,142)):Theme.BadgeColors(tag.Tag);int height=tag.Text.Split('\n').Length*font.Height+(int)(8*scale),badge=Math.Min(e.CellBounds.Width-(int)(18*scale),TextRenderer.MeasureText(tag.Tag,font,Size.Empty,TextFormatFlags.NoPadding).Width+(int)(14*scale));var rect=new Rectangle(e.CellBounds.X+(int)(9*scale),y,badge,height);using var rounded=Theme.Round(rect,5*scale);using var fill=new SolidBrush(colors.Item1);e.Graphics!.FillPath(fill,rounded);TextRenderer.DrawText(e.Graphics,tag.Text,font,Rectangle.Inflate(rect,-(int)(5*scale),0),colors.Item2,TextFormatFlags.WordBreak|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPrefix|TextFormatFlags.NoPadding);y+=height+(int)(4*scale);}e.Handled=true;return;
+            }
             var bounds=new Rectangle(e.CellBounds.X+9,e.CellBounds.Y+Math.Max(3,(e.CellBounds.Height-26*grid.DeviceDpi/96)/2),e.CellBounds.Width-18,26*grid.DeviceDpi/96);
-            Theme.Badge(e.Graphics!,value,e.CellStyle?.Font??grid.Font,bounds);e.Handled=true;
+            (Color Back,Color Fore)? palette=grid==resourceGrid&&value=="光交箱"?(Color.FromArgb(212,249,238),Color.FromArgb(0,136,111)):grid==resourceGrid&&value=="光终端盒"?(Color.FromArgb(213,244,248),Color.FromArgb(0,128,142)):null;Theme.Badge(e.Graphics!,value,e.CellStyle?.Font??grid.Font,bounds,palette);e.Handled=true;
         };
     }
     void PrepareGrid(DataGridView grid)
     {
         PaintBadges(grid);
-        grid.CellFormatting+=(_,e)=>{if(e.RowIndex<0||e.ColumnIndex<0||e.Value is not string text)return;string column=grid.Columns[e.ColumnIndex].Name;if(column is "类型" or "节点类型" or "确认状态" or "业务状态" or "容量状态" or "路由状态" or "归并状态")return;var style=e.CellStyle!;e.Value=WrapCellText(text,style.Font??grid.Font,grid.Columns[e.ColumnIndex].Width-style.Padding.Horizontal-(int)(6*grid.DeviceDpi/96f));e.FormattingApplied=true;};
+        grid.CellPainting+=(_,e)=>{if(e.RowIndex>=0&&e.ColumnIndex>=0&&!e.Handled){e.Paint(e.ClipBounds,DataGridViewPaintParts.All&~DataGridViewPaintParts.Focus);e.Handled=true;}};
+        grid.CellFormatting+=(_,e)=>{if(e.RowIndex<0||e.ColumnIndex<0||e.Value is not string text)return;string column=grid.Columns[e.ColumnIndex].Name;if(column is "类型" or "始端类型" or "终端类型" or "节点类型" or "确认状态" or "业务状态" or "容量状态" or "路由状态" or "归并状态")return;var style=e.CellStyle!;e.Value=WrapCellText(text,style.Font??grid.Font,grid.Columns[e.ColumnIndex].Width-style.Padding.Horizontal-(int)(6*grid.DeviceDpi/96f));e.FormattingApplied=true;};
         // Row headers stay hidden; users can still resize rows at the cell boundary or with
         // the context menu when borderless rows make the grip hard to find.
         var menu=grid.ContextMenuStrip??new ContextMenuStrip();grid.ContextMenuStrip=menu;

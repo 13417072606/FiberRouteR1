@@ -1,0 +1,1 @@
+PASS actual updater reapplies original branding before restart; old runtime remains usable; original PNG and customer database bytes preserved
