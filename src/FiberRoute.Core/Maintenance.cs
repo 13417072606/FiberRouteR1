@@ -49,9 +49,11 @@ public sealed partial class Store
         return AnalyzeClusters([],ReadClusterInputs(path,sheet,ct),Graph);
     }
 
+    Graph? cachedClusterGraph;List<ClusterRecord>? cachedClusters; (string Name,string Reason)[] cachedClusterFilters=[];
     public List<ClusterRecord> Clusters(Graph? graph=null)
     {
-        using var c=Open(Personal);using var q=c.CreateCommand();q.CommandText="SELECT id,name,type,members,source,status,reason,enabled FROM clusters";using var r=q.ExecuteReader();var list=new List<ClusterRecord>();while(r.Read())list.Add(new(r.GetString(0),r.GetString(1),r.GetString(2),JsonSerializer.Deserialize<string[]>(r.GetString(3))!,r.GetString(4),r.GetString(5),r.GetString(6),r.GetInt32(7)==1));return AnalyzeClusters(list,SavedClusterInputs(),graph??Graph);
+        graph??=Graph;if(ReferenceEquals(cachedClusterGraph,graph)&&cachedClusters!=null){FilteredClusters.Clear();FilteredClusters.AddRange(cachedClusterFilters);return cachedClusters.ToList();}
+        using var c=Open(Personal);using var q=c.CreateCommand();q.CommandText="SELECT id,name,type,members,source,status,reason,enabled FROM clusters";using var r=q.ExecuteReader();var list=new List<ClusterRecord>();while(r.Read())list.Add(new(r.GetString(0),r.GetString(1),r.GetString(2),JsonSerializer.Deserialize<string[]>(r.GetString(3))!,r.GetString(4),r.GetString(5),r.GetString(6),r.GetInt32(7)==1));r.Close();var analyzed=AnalyzeClusters(list,SavedClusterInputs(),graph);cachedClusterGraph=graph;cachedClusters=analyzed;cachedClusterFilters=FilteredClusters.ToArray();return analyzed.ToList();
     }
     public void SaveClusters(IEnumerable<ClusterRecord> records,bool replace=false,CancellationToken ct=default)
     {

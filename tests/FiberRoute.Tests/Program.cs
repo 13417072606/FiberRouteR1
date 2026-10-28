@@ -28,6 +28,7 @@ if(args.Length==3&&args[0]=="--r14-full-verify"){R14Checks.Full(args[1],args[2])
 if(args.Length==4&&args[0]=="--r143-repair"){R143Checks.Repair(args[1],args[2],args[3]);return;}
 if(args.Length==3&&args[0]=="--r143-full"){await R143Checks.Full(args[1],args[2]);return;}
 if(args.Length>=2&&args[0]=="--r144-full"){R144Checks.Full(args[1],args.ElementAtOrDefault(2));return;}
+if(args.Length==4&&args[0]=="--r145-full"){R145Checks.Full(args[1],args[2],args[3]);return;}
 int checks=0;
 void Check(bool ok,string label){checks++;if(!ok)throw new Exception("FAIL "+label);Console.WriteLine("PASS "+label);}
 string root=Path.Combine(Path.GetTempPath(),"fiber-tests-"+Guid.NewGuid());Directory.CreateDirectory(root);
@@ -113,6 +114,7 @@ await R141Checks.Run(root,Check);
 await R143Checks.Run(root,Check);
 await R144Checks.Run(root,Check);
 await OnlineDeliveryChecks.Run(root,Check);
+await R145Checks.Run(root,Check);
     Console.WriteLine($"ALL PASS: {checks} checks");
 }finally{Directory.Delete(root,true);}
 sealed class ImmediateProgress(Action<ImportProgress> callback):IProgress<ImportProgress>{public void Report(ImportProgress value)=>callback(value);}

@@ -60,6 +60,7 @@ internal static class Program
         form.Shown+=async(_,_)=>{
             try
             {
+                if(args.Contains("--r145-only")){await Idle(800);await R145UiChecks.Run(form,s,output,Check,Idle,Shot);log.Add("ALL PASS: "+passed+" R145 UI checks; DeviceDpi="+form.DeviceDpi);File.WriteAllLines(Path.Combine(output,"ui-checks.txt"),log);form.Close();return;}
                 if(args.Contains("--r144-only")){await Idle(800);await R144UiChecks.Run(form,s,output,Check,Idle,Shot);log.Add("ALL PASS: "+passed+" R144 UI checks; DeviceDpi="+form.DeviceDpi);File.WriteAllLines(Path.Combine(output,"ui-checks.txt"),log);form.Close();return;}
                 await Idle(800);Shot("初始界面");var tabs=Field<TabControl>("tabs");var controls=new List<Control>();void Walk(Control c){controls.Add(c);foreach(Control child in c.Controls)Walk(child);}Walk(form);
                 var settings=controls.OfType<Button>().Single(b=>b.Text=="设置");Check(!(bool)settings.GetType().GetProperty("Primary")!.GetValue(settings)!&&!(bool)settings.GetType().GetProperty("Selected")!.GetValue(settings)!,"settings is a neutral utility button");
@@ -115,6 +116,7 @@ internal static class Program
                 await R142UiChecks.Run(form,s,output,Check,Idle,Shot);
                 await R143UiChecks.Run(form,s,output,Check,Idle,Shot);
                 await R144UiChecks.Run(form,s,output,Check,Idle,Shot);
+                await R145UiChecks.Run(form,s,output,Check,Idle,Shot);
                 log.Add("ALL PASS: "+passed+" UI checks; DeviceDpi="+form.DeviceDpi+"; Font="+form.Font.Name);File.WriteAllLines(Path.Combine(output,"ui-checks.txt"),log);form.Close();
             }
             catch(Exception e){log.Add("FAIL "+e);File.WriteAllLines(Path.Combine(output,"ui-checks.txt"),log);Environment.ExitCode=1;form.Close();}

@@ -44,7 +44,7 @@ public sealed partial class Store
             {
                 EnsureEvidence(c);EnsureStations(c);Run(c,"PRAGMA secure_delete=ON");using var names=c.CreateCommand();names.CommandText="SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'";var drop=new List<string>();using(var r=names.ExecuteReader())while(r.Read())if(!CatalogTables.Contains(r.GetString(0)))drop.Add(r.GetString(0));foreach(string name in drop)Run(c,"DROP TABLE \""+name.Replace("\"","\"\"")+"\"");
                 string[] Sources(string table){using var q=c.CreateCommand();q.CommandText="SELECT DISTINCT source FROM "+table;using var r=q.ExecuteReader();var list=new List<string>();while(r.Read())list.Add(r.GetString(0));return list.ToArray();}
-                typeSources=Sources("type_meta");roomSources=Sources("room_members");evidenceSources=Sources("evidence_sources");clusterSources=Sources("clusters").Concat(Sources("cluster_inputs")).Distinct().ToArray();Run(c,"VACUUM");
+                typeSources=Sources("type_meta");roomSources=Sources("room_members");evidenceSources=Sources("evidence_sources").Concat(Sources("station_sources")).Distinct().ToArray();clusterSources=Sources("clusters").Concat(Sources("cluster_inputs")).Distinct().ToArray();Run(c,"VACUUM");
             }
             CheckDatabase(resources);CheckDatabase(catalog);ct.ThrowIfCancellationRequested();
             var manifest=new DataManifest(version,1,FileSha(resources),FileSha(catalog),typeSources,roomSources,evidenceSources,clusterSources,duplicates);File.WriteAllText(Path.Combine(stage,"manifest.json"),JsonSerializer.Serialize(manifest));

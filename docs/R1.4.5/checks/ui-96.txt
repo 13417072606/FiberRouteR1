@@ -1,0 +1,111 @@
+PASS settings is a neutral utility button
+PASS current route navigation has selected state from first paint
+PASS route search populates oriented real segment table
+PASS segment headers fit actual font and padding at 96 DPI
+PASS actual route export writes Excel overview and route detail sheets only
+PASS export current route preserves selected route number without exporting other candidates
+PASS real WM_MOUSEWHEEL horizontally scrolls the connection diagram
+PASS mouse down move and up drag the diagram horizontally
+PASS dragging one node moves only that node
+PASS connected endpoints and distance label follow the dragged node in real time
+PASS diagram drag never mutates real route topology or lengths
+PASS reset layout restores node positions
+PASS native node click opens the details popup
+PASS clicked node popup has visible complete facility text
+PASS same room representative and actual member fold into one visible node
+PASS cabinet room reminder is attached to the route node
+PASS standalone paused cabinet still exposes its recorded room warning without being merged
+PASS route resource details omit the ID column
+PASS capacity-only checkbox defaults to checked
+PASS checked capacity filter hides insufficient routes from the list and map
+PASS unchecked capacity filter displays explicitly marked shortage references
+PASS rechecking hides old shortage references immediately
+PASS one bold scheme selector contains the complete route summary
+PASS duplicate metrics and obsolete helper labels are removed
+PASS avoidance options use available sidebar width for multiple columns
+PASS unknown type is the final avoidance checkbox
+PASS all avoidance types fit their wrapping checklist without nested scrolling
+PASS normal sidebar shows all avoidance checkboxes without horizontal scrolling
+PASS sidebar scroll reaches the final avoidance action
+PASS small window reflows options and mouse wheel still reaches the final action
+PASS saved avoidance selections restore correctly to the wrapping checklist
+PASS candidate modes have no misleading composite score
+PASS only obsolete display wording is removed
+PASS resource table header fits actual font
+PASS tables are borderless without a dark row-header selection stripe
+PASS user column width survives window resize
+PASS import preview reads Excel-compatible workflow without displaying the ID column
+PASS endpoint search popup remains open while typing
+PASS endpoint search filters exact fixture result
+PASS mouse click commits endpoint and closes dropdown
+PASS resource every-page size selector applies 20 rows
+PASS modern pager next page selects the correct global row range
+PASS modern pager rounded page input reaches final partial page
+PASS resource header sorts the full result before pagination and shows descending feedback
+PASS area filtering preserves missing values and separate endpoint regions
+PASS long multiline facility rows grow after a persisted column is narrowed
+PASS node list exposes explicit region column and every-page selector
+PASS node long names wrap into visible multiline cells without losing the underlying identity
+PASS cluster review chip immediately filters effective abnormal items
+PASS cluster selection uses stable identity rather than an old page row number
+PASS cluster list supports selectable paging instead of binding the entire collection
+PASS room review list quarantines wall locations from logical contraction
+PASS room details display actual filename, field and original record row
+PASS all four pagers use styled text inputs without native spinner arrows
+PASS both update buttons distinguish an unconfigured service without claiming online readiness
+PASS R1.4.1 all resource filters fit one row at 1380x950
+PASS R1.4.1 independent endpoint types appear in the eleven-column resource table
+PASS R1.4.1 all resource header captions, including length units and sorting space, fit without ellipsis
+PASS R1.4.1 start and end type filters combine with AND and do not match swapped endpoints
+PASS R1.4.1 changing only end type independently updates the matching route resource
+PASS R1.4.1 start type filter matches members of a multi-label node type
+PASS R1.4.1 four-digit last page and confirm button have enough width for complete captions
+PASS R1.4.1 settings scales its whole window and controls with the display DPI
+PASS R1.4.1 settings close button remains fully inside the normal window
+PASS R1.4.1 settings includes the approved update icons and information banner
+PASS R1.4.1 original-brand installation preserves the exact PNG bytes and customer data
+PASS R1.4.1 generated icon preserves the full aspect ratio, both sides and transparent padding
+PASS R1.4.1 Windows executable icon resources use the complete original instead of the simplified drawing
+PASS R1.4.1 the same brand tool also supports the standalone management EXE without installing the main client
+PASS R1.4.1 publisher EXE scales its window and controls with the display DPI
+PASS R1.4.1 publisher EXE wizard generates a data package without command-line arguments
+PASS R1.4.1 publisher wizard creates client public configuration
+PASS R1.4.1 publisher EXE publishes a signed data channel to the server directory without its signing private key
+PASS R1.4.2 endpoint picker text is vertically centered without clipping
+PASS R1.4.2 query numeric input is centered and fits its frame
+PASS R1.4.2 visible route sequence includes actual internal endpoints and matches the workbook
+PASS R1.4.2 copy button copies the complete selected plan without truncating names
+PASS R1.4.2 switching plans updates the sequence, including an internal-only route
+PASS R1.4.2 clearing results also clears stale copyable route text
+PASS R1.4.2 resource filters and export stay on one row at the normal window size
+PASS R1.4.2 resource export uses the shortened caption
+PASS R1.4.2 resource search consumes extra horizontal space
+PASS R1.4.2 cluster table exposes the full member list and identity
+PASS R1.4.2 cluster workspace no longer reserves the bottom details panel
+PASS R1.4.2 compact cluster metadata leaves room and row height for complete names
+PASS R1.4.2 node search text is centered with its full font height inside the frame
+PASS R1.4.2 readonly import path has the white input background and no clipped text
+PASS R143 名称 full text and final suffix fit the measured row at 96 DPI
+PASS R143 POS classification and removal of station chip apply to live imported data
+PASS R143 始端设施 full text and final suffix fit the measured row at 96 DPI
+PASS R143 集群名称 full text and final suffix fit the measured row at 96 DPI
+PASS R145 station grouping is kept in the backend without occupying a list column
+PASS R143 所属机房 full text and final suffix fit the measured row at 96 DPI
+PASS R143 application title uses the requested new product name
+PASS R144 multiline 名称 retains complete suffix and extra vertical space at DPI 96
+PASS R144 actual 修改 glyph pixels are vertically centered in the multiline row at DPI 96
+PASS R144 multiline 所属机房 retains complete suffix and extra vertical space at DPI 96
+PASS R144 resourceStartArea offers six districts, one county and unresolved at DPI 96
+PASS R144 resourceEndArea offers six districts, one county and unresolved at DPI 96
+PASS R144 district filtering includes street-level source rows
+PASS R144 unknown filter preserves independent endpoint inference
+PASS R144 application title identifies the new patch
+PASS R145 finance cross-type cluster has three members with station metadata kept off the visible list
+PASS R145 finance member types and confirmation are correct in the actual UI
+PASS R145 splitter filter finds a mixed cluster represented by a cabinet
+PASS R145 source-valid Baohua members are confirmed independently of insufficient graph endpoints
+PASS R145 historic broken Lianxia names render as two complete members
+PASS R145 editor keeps each complete member on one logical line and does not turn visual wrapping into names
+PASS R145 isolated singleton is filtered from the live cluster list
+PASS R145 release title includes the cumulative version
+ALL PASS: 110 UI checks; DeviceDpi=96; Font=WenQuanYi Zen Hei

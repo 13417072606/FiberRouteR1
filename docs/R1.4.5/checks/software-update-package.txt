@@ -1,0 +1,2 @@
+已生成软件更新包。
+PASS complete delivery ZIP accepted by program updater

@@ -41,6 +41,6 @@ static class R144UiChecks
         foreach(string f in new[]{"resourceStartArea","resourceEndArea"}){var box=Field<ComboBox>(f);check(box.Items.Count==9&&ShantouRegions.Districts.All(d=>box.Items.Contains(d))&&box.Items.Contains("未提供")&&!box.Items.Contains("广益街道"),"R144 "+f+" offers six districts, one county and unresolved at DPI "+form.DeviceDpi);}
         Field<ComboBox>("resourceStartArea").SelectedItem="澄海区";await idle(700);var resource=Field<DataGridView>("resourceGrid");check(resource.Rows.Count==1&&resource.Rows[0].Cells["始端区域"].Value?.ToString()=="澄海区"&&resource.Rows[0].Cells["终端区域"].Value?.ToString()=="濠江区","R144 district filtering includes street-level source rows");shot("R1.4.4-始终端行政区归并");
         Field<ComboBox>("resourceStartArea").SelectedIndex=0;Field<ComboBox>("resourceEndArea").SelectedItem="未提供";await idle(700);check(resource.Rows.Count==1&&resource.Rows[0].Cells["始端区域"].Value?.ToString()=="潮南区"&&resource.Rows[0].Cells["终端区域"].Value?.ToString()=="未提供","R144 unknown filter preserves independent endpoint inference");
-        check(form.Text.StartsWith("光路调度路由查询 R1.4.4"),"R144 application title identifies the new patch");
+        check(form.Text.StartsWith("光路调度路由查询 R"+typeof(MainForm).Assembly.GetName().Version!.ToString(3)),"R144 application title identifies the new patch");
     }
 }
