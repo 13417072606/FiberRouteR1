@@ -11,13 +11,6 @@ public sealed partial class Store
     {
         using var c=Open(Personal);EnsureEvidence(c);using var q=c.CreateCommand();q.CommandText="SELECT name,region,room,source,rownum,field,sheet FROM facility_evidence WHERE name=$n ORDER BY source,rownum LIMIT 50";q.Parameters.AddWithValue("$n",name);using var r=q.ExecuteReader();var values=new List<FacilityEvidence>();while(r.Read())values.Add(new(r.GetString(0),r.GetString(1),r.GetString(2),r.GetString(3),r.GetInt32(4),r.GetString(5),r.GetString(6)));return values.ToArray();
     }
-    Node[] WithRegions(Node[] nodes,Edge[] edges)
-    {
-        using var c=Open(Personal);EnsureEvidence(c);using var q=c.CreateCommand();q.CommandText="SELECT name,min(region),count(DISTINCT region) FROM facility_evidence WHERE region<>'' GROUP BY name";using var r=q.ExecuteReader();var typed=new Dictionary<string,string>(StringComparer.Ordinal);while(r.Read())typed[r.GetString(0)]=r.GetInt32(2)>1?"区域待核对":r.GetString(1);
-        var resource=new Dictionary<int,string>();void Area(int id,string region){if(region.Length==0)return;if(resource.TryGetValue(id,out var old)&&old!=region)resource[id]="区域待核对";else resource.TryAdd(id,region);}
-        foreach(var edge in edges){Area(edge.A,edge.StartRegion);Area(edge.B,edge.EndRegion);}
-        return nodes.Select(n=>{string region=typed.GetValueOrDefault(n.Name,resource.GetValueOrDefault(n.Id,""));return n with{Region=region,Status=region=="区域待核对"?"需核对":n.Status,Confirmed=region=="区域待核对"?false:n.Confirmed,Reason=region=="区域待核对"?string.Join('；',new[]{n.Reason,"明确区域字段存在冲突"}.Where(x=>x.Length>0)):n.Reason};}).ToArray();
-    }
     public void ApplyFacilityEvidence(IEnumerable<(string Path,string Type,string? Sheet)> inputs,CancellationToken ct=default)
     {
         var files=inputs.ToArray();

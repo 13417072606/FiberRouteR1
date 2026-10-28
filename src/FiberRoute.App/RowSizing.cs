@@ -19,6 +19,11 @@ public sealed partial class MainForm
         }
         return string.Join("\n",lines);
     }
+    internal static int CellTextHeight(string wrapped,Font font)=>TextRenderer.MeasureText(wrapped.Length==0?" ":wrapped,font,new Size(int.MaxValue,int.MaxValue),TextFormatFlags.NoPadding|TextFormatFlags.NoPrefix).Height;
+    internal static Rectangle CenterCellText(Rectangle bounds,string wrapped,Font font)
+    {
+        int height=CellTextHeight(wrapped,font);return new Rectangle(bounds.X,bounds.Y+Math.Max(0,(bounds.Height-height)/2),bounds.Width,height);
+    }
     void MeasureRows(DataGridView grid)
     {
         if(measuringRows||grid.Columns.Count==0)return;measuringRows=true;
@@ -31,12 +36,13 @@ public sealed partial class MainForm
                 foreach(DataGridViewCell cell in row.Cells)
                 {
                     var column=grid.Columns[cell.ColumnIndex];if(!column.Visible)continue;var font=cell.InheritedStyle.Font??grid.Font;int width=column.Width-cell.InheritedStyle.Padding.Horizontal-(int)(6*scale);string text=cell.FormattedValue?.ToString()??"";
-                    if(grid==resourceGrid&&column.Name is "始端类型" or "终端类型")
+                    if(column.Name is "类型" or "始端类型" or "终端类型" or "节点类型")
                     {
-                        var tags=(cell.Value?.ToString()??"").Split(';',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries);int tagHeight=tags.Sum(tag=>WrapCellText(tag,font,Math.Max(25,column.Width-(int)(30*scale))).Split('\n').Length*font.Height+(int)(8*scale))+Math.Max(0,tags.Length-1)*(int)(4*scale)+(int)(8*scale);height=Math.Max(height,tagHeight);continue;
+                        var tags=(cell.Value?.ToString()??"").Split(';',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries);int tagHeight=tags.Sum(tag=>CellTextHeight(WrapCellText(tag,font,Math.Max(25,column.Width-(int)(30*scale))),font)+(int)(8*scale))+Math.Max(0,tags.Length-1)*(int)(4*scale)+(int)(8*scale);height=Math.Max(height,tagHeight);continue;
                     }
                     string wrapped=WrapCellText(cell.Value?.ToString()??text,font,width);
-                    int needed=wrapped.Split('\n').Length*font.Height+cell.InheritedStyle.Padding.Vertical+(int)(8*scale);height=Math.Max(height,needed);
+                    int breathingRoom=(grid==typeGrid||grid==roomGrid)&&wrapped.Contains('\n')?(int)(8*scale):0;
+                    int needed=CellTextHeight(wrapped,font)+cell.InheritedStyle.Padding.Vertical+(int)(8*scale)+breathingRoom;height=Math.Max(height,needed);
                 }
                 if(row.Height!=height)row.Height=Math.Clamp(height,20,4000);
             }

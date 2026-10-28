@@ -1,0 +1,12 @@
+PASS R1.3 upgrade and repeat; complete payload verified; customer DB bytes preserved
+PASS R1.3.1 upgrade and repeat; complete payload verified; customer DB bytes preserved
+PASS R1.3.2 upgrade and repeat; complete payload verified; customer DB bytes preserved
+PASS R1.3.3 upgrade and repeat; complete payload verified; customer DB bytes preserved
+PASS R1.3.4 upgrade and repeat; complete payload verified; customer DB bytes preserved
+PASS R1.4 upgrade and repeat; complete payload verified; customer DB bytes preserved
+PASS R1.4.1 upgrade and repeat; complete payload verified; customer DB bytes preserved
+PASS R1.4.2 upgrade and repeat; complete payload verified; customer DB bytes preserved
+PASS R1.4.3 upgrade and repeat; complete payload verified; customer DB bytes preserved
+PASS truncated ZIP rejected without modifying program
+PASS unknown base rejected before modifying program
+PASS write conflict rolls back changed and newly created files
