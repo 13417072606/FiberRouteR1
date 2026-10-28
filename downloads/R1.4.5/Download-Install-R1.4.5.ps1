@@ -14,12 +14,13 @@ if (!(Test-ExpectedFile $outer $outerSize $outerSha)) {
     $part = $outer + '.partial'
     $urls = @(
         'https://api.github.com/repos/13417072606/FiberRouteR1/contents/downloads/R1.4.5/FiberRouteR1-R1.4.5-install.zip?ref=a22da097058c66b7123f023e253f81cd7fe31591',
-        'https://raw.githubusercontent.com/13417072606/FiberRouteR1/a22da097058c66b7123f023e253f81cd7fe31591/downloads/R1.4.5/FiberRouteR1-R1.4.5-install.zip'
+        'https://raw.githubusercontent.com/13417072606/FiberRouteR1/a22da097058c66b7123f023e253f81cd7fe31591/downloads/R1.4.5/FiberRouteR1-R1.4.5-install.zip',
+        'https://cdn.jsdelivr.net/gh/13417072606/FiberRouteR1@a93883260454908c37b81466cc312a7deec289da/downloads/R1.4.5/FiberRouteR1-R1.4.5-install.zip'
     )
     $curl = Get-Command curl.exe -CommandType Application -ErrorAction Stop
     for ($attempt = 0; $attempt -lt 6; $attempt++) {
         Write-Host ('正在下载 R1.4.5 安装包（{0}/6）…' -f ($attempt + 1))
-        & $curl.Source --fail --location --http1.1 --tlsv1.2 --retry 2 --connect-timeout 30 --max-time 300 --header 'Accept: application/vnd.github.raw+json' --output $part $urls[$attempt % 2]
+        & $curl.Source --fail --location --http1.1 --tlsv1.2 --retry 2 --connect-timeout 30 --max-time 300 --header 'Accept: application/vnd.github.raw+json' --output $part $urls[$attempt % $urls.Count]
         if (Test-ExpectedFile $part $outerSize $outerSha) { break }
         if (Test-Path -LiteralPath $part) { Remove-Item -LiteralPath $part -Force }
     }
