@@ -31,7 +31,7 @@ public sealed partial class MainForm:Form
     public MainForm(Store s)
     {
         SuspendLayout();
-        store=s;Text="光路调度智能分析 R"+DisplayVersion;Width=1380;Height=950;MinimumSize=new Size(1080,700);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Microsoft YaHei UI",10);BackColor=Theme.Canvas;ForeColor=Theme.Ink;
+        store=s;Text="光路调度路由查询 R"+DisplayVersion;Width=1380;Height=950;MinimumSize=new Size(1080,700);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Microsoft YaHei UI",10);BackColor=Theme.Canvas;ForeColor=Theme.Ink;
         AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;
         tabs.Appearance=TabAppearance.FlatButtons;tabs.ItemSize=new Size(1,1);tabs.SizeMode=TabSizeMode.Fixed;
         Controls.Add(tabs);Controls.Add(status);BuildRoutes();BuildResources();BuildTypes();BuildImport();Controls.Add(BuildHeader());InstallLayoutMemory();RefreshData();
@@ -44,7 +44,7 @@ public sealed partial class MainForm:Form
     static NumericUpDown Num(int min,int max,int val)=>new(){Minimum=min,Maximum=max,Value=val,Width=110,AutoSize=false,Height=38,MinimumSize=new Size(70,34)};
     static FlowLayoutPanel Flow()=>new(){Dock=DockStyle.Top,AutoSize=true,WrapContents=true,Padding=new Padding(8)};
     static Label L(string text)=>new(){Text=text,AutoSize=true,Margin=new Padding(6,8,6,4)};
-    Button B(string text,Action action) {var b=new UiButton(){Text=text,AutoSize=true,MinimumSize=new Size(72,40),Primary=text.StartsWith("确认")||text.StartsWith("查询")||text.StartsWith("导入")||text.StartsWith("保存")};b.Click+=(_,_)=>{try{action();}catch(Exception e){MessageBox.Show(e.Message,"光路调度智能分析");}};return b;}
+    Button B(string text,Action action) {var b=new UiButton(){Text=text,AutoSize=true,MinimumSize=new Size(72,40),Primary=text.StartsWith("确认")||text.StartsWith("查询")||text.StartsWith("导入")||text.StartsWith("保存")};b.Click+=(_,_)=>{try{action();}catch(Exception e){MessageBox.Show(e.Message,"光路调度路由查询");}};return b;}
     Button B(string text,Func<Task> action)
     {return B(text,()=>{_ = Run();});async Task Run(){try{await action();}catch(Exception e){MessageBox.Show(e.Message,"操作失败",MessageBoxButtons.OK,MessageBoxIcon.Error);}}}
     TabPage Tab(string title) {var p=new TabPage(title){Padding=new Padding(10),BackColor=BackColor};tabs.TabPages.Add(p);return p;}
@@ -201,7 +201,7 @@ public sealed partial class MainForm:Form
     }
     void RefreshData()
     {
-        UpdateStats();ClearRoutes();RefreshAreaChoices();pendingTypes=[];typePreview.DataSource=null;if(applyTypes!=null)applyTypes.Enabled=false;start?.Clear();end?.Clear();avoid?.Clear();avoidNodes.Items.Clear();var types=store.Graph.Nodes.SelectMany(n=>n.Type.Split(';',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries)).Concat(new[]{"站点","机房","光交箱","分纤箱","未识别"}).Distinct().OrderBy(t=>t=="未识别"?1:0).ThenBy(t=>t).ToArray();
+        UpdateStats();ClearRoutes();RefreshAreaChoices();pendingTypes=[];typePreview.DataSource=null;if(applyTypes!=null)applyTypes.Enabled=false;start?.Clear();end?.Clear();avoid?.Clear();avoidNodes.Items.Clear();var types=store.Graph.Nodes.SelectMany(n=>n.Type.Split(';',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries)).Concat(new[]{"机房","光交箱","分纤箱","未识别"}).Distinct().OrderBy(t=>t=="未识别"?1:0).ThenBy(t=>t).ToArray();
         editType.Items.Clear();editType.Items.AddRange(types);
         var checkedTypes=avoidTypes.CheckedTypes.ToHashSet();avoidTypes.SetTypes(types,checkedTypes);
         buildingFilters=true;foreach(var c in new[]{resourceType,resourceEndType,nodeType}){var old=c.SelectedItem;c.Items.Clear();string all=c==nodeType?"全部":"全部类型";c.Items.Add(all);c.Items.AddRange(types);c.SelectedItem=old!=null&&c.Items.Contains(old)?old:all;}buildingFilters=false;

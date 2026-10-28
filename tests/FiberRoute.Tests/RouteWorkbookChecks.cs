@@ -14,7 +14,7 @@ static class RouteWorkbookChecks
         var options=new RouteOptions(0,5,2,8,8,RouteOrder.Distance,[],[],RequireCapacity:false);
         var route=new Route([0,2,4],[0,1],208.21,0,0,1){Steps=[new(0,1,2),new(1,3,4)],Transfers=[new(0,1,0),new(2,3,1),new(4,5,2)]};
         var plan=ExportPlan.FromRoute(graph,route,options,2);
-        check(plan.Sequence.SequenceEqual(graph.Nodes.Select(n=>n.Name)),"workbook sequence preserves start, intermediate and end transfers without duplicate adjacent names");
+        check(plan.Sequence.SequenceEqual(graph.Nodes.Skip(1).Take(4).Select(n=>n.Name)),"workbook sequence omits endpoint representatives and retains real endpoints and middle transfers");
         check(plan.Segments[0].From==graph.Nodes[1].Name&&plan.Segments[0].To==graph.Nodes[2].Name,"workbook follows oriented route steps rather than stored edge directions");
         string file=Path.Combine(root,"routes.xlsx");RouteWorkbook.Write(file,[plan]);
         using(var zip=ZipFile.OpenRead(file))
@@ -23,7 +23,7 @@ static class RouteWorkbookChecks
             var names=Read("xl/workbook.xml").Descendants(S+"sheet").Select(x=>(string)x.Attribute("name")!).ToArray();
             check(names.SequenceEqual(new[]{"路由总览","方案02"}),"workbook contains only overview and selected numbered route sheets");
             var overview=Read("xl/worksheets/sheet1.xml");var detail=Read("xl/worksheets/sheet2.xml");
-            check(Value(overview,"D5")=="跳纤路由"&&Value(overview,"D6")==string.Join(" → ",graph.Nodes.Select(n=>n.Name)),"overview exports exact arrow-separated route including XML characters");
+            check(Value(overview,"D5")=="跳纤路由"&&Value(overview,"D6")==string.Join(" → ",graph.Nodes.Skip(1).Take(4).Select(n=>n.Name)),"overview exports exact arrow-separated route including XML characters");
             check(Value(overview,"I6")=="-1"&&Value(overview,"J6").Contains("芯数不足"),"shortage routes export actual negative remainder and clear capacity status");
             check(overview.Descendants(S+"hyperlink").Single().Attribute("location")!.Value=="'方案02'!A1"&&detail.Descendants(S+"hyperlink").Single().Attribute("location")!.Value=="'路由总览'!A1","overview and detail hyperlinks preserve original route numbers");
             check(!detail.Value.Contains("不编造芯号")&&!detail.Value.Contains("资源追溯")&&!detail.Value.Contains("字段说明"),"deleted explanation and removed-sheet references are absent");

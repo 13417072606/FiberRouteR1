@@ -73,7 +73,17 @@ public sealed partial class MainForm
     void PrepareGrid(DataGridView grid)
     {
         PaintBadges(grid);
-        grid.CellPainting+=(_,e)=>{if(e.RowIndex>=0&&e.ColumnIndex>=0&&!e.Handled){e.Paint(e.ClipBounds,DataGridViewPaintParts.All&~DataGridViewPaintParts.Focus);e.Handled=true;}};
+        grid.CellToolTipTextNeeded+=(_,e)=>{if(e.RowIndex>=0&&e.ColumnIndex>=0)e.ToolTipText=grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString()??"";};
+        grid.DpiChangedAfterParent+=(_,_)=>QueueRowMeasure(grid);
+        grid.DataBindingComplete+=(_,_)=>QueueRowMeasure(grid);
+        grid.ColumnWidthChanged+=(_,_)=>QueueRowMeasure(grid);
+        grid.SizeChanged+=(_,_)=>QueueRowMeasure(grid);
+        grid.VisibleChanged+=(_,_)=>{if(grid.Visible)QueueRowMeasure(grid);};
+        grid.CellPainting+=(_,e)=>{if(e.RowIndex>=0&&e.ColumnIndex>=0&&!e.Handled){e.PaintBackground(e.ClipBounds,true);e.Paint(e.ClipBounds,DataGridViewPaintParts.Border);
+            var cell=grid.Rows[e.RowIndex].Cells[e.ColumnIndex];var style=e.CellStyle!;float scale=grid.DeviceDpi/96f;
+            var bounds=new Rectangle(e.CellBounds.X+style.Padding.Left+(int)(3*scale),e.CellBounds.Y+style.Padding.Top+(int)(4*scale),Math.Max(20,e.CellBounds.Width-style.Padding.Horizontal-(int)(6*scale)),Math.Max(1,e.CellBounds.Height-style.Padding.Vertical-(int)(8*scale)));
+            string text=WrapCellText(cell.Value is string raw?raw:e.FormattedValue?.ToString()??"",style.Font??grid.Font,bounds.Width);
+            TextRenderer.DrawText(e.Graphics!,text,style.Font??grid.Font,bounds,(e.State&DataGridViewElementStates.Selected)!=0?style.SelectionForeColor:style.ForeColor,TextFormatFlags.NoPadding|TextFormatFlags.NoPrefix|TextFormatFlags.Top|TextFormatFlags.Left);e.Handled=true;}};
         grid.CellFormatting+=(_,e)=>{if(e.RowIndex<0||e.ColumnIndex<0||e.Value is not string text)return;string column=grid.Columns[e.ColumnIndex].Name;if(column is "类型" or "始端类型" or "终端类型" or "节点类型" or "确认状态" or "业务状态" or "容量状态" or "路由状态" or "归并状态")return;var style=e.CellStyle!;e.Value=WrapCellText(text,style.Font??grid.Font,grid.Columns[e.ColumnIndex].Width-style.Padding.Horizontal-(int)(6*grid.DeviceDpi/96f));e.FormattingApplied=true;};
         // Row headers stay hidden; users can still resize rows at the cell boundary or with
         // the context menu when borderless rows make the grip hard to find.

@@ -5,7 +5,7 @@
 #define PRODUCT L"更换品牌图标"
 #define TARGET L"程序\\FiberRoute.Brand.exe"
 #elif !defined(PUBLISHER)
-#define PRODUCT L"光路调度智能分析"
+#define PRODUCT L"光路调度路由查询"
 #define TARGET L"程序\\FiberRouteR1.exe"
 #else
 #define PRODUCT L"管理方发布工具"

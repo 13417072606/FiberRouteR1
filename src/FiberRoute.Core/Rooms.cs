@@ -90,14 +90,14 @@ public sealed partial class Store
         var allRooms=RoomAssignments(g,resourceRooms);var rooms=allRooms.Where(x=>x.Enabled&&x.Status=="已确认").ToArray();var affiliation=rooms.ToDictionary(x=>x.Name,x=>x.Room,StringComparer.Ordinal);var blocked=allRooms.Where(x=>x.Status=="需核对"||x.IsCabinet&&!x.Enabled).Select(x=>x.Name).ToHashSet(StringComparer.Ordinal);
         var names=g.Nodes.ToDictionary(n=>n.Name,n=>n.Id,StringComparer.Ordinal);foreach(var x in allRooms)g.RoomAffiliations[names[x.Name]]=x;var parent=Enumerable.Range(0,g.Nodes.Length).ToArray();int Root(int n){while(parent[n]!=n){parent[n]=parent[parent[n]];n=parent[n];}return n;}void Join(int a,int b){a=Root(a);b=Root(b);if(a!=b)parent[b]=a;}
         foreach(var room in rooms.GroupBy(x=>x.Room,StringComparer.Ordinal)){g.Rooms[room.Key]=room.Select(x=>names[x.Name]).ToArray();int first=names[room.First().Name];foreach(var n in room)Join(first,names[n.Name]);}
-        foreach(var cluster in Clusters(g).Where(x=>x.Enabled&&x.Status=="已确认"))
+        foreach(var cluster in Clusters(g).Where(x=>x.Enabled&&x.Status=="已确认").Select(x=>x with{Members=x.Members.Where(names.ContainsKey).ToArray()}).Where(x=>x.Members.Length>=2))
         {
             if(cluster.Members.Any(blocked.Contains)){g.GroupWarnings[cluster.Id]="成员机房归属待核对或光交箱尚未确认";continue;}
             // Explicit clusters cannot accidentally join two distinct room cores, including transitive joins.
             var roots=cluster.Members.Select(n=>Root(names[n])).ToHashSet();var touched=rooms.Where(x=>roots.Contains(Root(names[x.Name]))).Select(x=>x.Room).Distinct(StringComparer.Ordinal).ToArray();if(touched.Length>1){g.GroupWarnings[cluster.Id]="集群关系跨越多个所属机房，未合并";continue;}
             int first=names[cluster.Members[0]];foreach(var n in cluster.Members)Join(first,names[n]);
         }
-        var clusterNames=Clusters(g).Where(x=>x.Enabled&&x.Status=="已确认").SelectMany(x=>x.Members.Select(n=>(Name:n,GroupName:x.Name))).GroupBy(x=>x.Name).ToDictionary(x=>x.Key,x=>x.First().GroupName);
+        var clusterNames=Clusters(g).Where(x=>x.Enabled&&x.Status=="已确认").SelectMany(x=>x.Members.Where(names.ContainsKey).Select(n=>(Name:n,GroupName:x.Name))).GroupBy(x=>x.Name).ToDictionary(x=>x.Key,x=>x.First().GroupName);
         foreach(var group in g.Nodes.GroupBy(n=>Root(n.Id)).Where(x=>x.Count()>1))
         {
             var members=group.Select(n=>n.Name).ToArray();string? room=members.Where(affiliation.ContainsKey).Select(n=>affiliation[n]).FirstOrDefault();string title=room??members.Where(clusterNames.ContainsKey).Select(n=>clusterNames[n]).FirstOrDefault()??members[0];

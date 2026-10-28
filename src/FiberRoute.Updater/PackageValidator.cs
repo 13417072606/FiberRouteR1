@@ -15,7 +15,7 @@ public static class PackageValidator
                 string name=entry.FullName.Replace('\\','/');foreach(string prefix in new[]{"纤路R1/","光路调度智能分析R1.4/"})if(name.StartsWith(prefix,StringComparison.Ordinal)){name=name[prefix.Length..];break;}
                 if(name.Length==0||name.EndsWith('/'))continue;
                 if(name.Contains(':')||name.Split('/').Any(part=>part is ".." or "." or "")||!written.Add(name))throw new InvalidDataException("更新包路径重复或非法："+name);
-                if(name is not ("光路调度智能分析.exe" or "管理方发布工具.exe" or "更换品牌图标.exe" or "管理方发布工具.cmd" or "管理方在线更新发布指南.md" or "纤路R1.exe" or "使用说明.txt" or "验证报告.md" or "文件校验SHA256.json" or "更新清单.json")&&!name.StartsWith("服务器部署/",StringComparison.Ordinal)&&!name.StartsWith("第三方许可/",StringComparison.Ordinal)&&!name.StartsWith("程序/",StringComparison.Ordinal)&&!name.StartsWith("资源/",StringComparison.Ordinal))throw new InvalidDataException("更新包存在非允许文件："+name);
+                if(name is not ("光路调度路由查询.exe" or "光路调度智能分析.exe" or "管理方发布工具.exe" or "更换品牌图标.exe" or "管理方发布工具.cmd" or "管理方在线更新发布指南.md" or "纤路R1.exe" or "使用说明.txt" or "验证报告.md" or "文件校验SHA256.json" or "更新清单.json")&&!name.StartsWith("服务器部署/",StringComparison.Ordinal)&&!name.StartsWith("第三方许可/",StringComparison.Ordinal)&&!name.StartsWith("程序/",StringComparison.Ordinal)&&!name.StartsWith("资源/",StringComparison.Ordinal))throw new InvalidDataException("更新包存在非允许文件："+name);
                 string target=Path.GetFullPath(Path.Combine(stage,name));if(!target.StartsWith(stage+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("非法压缩路径");Directory.CreateDirectory(Path.GetDirectoryName(target)!);entry.ExtractToFile(target);
             }
         }

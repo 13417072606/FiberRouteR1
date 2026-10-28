@@ -1,0 +1,6 @@
+PASS actual self-contained launcher opens R1.4 and consumes the room baseline
+
+PASS delivered R1.4.3 brand helper applies the original PNG with the new app assembly; personal DB bytes unchanged
+PASS actual self-contained launcher opens R1.4 and consumes the room baseline
+
+PASS original R1.3 self-contained runtime launches cumulative R1.4.3 through native entry before and after brand replacement

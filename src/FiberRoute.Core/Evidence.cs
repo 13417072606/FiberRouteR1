@@ -20,8 +20,9 @@ public sealed partial class Store
     }
     public void ApplyFacilityEvidence(IEnumerable<(string Path,string Type,string? Sheet)> inputs,CancellationToken ct=default)
     {
+        var files=inputs.ToArray();
         using var c=Open(Personal);EnsureEvidence(c);using var tx=c.BeginTransaction();
-        foreach(var input in inputs)
+        foreach(var input in files)
         {
             ct.ThrowIfCancellationRequested();string source=Path.GetFileName(input.Path);using var stream=File.OpenRead(input.Path);string signature=Convert.ToHexString(SHA256.HashData(stream))+"|"+input.Sheet;
             using var old=c.CreateCommand();old.Transaction=tx;old.CommandText="SELECT signature FROM evidence_sources WHERE source=$s";old.Parameters.AddWithValue("$s",source);if((string?)old.ExecuteScalar()==signature)continue;
@@ -35,7 +36,7 @@ public sealed partial class Store
             }
             using var stamp=c.CreateCommand();stamp.Transaction=tx;stamp.CommandText="INSERT OR REPLACE INTO evidence_sources VALUES($s,$v)";stamp.Parameters.AddWithValue("$s",source);stamp.Parameters.AddWithValue("$v",signature);stamp.ExecuteNonQuery();
         }
-        ct.ThrowIfCancellationRequested();tx.Commit();Reload();
+        ct.ThrowIfCancellationRequested();tx.Commit();ApplyStationFiles(files,ct);Reload();
     }
     static string FieldCaption(int index,string name){string column="";for(int value=index+1;value>0;value=(value-1)/26)column=(char)('A'+(value-1)%26)+column;return column+"列 · "+name;}
     public void ApplyEvidenceBaseline(string path,CancellationToken ct=default)

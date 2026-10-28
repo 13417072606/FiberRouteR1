@@ -13,9 +13,9 @@ public sealed record ExportPlan(int Number,string Start,string End,string[] Sequ
     public static ExportPlan FromRoute(Graph graph,Route route,RouteOptions options,int number)
     {
         var segments=route.Edges.Select((ix,i)=>{var edge=graph.Edges[ix];var step=route.Steps.ElementAtOrDefault(i);return new ExportSegment(i+1,graph.Nodes[step?.From??route.Nodes[i]].Name,graph.Nodes[step?.To??route.Nodes[i+1]].Name,edge.Length,edge.Free,edge.Total);}).ToArray();
-        var transfers=route.Transfers.Select(t=>new ExportTransfer(t.BeforeSegment,graph.Nodes[t.From].Name,graph.Nodes[t.To].Name)).ToArray();
+        var transfers=route.Transfers.Where(t=>segments.Length==0||t.BeforeSegment>0&&t.BeforeSegment<segments.Length).Select(t=>new ExportTransfer(t.BeforeSegment,graph.Nodes[t.From].Name,graph.Nodes[t.To].Name)).ToArray();
         string start=graph.Nodes[options.Start].Name,end=graph.Nodes[options.End].Name;
-        return new(number,start,end,BuildSequence(start,end,segments,transfers),options.Demand,route.Length,route.Jumps,route.Edges.Length>0?route.Bottleneck:null,route.CapacityStatus(options.Demand),segments,transfers);
+        return new(number,start,end,BuildSequence(segments.Length>0?segments[0].From:start,segments.Length>0?segments[^1].To:end,segments,transfers.Where(t=>t.BeforeSegment>0&&t.BeforeSegment<segments.Length).ToArray()),options.Demand,route.Length,route.Jumps,route.Edges.Length>0?route.Bottleneck:null,route.CapacityStatus(options.Demand),segments,transfers);
     }
     public static string[] BuildSequence(string start,string end,ExportSegment[] segments,ExportTransfer[] transfers)
     {

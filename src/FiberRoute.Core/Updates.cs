@@ -3,7 +3,8 @@ using System.Security.Cryptography;
 using System.Text.Json;
 namespace FiberRoute.Core;
 public sealed record UpdateConfig(string ManifestUrl,string PublicKeyPem);
-public sealed record ReleaseItem(string Version,string Url,string Sha256,long Bytes,string Notes="",string MinimumProgram="1.4.0");
+public sealed record ReleaseItem(string Version,string Url,string Sha256,long Bytes,string Notes="",string MinimumProgram="1.4.0",ReleasePart[]? Parts=null);
+public sealed record ReleasePart(string Url,string Sha256,long Bytes);
 public sealed record DownloadProgress(long Received,long Total);
 public sealed record ReleaseManifest(ReleaseItem? Program,ReleaseItem? Resources);
 public static class Updates
@@ -29,15 +30,31 @@ public static class Updates
     public static async Task<string> Download(UpdateConfig config,ReleaseItem item,string root,CancellationToken ct,IProgress<DownloadProgress>? progress=null,HttpClient? transport=null)
     {
         if(item.Bytes<1||item.Bytes>MaxPackage||item.Sha256.Length!=64)throw new InvalidDataException("更新包元数据无效");
-        var uri=Trusted(item.Url,new Uri(config.ManifestUrl));Directory.CreateDirectory(root);string path=Path.Combine(root,Guid.NewGuid()+".download");
+        var origin=new Uri(config.ManifestUrl);Trusted(item.Url,origin);
+        var parts=DownloadParts(item);foreach(var part in parts)Trusted(part.Url,origin);
+        Directory.CreateDirectory(root);string path=Path.Combine(root,Guid.NewGuid()+".download");
         try
         {
-            using var response=await (transport??Client).GetAsync(uri,HttpCompletionOption.ResponseHeadersRead,ct);response.EnsureSuccessStatusCode();
-            await using(var input=await response.Content.ReadAsStreamAsync(ct))await using(var output=File.Create(path))
-            {byte[] buffer=new byte[81920];long total=0;int n;while((n=await input.ReadAsync(buffer,ct))>0){total+=n;if(total>item.Bytes)throw new InvalidDataException("更新包超出声明大小");await output.WriteAsync(buffer.AsMemory(0,n),ct);progress?.Report(new(total,item.Bytes));}if(total!=item.Bytes)throw new InvalidDataException("更新包大小不符");}
-            await using var verify=File.OpenRead(path);string hash=Convert.ToHexString(await SHA256.HashDataAsync(verify,ct));if(!hash.Equals(item.Sha256,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("更新包SHA256校验失败");return path;
+            long total=0;await using(var output=File.Create(path))
+            foreach(var part in parts)
+            {
+                using var response=await (transport??Client).GetAsync(Trusted(part.Url,origin),HttpCompletionOption.ResponseHeadersRead,ct);response.EnsureSuccessStatusCode();
+                await using var input=await response.Content.ReadAsStreamAsync(ct);using var hash=IncrementalHash.CreateHash(HashAlgorithmName.SHA256);byte[] buffer=new byte[81920];long received=0;int n;
+                while((n=await input.ReadAsync(buffer,ct))>0){received+=n;total+=n;if(received>part.Bytes||total>item.Bytes)throw new InvalidDataException("更新分片超出声明大小");hash.AppendData(buffer,0,n);await output.WriteAsync(buffer.AsMemory(0,n),ct);progress?.Report(new(total,item.Bytes));}
+                if(received!=part.Bytes||!Convert.ToHexString(hash.GetHashAndReset()).Equals(part.Sha256,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("更新分片大小或SHA256校验失败");
+            }
+            await using var verify=File.OpenRead(path);string digest=Convert.ToHexString(await SHA256.HashDataAsync(verify,ct));if(!digest.Equals(item.Sha256,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("合并更新包SHA256校验失败");return path;
         }catch{File.Delete(path);throw;}
     }
+    public static ReleasePart[] DownloadParts(ReleaseItem item)
+    {
+        bool Hash(string h)=>h.Length==64&&h.All(Uri.IsHexDigit);
+        if(item.Bytes<1||item.Bytes>MaxPackage||!Hash(item.Sha256))throw new InvalidDataException("更新包元数据无效");
+        if(item.Parts==null)return [new(item.Url,item.Sha256,item.Bytes)];
+        if(item.Parts.Length<2||item.Parts.Length>100||item.Parts.Any(p=>p.Bytes<1||p.Bytes>24L*1024*1024||!Hash(p.Sha256))||item.Parts.Sum(p=>p.Bytes)!=item.Bytes||item.Parts.Select(p=>p.Url).Distinct().Count()!=item.Parts.Length)throw new InvalidDataException("更新分片清单无效");
+        return item.Parts;
+    }
+
     public static UpdateConfig? LoadConfig(string path)
     {
         if(!File.Exists(path))return null;if(new FileInfo(path).Length>128*1024)throw new InvalidDataException("更新服务配置过大");var config=JsonSerializer.Deserialize<UpdateConfig>(File.ReadAllText(path),new JsonSerializerOptions{PropertyNameCaseInsensitive=true});

@@ -10,12 +10,15 @@ public static partial class PublishingDelivery
         string site=Path.Combine(Path.GetFullPath(workspace),"site"),manifest=Path.Combine(site,"manifest.json");var release=Updates.VerifyEnvelope(File.ReadAllBytes(manifest),config.PublicKeyPem);var origin=new Uri(config.ManifestUrl);var baseUri=new Uri(origin,".");var result=new List<string>();
         foreach(var item in new[]{release.Program,release.Resources}.Where(x=>x!=null))
         {
-            var uri=new Uri(item!.Url);if(uri.Scheme!="https"||uri.Authority!=baseUri.Authority||!uri.AbsolutePath.StartsWith(baseUri.AbsolutePath,StringComparison.Ordinal)||uri.Query.Length>0||uri.Fragment.Length>0)throw new InvalidDataException("版本包地址不属于配置的发布目录");
-            string relative=Uri.UnescapeDataString(baseUri.MakeRelativeUri(uri).ToString());if(relative.Split('/').Any(x=>x is "." or ".." or "")||!relative.EndsWith(".zip",StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("版本包路径不合法");
-            string path=Path.GetFullPath(Path.Combine(site,relative.Replace('/',Path.DirectorySeparatorChar)));if(!path.StartsWith(site+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)||!File.Exists(path))throw new FileNotFoundException("清单引用的更新包不存在："+relative);
-            using var f=File.OpenRead(path);if(f.Length!=item.Bytes||!Convert.ToHexString(SHA256.HashData(f)).Equals(item.Sha256,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("待发布更新包校验失败："+relative);result.Add(relative);
+            foreach(var part in Updates.DownloadParts(item!))
+            {
+                var uri=new Uri(part.Url);if(uri.Scheme!="https"||uri.Authority!=baseUri.Authority||!uri.AbsolutePath.StartsWith(baseUri.AbsolutePath,StringComparison.Ordinal)||uri.Query.Length>0||uri.Fragment.Length>0)throw new InvalidDataException("版本包地址不属于配置的发布目录");
+                string relative=Uri.UnescapeDataString(baseUri.MakeRelativeUri(uri).ToString());if(relative.Split('/').Any(x=>x is "." or ".." or "")||!System.Text.RegularExpressions.Regex.IsMatch(relative,@"\.zip(?:\.\d{3})?$"))throw new InvalidDataException("版本包路径不合法");
+                string path=Path.GetFullPath(Path.Combine(site,relative.Replace('/',Path.DirectorySeparatorChar)));if(!path.StartsWith(site+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)||!File.Exists(path))throw new FileNotFoundException("清单引用的更新文件不存在："+relative);
+                using var f=File.OpenRead(path);if(f.Length!=part.Bytes||!Convert.ToHexString(SHA256.HashData(f)).Equals(part.Sha256,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("待发布更新文件校验失败："+relative);result.Add(relative);
+            }
         }
-        result.Add("manifest.json");return result.ToArray();
+        foreach(string name in new[]{"health.json","index.html","_headers"})if(File.Exists(Path.Combine(site,name)))result.Add(name);result.Add("manifest.json");return result.ToArray();
     }
     public static async Task PublishDirectory(string workspace,string destination,IProgress<TransferProgress>? progress=null,CancellationToken ct=default)
     {

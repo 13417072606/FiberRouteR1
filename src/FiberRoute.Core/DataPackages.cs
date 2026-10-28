@@ -18,7 +18,7 @@ public sealed class PreparedDataUpdate : IDisposable
 
 public sealed partial class Store
 {
-    static readonly string[] CatalogTables=["types","type_meta","clusters","room_members","facility_evidence","evidence_sources"];
+    static readonly string[] CatalogTables=["types","type_meta","clusters","room_members","facility_evidence","evidence_sources","facility_stations","station_sources","cluster_inputs"];
     static string FileSha(string path){using var file=File.OpenRead(path);return Convert.ToHexString(SHA256.HashData(file));}
     static void BackupDatabase(string source,string target)
     {
@@ -42,9 +42,9 @@ public sealed partial class Store
             string[] typeSources,roomSources,evidenceSources,clusterSources;
             using(var c=Open(catalog))
             {
-                EnsureEvidence(c);Run(c,"PRAGMA secure_delete=ON");using var names=c.CreateCommand();names.CommandText="SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'";var drop=new List<string>();using(var r=names.ExecuteReader())while(r.Read())if(!CatalogTables.Contains(r.GetString(0)))drop.Add(r.GetString(0));foreach(string name in drop)Run(c,"DROP TABLE \""+name.Replace("\"","\"\"")+"\"");
+                EnsureEvidence(c);EnsureStations(c);Run(c,"PRAGMA secure_delete=ON");using var names=c.CreateCommand();names.CommandText="SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'";var drop=new List<string>();using(var r=names.ExecuteReader())while(r.Read())if(!CatalogTables.Contains(r.GetString(0)))drop.Add(r.GetString(0));foreach(string name in drop)Run(c,"DROP TABLE \""+name.Replace("\"","\"\"")+"\"");
                 string[] Sources(string table){using var q=c.CreateCommand();q.CommandText="SELECT DISTINCT source FROM "+table;using var r=q.ExecuteReader();var list=new List<string>();while(r.Read())list.Add(r.GetString(0));return list.ToArray();}
-                typeSources=Sources("type_meta");roomSources=Sources("room_members");evidenceSources=Sources("evidence_sources");clusterSources=Sources("clusters");Run(c,"VACUUM");
+                typeSources=Sources("type_meta");roomSources=Sources("room_members");evidenceSources=Sources("evidence_sources");clusterSources=Sources("clusters").Concat(Sources("cluster_inputs")).Distinct().ToArray();Run(c,"VACUUM");
             }
             CheckDatabase(resources);CheckDatabase(catalog);ct.ThrowIfCancellationRequested();
             var manifest=new DataManifest(version,1,FileSha(resources),FileSha(catalog),typeSources,roomSources,evidenceSources,clusterSources,duplicates);File.WriteAllText(Path.Combine(stage,"manifest.json"),JsonSerializer.Serialize(manifest));
@@ -83,7 +83,8 @@ public sealed partial class Store
     static bool Human(string source)=>source.StartsWith("人工",StringComparison.Ordinal)||source.StartsWith("历史确认",StringComparison.Ordinal);
     void MergeCatalog(PreparedDataUpdate prepared,string catalog,CancellationToken ct)
     {
-        using var c=Open(Path.Combine(prepared.Directory,"personal.db"));EnsureEvidence(c);using(var attach=c.CreateCommand()){attach.CommandText="ATTACH DATABASE $p AS incoming";attach.Parameters.AddWithValue("$p",catalog);attach.ExecuteNonQuery();}using var tx=c.BeginTransaction();
+        using(var incoming=Open(catalog))EnsureStations(incoming);
+        using var c=Open(Path.Combine(prepared.Directory,"personal.db"));EnsureEvidence(c);EnsureStations(c);using(var attach=c.CreateCommand()){attach.CommandText="ATTACH DATABASE $p AS incoming";attach.Parameters.AddWithValue("$p",catalog);attach.ExecuteNonQuery();}using var tx=c.BeginTransaction();
         long Execute(string sql){ct.ThrowIfCancellationRequested();using var q=c.CreateCommand();q.Transaction=tx;q.CommandText=sql;return q.ExecuteNonQuery();}
         long Total(){using var q=c.CreateCommand();q.Transaction=tx;q.CommandText="SELECT total_changes()";return(long)q.ExecuteScalar()!;}
         string Scope(string key,string[] incoming){var old=Setting("cloud-scope-"+key);var values=incoming.Concat(old==null?[]:JsonSerializer.Deserialize<string[]>(old)??[]).Distinct().ToArray();return values.Length==0?"NULL":string.Join(',',values.Select(s=>"'"+s.Replace("'","''")+"'"));}
@@ -113,6 +114,10 @@ public sealed partial class Store
         string evidenceScope=Scope("evidence",prepared.Manifest.EvidenceSources);
         Execute($"DELETE FROM main.facility_evidence WHERE source IN({evidenceScope}) AND NOT EXISTS(SELECT 1 FROM incoming.facility_evidence i WHERE i.name=facility_evidence.name AND i.source=facility_evidence.source AND i.rownum=facility_evidence.rownum); DELETE FROM main.evidence_sources WHERE source IN({evidenceScope}) AND NOT EXISTS(SELECT 1 FROM incoming.evidence_sources i WHERE i.source=evidence_sources.source)");
         Execute("INSERT INTO main.facility_evidence SELECT * FROM incoming.facility_evidence WHERE true ON CONFLICT(name,source,rownum) DO UPDATE SET region=excluded.region,room=excluded.room,field=excluded.field,sheet=excluded.sheet WHERE region<>excluded.region OR room<>excluded.room OR field<>excluded.field OR sheet<>excluded.sheet; INSERT INTO main.evidence_sources SELECT * FROM incoming.evidence_sources WHERE true ON CONFLICT(source) DO UPDATE SET signature=excluded.signature WHERE signature<>excluded.signature");
+        Execute($"DELETE FROM main.facility_stations WHERE source IN({evidenceScope}) AND NOT EXISTS(SELECT 1 FROM incoming.facility_stations i WHERE i.source=facility_stations.source AND i.name=facility_stations.name AND i.rownum=facility_stations.rownum); DELETE FROM main.station_sources WHERE source IN({evidenceScope}) AND NOT EXISTS(SELECT 1 FROM incoming.station_sources i WHERE i.source=station_sources.source)");
+        Execute("INSERT INTO main.facility_stations SELECT * FROM incoming.facility_stations WHERE true ON CONFLICT(name,source,rownum) DO UPDATE SET station=excluded.station WHERE station<>excluded.station; INSERT INTO main.station_sources SELECT * FROM incoming.station_sources WHERE true ON CONFLICT(source) DO UPDATE SET signature=excluded.signature WHERE signature<>excluded.signature");
+        Execute($"DELETE FROM main.cluster_inputs WHERE source IN({clusterScope}) AND NOT EXISTS(SELECT 1 FROM incoming.cluster_inputs i WHERE i.source=cluster_inputs.source AND i.rownum=cluster_inputs.rownum)");
+        Execute("INSERT INTO main.cluster_inputs SELECT * FROM incoming.cluster_inputs WHERE true ON CONFLICT(source,rownum) DO UPDATE SET name=excluded.name,type=excluded.type,members=excluded.members,station=excluded.station WHERE name<>excluded.name OR type<>excluded.type OR members<>excluded.members OR station<>excluded.station");
         prepared.MetadataChanged=Total()-before;
         foreach(var (key,values) in new[]{("types",prepared.Manifest.TypeSources),("clusters",prepared.Manifest.ClusterSources),("rooms",prepared.Manifest.RoomSources),("evidence",prepared.Manifest.EvidenceSources)}){using var q=c.CreateCommand();q.Transaction=tx;q.CommandText="INSERT OR REPLACE INTO settings VALUES($k,$v)";q.Parameters.AddWithValue("$k","cloud-scope-"+key);q.Parameters.AddWithValue("$v",JsonSerializer.Serialize(values));q.ExecuteNonQuery();}
         foreach(var (key,value) in new[]{("remoteResourceVersion",prepared.Manifest.Version),("remoteCatalogHash",prepared.Manifest.CatalogSha256)}){using var q=c.CreateCommand();q.Transaction=tx;q.CommandText="INSERT OR REPLACE INTO settings VALUES($k,$v)";q.Parameters.AddWithValue("$k",key);q.Parameters.AddWithValue("$v",value);q.ExecuteNonQuery();}

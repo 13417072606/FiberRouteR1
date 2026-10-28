@@ -6,7 +6,7 @@ internal static class BrandAssets
 {
     // A supplied original can replace the brand without redrawing or stretching it.
     public static string OriginalPath=>Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","资源","品牌原图.png"));
-    public static string IconPath=>Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","资源","光路调度智能分析.ico"));
+    public static string IconPath=>Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","资源","光路调度路由查询.ico"));
     public static (Image? Image,Icon? Icon) Load()
     {
         if(!File.Exists(OriginalPath))return (null,null);

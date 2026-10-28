@@ -7,7 +7,7 @@ internal static class Program
         ApplicationConfiguration.Initialize();
         if(args is ["--apply-existing"]){string root=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,".."));try{BrandApplication.Install(Path.Combine(root,"资源","品牌原图.png"),root);return 0;}catch(Exception e){try{File.WriteAllText(Path.Combine(root,"品牌替换失败.txt"),e.ToString());}catch{}return 1;}}
         using var form=new Form{Text="更换品牌图标",ClientSize=new Size(680,390),StartPosition=FormStartPosition.CenterScreen,Font=new Font("Microsoft YaHei UI",10),BackColor=Color.FromArgb(242,246,250),AutoScaleDimensions=new SizeF(96,96),AutoScaleMode=AutoScaleMode.Dpi};
-        string brandIcon=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","资源","光路调度智能分析.ico"));if(!File.Exists(brandIcon))brandIcon=Path.Combine(AppContext.BaseDirectory,"app.ico");if(File.Exists(brandIcon))form.Icon=new Icon(brandIcon);
+        string brandIcon=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","资源","光路调度路由查询.ico"));if(!File.Exists(brandIcon))brandIcon=Path.Combine(AppContext.BaseDirectory,"app.ico");if(File.Exists(brandIcon))form.Icon=new Icon(brandIcon);
         var title=new Label{Text="使用原PNG，等比生成完整图标",Font=new Font(form.Font.FontFamily,19,FontStyle.Bold),Dock=DockStyle.Top,Height=60,Padding=new Padding(16,14,0,0)};
         var description=new Label{Text="请先关闭主程序和管理方发布工具。\n选择你提供的PNG原图后，将同时更新启动器、标题栏、任务栏及快捷方式所用图标。\n保留完整比例、Y形和透明度，不修改原图文件或业务数据库。",Dock=DockStyle.Top,Height=110,Padding=new Padding(18,12,18,0)};
         var state=new Label{Dock=DockStyle.Bottom,Height=70,Padding=new Padding(18),Text="原图和多尺寸ICO保存在运行目录的“资源”文件夹。"};
@@ -19,7 +19,7 @@ internal static class Program
             try
             {
                 if(System.Diagnostics.Process.GetProcessesByName("FiberRouteR1").Any()||System.Diagnostics.Process.GetProcessesByName("FiberRoute.Publisher").Any())throw new InvalidOperationException("请先关闭主程序和管理方发布工具，再替换图标。");
-                using var pick=new OpenFileDialog{Title="选择原始PNG标识",Filter="PNG原图|*.png"};if(pick.ShowDialog(form)!=DialogResult.OK)return;string root=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,".."));BrandApplication.Install(pick.FileName,root);picture.Image?.Dispose();using var source=Image.FromFile(pick.FileName);picture.Image=new Bitmap(source);using var icon=new Icon(Path.Combine(root,"资源","光路调度智能分析.ico"));form.Icon=(Icon)icon.Clone();state.Text="替换成功。请从原快捷方式启动主程序；若桌面仍显示缓存，可在设置中重新创建快捷方式。";
+                using var pick=new OpenFileDialog{Title="选择原始PNG标识",Filter="PNG原图|*.png"};if(pick.ShowDialog(form)!=DialogResult.OK)return;string root=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,".."));BrandApplication.Install(pick.FileName,root);picture.Image?.Dispose();using var source=Image.FromFile(pick.FileName);picture.Image=new Bitmap(source);using var icon=new Icon(Path.Combine(root,"资源","光路调度路由查询.ico"));form.Icon=(Icon)icon.Clone();state.Text="替换成功。请从原快捷方式启动主程序；若桌面仍显示缓存，可在设置中重新创建快捷方式。";
             }
             catch(Exception e){MessageBox.Show(form,e.Message,"图标未替换",MessageBoxButtons.OK,MessageBoxIcon.Warning);}
         };

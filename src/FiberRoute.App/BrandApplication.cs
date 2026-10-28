@@ -39,14 +39,14 @@ public static class BrandApplication
     }
     public static void Install(string sourcePng,string root)
     {
-        root=Path.GetFullPath(root);string main=Path.Combine(root,"光路调度智能分析.exe"),publisher=Path.Combine(root,"管理方发布工具.exe");bool hasMain=File.Exists(main)&&File.Exists(Path.Combine(root,"程序","FiberRouteR1.dll")),hasPublisher=File.Exists(publisher)&&File.Exists(Path.Combine(root,"程序","FiberRoute.Publisher.dll"));if(!hasMain&&!hasPublisher)throw new InvalidDataException("请选择R1.4.1主程序或管理方工具的完整运行目录");if(hasMain&&new FileInfo(main).Length>5_000_000||!hasMain&&new FileInfo(publisher).Length>5_000_000)throw new InvalidDataException("请先安装R1.4.1修订补丁，更新启动器后再应用原图。");
+        root=Path.GetFullPath(root);string main=Path.Combine(root,"光路调度路由查询.exe"),publisher=Path.Combine(root,"管理方发布工具.exe");if(!File.Exists(main))main=Path.Combine(root,"光路调度智能分析.exe");bool hasMain=File.Exists(main)&&File.Exists(Path.Combine(root,"程序","FiberRouteR1.dll")),hasPublisher=File.Exists(publisher)&&File.Exists(Path.Combine(root,"程序","FiberRoute.Publisher.dll"));if(!hasMain&&!hasPublisher)throw new InvalidDataException("请选择R1.4.1主程序或管理方工具的完整运行目录");if(hasMain&&new FileInfo(main).Length>5_000_000||!hasMain&&new FileInfo(publisher).Length>5_000_000)throw new InvalidDataException("请先安装R1.4.1修订补丁，更新启动器后再应用原图。");
         byte[] original=File.ReadAllBytes(sourcePng);if(original.Length<8||!original.AsSpan(0,8).SequenceEqual(new byte[]{137,80,78,71,13,10,26,10}))throw new InvalidDataException("请选择PNG原文件");using var input=new MemoryStream(original);using var image=Image.FromStream(input);if((long)image.Width*image.Height>32_000_000)throw new InvalidDataException("原图像素过大，请提供3200万像素以内的PNG");byte[] icon=BrandAssets.CreateIconBytes(image);
         string stage=Path.Combine(Path.GetTempPath(),"FiberRoute-brand-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(stage);var files=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);var changes=new List<(string Path,string? Backup)>();
         try
         {
             void Add(string relative,byte[] bytes){string path=Path.Combine(stage,"new",relative);Directory.CreateDirectory(Path.GetDirectoryName(path)!);File.WriteAllBytes(path,bytes);files.Add(relative,path);}
-            Add("资源/品牌原图.png",original);Add("资源/光路调度智能分析.ico",icon);Add("程序/app.ico",icon);
-            foreach(string relative in new[]{"光路调度智能分析.exe","管理方发布工具.exe","更换品牌图标.exe","程序/FiberRouteR1.exe","程序/FiberRoute.Publisher.exe"})
+            Add("资源/品牌原图.png",original);Add("资源/光路调度路由查询.ico",icon);Add("资源/光路调度智能分析.ico",icon);Add("程序/app.ico",icon);
+            foreach(string relative in new[]{"光路调度路由查询.exe","光路调度智能分析.exe","管理方发布工具.exe","更换品牌图标.exe","程序/FiberRouteR1.exe","程序/FiberRoute.Publisher.exe"})
             {
                 string target=Path.Combine(root,relative);if(!File.Exists(target))continue;string copy=Path.Combine(stage,"new",relative);Directory.CreateDirectory(Path.GetDirectoryName(copy)!);File.Copy(target,copy);PatchExecutable(copy,icon);files.Add(relative,copy);
             }

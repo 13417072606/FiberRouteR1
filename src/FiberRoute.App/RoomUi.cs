@@ -43,8 +43,8 @@ public sealed partial class MainForm
     void ShowRoomMembers()
     {
         if(SelectedRoom() is not {} selectedGroup)return;string room=selectedGroup.Key;
-        using var d=new Form{Text="机房成员 · "+room,Width=1100,Height=650,Font=Font,StartPosition=FormStartPosition.CenterParent};var grid=Grid();List<RoomAssignment> rows=[];
-        void Load(){rows=store.RoomAssignments().Where(x=>x.Room==room||x.Room.Split('；').Contains(room)).ToList();grid.DataSource=rows.Select((x,i)=>new{序号=i+1,设施名称=x.Name,所属机房=x.Room,确认状态=x.Status,参与整体路由=x.Enabled,原因=x.Reason,来源=x.Source}).ToList();grid.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.DisplayedCells;grid.AutoResizeColumnHeadersHeight();}
+        using var d=new Form{Text="机房成员 · "+room,Width=1100,Height=650,Font=Font,StartPosition=FormStartPosition.CenterParent};var grid=Grid();PrepareGrid(grid);List<RoomAssignment> rows=[];
+        void Load(){rows=store.RoomAssignments().Where(x=>x.Room==room||x.Room.Split('；').Contains(room)).ToList();grid.DataSource=rows.Select((x,i)=>new{序号=i+1,设施名称=x.Name,所属机房=x.Room,确认状态=x.Status,参与整体路由=x.Enabled,原因=x.Reason,来源=x.Source}).ToList();grid.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.None;foreach(DataGridViewColumn col in grid.Columns)col.Width=(int)((col.Name is "设施名称" or "所属机房" or "来源" or "原因"?260:85)*grid.DeviceDpi/96f);grid.AutoResizeColumnHeadersHeight();QueueRowMeasure(grid);}
         async Task Set(bool enable)
         {
             if(busy||grid.CurrentRow?.Cells["序号"].Value is not int n)return;var row=rows[n-1];var rooms=row.Room.Split('；');string selected=rooms.Length==1?row.Room:room;

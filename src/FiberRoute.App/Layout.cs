@@ -33,7 +33,7 @@ public sealed partial class MainForm
     Control BuildHeader()
     {
         var header=new TableLayoutPanel{Dock=DockStyle.Top,Height=72,Padding=new Padding(16,4,16,0),ColumnCount=3,RowCount=1,BackColor=Color.White};header.RowStyles.Add(new(SizeType.Percent,100));header.ColumnStyles.Add(new(SizeType.Absolute,300));header.ColumnStyles.Add(new(SizeType.Percent,100));header.ColumnStyles.Add(new(SizeType.Absolute,104));
-        var brand=new Panel{Dock=DockStyle.Fill,BackColor=Color.White};var icon=Path.Combine(AppContext.BaseDirectory,"app.ico");var original=BrandAssets.Load();if(original.Icon!=null)Icon=original.Icon;else if(File.Exists(icon))Icon=new Icon(icon);if(Icon!=null){var logo=original.Image??Icon.ToBitmap();brand.Controls.Add(new PictureBox{Image=logo,SizeMode=PictureBoxSizeMode.Zoom,Size=new Size(40,40),Location=new Point(0,10)});FormClosed+=(_,_)=>logo.Dispose();}brand.Controls.Add(new Label{Text="光路调度智能分析",AutoSize=true,Font=new Font(Font.FontFamily,17,FontStyle.Bold),Location=new Point(50,15),ForeColor=Theme.Ink});header.Controls.Add(brand,0,0);
+        var brand=new Panel{Dock=DockStyle.Fill,BackColor=Color.White};var icon=Path.Combine(AppContext.BaseDirectory,"app.ico");var original=BrandAssets.Load();if(original.Icon!=null)Icon=original.Icon;else if(File.Exists(icon))Icon=new Icon(icon);if(Icon!=null){var logo=original.Image??Icon.ToBitmap();brand.Controls.Add(new PictureBox{Image=logo,SizeMode=PictureBoxSizeMode.Zoom,Size=new Size(40,40),Location=new Point(0,10)});FormClosed+=(_,_)=>logo.Dispose();}brand.Controls.Add(new Label{Text="光路调度路由查询",AutoSize=true,Font=new Font(Font.FontFamily,17,FontStyle.Bold),Location=new Point(50,15),ForeColor=Theme.Ink});header.Controls.Add(brand,0,0);
         var nav=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=4,RowCount=1,BackColor=Color.White};nav.RowStyles.Add(new(SizeType.Percent,100));
         for(int i=0;i<tabs.TabPages.Count;i++){int index=i;nav.ColumnStyles.Add(new(SizeType.Percent,25));var b=new UiButton{Text=tabs.TabPages[i].Text,Dock=DockStyle.Fill,Navigation=true,Selected=tabs.SelectedIndex==i,Font=new Font(Font.FontFamily,11,tabs.SelectedIndex==i?FontStyle.Bold:FontStyle.Regular),Margin=new Padding(6,0,6,0)};b.Click+=(_,_)=>tabs.SelectedIndex=index;tabs.SelectedIndexChanged+=(_,_)=>{b.Selected=tabs.SelectedIndex==index;b.Font=new Font(Font.FontFamily,11,b.Selected?FontStyle.Bold:FontStyle.Regular);b.Invalidate();};Shown+=(_,_)=>{b.Selected=tabs.SelectedIndex==index;b.Font=new Font(Font.FontFamily,11,b.Selected?FontStyle.Bold:FontStyle.Regular);b.Invalidate();};nav.Controls.Add(b,i,0);}header.Controls.Add(nav,1,0);
         var settings=ActionButton("设置",ShowSettings,"settings");settings.Dock=DockStyle.Fill;settings.Margin=new Padding(10,11,0,13);settings.Primary=false;header.Controls.Add(settings,2,0);return header;
@@ -46,10 +46,10 @@ public sealed partial class MainForm
     {
         int index=0;foreach(var grid in new[]{routeGrid,segments,resourceGrid,typeGrid,importGrid,typePreview,clusterGrid,assignmentGrid,roomGrid})
         {
-            string key=(grid==resourceGrid||grid==clusterGrid?"grid-v6-":"grid-v4-")+index++;grid.Name=key;
+            string key=(grid==clusterGrid?"grid-v7-":grid==resourceGrid?"grid-v6-":"grid-v4-")+index++;grid.Name=key;
             try{if(store.Setting(key) is string json)gridStates[grid]=JsonSerializer.Deserialize<GridState>(json)!;}catch{}
             PrepareGrid(grid);grid.DataBindingComplete+=(_,_)=>FitGrid(grid);
-            grid.SizeChanged+=(_,_)=>{if(!gridStates.ContainsKey(grid))FitGrid(grid);};
+            grid.SizeChanged+=(_,_)=>{if(!gridStates.ContainsKey(grid))FitGrid(grid);else QueueRowMeasure(grid);};
             grid.FontChanged+=(_,_)=>{SizeGridHeaders(grid);QueueRowMeasure(grid);};grid.ColumnHeadersDefaultCellStyle.Font=new Font(Font.FontFamily,10,FontStyle.Bold);
             var menu=new ContextMenuStrip();menu.Items.Add("列设置…",null,(_,_)=>ShowColumns(grid));menu.Items.Add("自动适应内容",null,(_,_)=>{grid.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.DisplayedCells);grid.AutoResizeRows(DataGridViewAutoSizeRowsMode.DisplayedCells);RememberGrid(grid);});menu.Items.Add("设置选中行高度…",null,(_,_)=>SetRowHeight(grid));menu.Items.Add("恢复默认布局",null,(_,_)=>{gridStates.Remove(grid);store.SetSetting(key,"");FitGrid(grid);});grid.ContextMenuStrip=menu;
             grid.MouseDown+=(_,e)=>{var hit=grid.HitTest(e.X,e.Y);if(e.Button==MouseButtons.Left&&hit.Type is DataGridViewHitTestType.ColumnHeader or DataGridViewHitTestType.RowHeader or DataGridViewHitTestType.TopLeftHeader)gridGestures.Add(grid);};grid.MouseUp+=(_,_)=>{if(gridGestures.Remove(grid))RememberGrid(grid);};
@@ -76,7 +76,7 @@ public sealed partial class MainForm
                 var columns=grid.Columns.Cast<DataGridViewColumn>().Where(c=>c.Visible).ToArray();int Weight(DataGridViewColumn c)=>c.Name.Contains("设施")||c.Name is "名称" or "始端" or "终端" or "成员" or "集群名称" or "成员名单"?4:c.Name.Contains("ID")?2:1;int available=Math.Max(320,grid.ClientSize.Width-(grid.RowHeadersVisible?grid.RowHeadersWidth:0)-SystemInformation.VerticalScrollBarWidth-3),total=columns.Sum(Weight);
                 int Initial(DataGridViewColumn c)
                 {
-                    if(grid==clusterGrid)return (int)((c.Name switch{"序号"=>48,"集群名称"=>208,"成员数"=>82,"类型"=>90,"确认状态"=>88,"路由状态"=>88,"原因"=>168,"成员名单"=>400,"操作"=>62,_=>70})*grid.DeviceDpi/96f);
+                    if(grid==clusterGrid)return (int)((c.Name switch{"序号"=>48,"集群名称"=>208,"成员数"=>82,"类型"=>90,"确认状态"=>88,"路由状态"=>88,"原因"=>168,"成员名单"=>400,"所属站点"=>240,"操作"=>62,_=>70})*grid.DeviceDpi/96f);
                     if(grid==resourceGrid)return (int)((c.Name switch{"序号"=>54,"始端设施"=>210,"始端类型" or "终端类型"=>94,"始端区域" or "终端区域"=>90,"终端设施"=>244,"长度米"=>92,"空闲_总芯"=>104,"业务状态"=>88,"操作"=>64,_=>70})*grid.DeviceDpi/96f);
                     return (int)((c.Name.Contains("设施")||c.Name is "名称" or "始端" or "终端" or "成员" or "所属机房"?200:c.Name is "序号" or "操作"?70:c.Name=="空闲_总芯"?116:c.Name=="需求后余量"?120:c.Name is "确认状态" or "类型"?86:c.Name.Contains("ID")?150:100)*grid.DeviceDpi/96f);
                 }
@@ -93,9 +93,9 @@ public sealed partial class MainForm
     void ShowColumns(DataGridView grid){using var d=new Form{Text="列设置 · 拖动表头可调整顺序",Width=420,Height=520,Font=Font};var list=new CheckedListBox{Dock=DockStyle.Fill,CheckOnClick=true};foreach(DataGridViewColumn c in grid.Columns)list.Items.Add(c.HeaderText,c.Visible);var ok=B("应用",()=>{for(int i=0;i<grid.Columns.Count;i++)grid.Columns[i].Visible=list.GetItemChecked(i);RememberGrid(grid);d.Close();});ok.Dock=DockStyle.Bottom;d.Controls.Add(list);d.Controls.Add(ok);d.ShowDialog(this);}
     void CreateDesktopShortcut()
     {
-        string executable=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","光路调度智能分析.exe"));if(!File.Exists(executable))executable=Application.ExecutablePath;
+        string executable=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","光路调度路由查询.exe"));if(!File.Exists(executable))executable=Application.ExecutablePath;
         Type type=Type.GetTypeFromProgID("WScript.Shell")??throw new InvalidOperationException("系统快捷方式组件不可用");object shell=Activator.CreateInstance(type)!;object? shortcut=null;
-        try{dynamic host=shell;shortcut=host.CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),"光路调度智能分析.lnk"));dynamic link=shortcut;link.TargetPath=executable;link.WorkingDirectory=Path.GetDirectoryName(executable);link.IconLocation=File.Exists(BrandAssets.IconPath)?BrandAssets.IconPath:executable;link.Save();status.Text="已创建桌面快捷方式";}
+        try{dynamic host=shell;shortcut=host.CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),"光路调度路由查询.lnk"));dynamic link=shortcut;link.TargetPath=executable;link.WorkingDirectory=Path.GetDirectoryName(executable);link.IconLocation=File.Exists(BrandAssets.IconPath)?BrandAssets.IconPath:executable;link.Save();status.Text="已创建桌面快捷方式";}
         finally{if(shortcut!=null)System.Runtime.InteropServices.Marshal.ReleaseComObject(shortcut);System.Runtime.InteropServices.Marshal.ReleaseComObject(shell);}
     }
     void ShowSettings()

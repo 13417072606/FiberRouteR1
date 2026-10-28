@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Security.Cryptography;
-if(args.Length!=5){Console.Error.WriteLine("此程序由光路调度智能分析调用，请勿单独启动。");return 2;}
+if(args.Length!=5){Console.Error.WriteLine("此程序由光路调度路由查询调用，请勿单独启动。");return 2;}
 string root=Path.GetFullPath(args[2]),zip=args[1],stage=Path.Combine(Path.GetTempPath(),"FiberRoute-update-"+Guid.NewGuid()),backup=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"FiberRouteR1","program-backup-"+Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(root)))[..12]);
 var replaced=new List<(string Destination,string? Backup)>();
 string active=Path.Combine(AppContext.BaseDirectory,".active.pid");try{File.WriteAllText(active,Environment.ProcessId.ToString());}catch{}

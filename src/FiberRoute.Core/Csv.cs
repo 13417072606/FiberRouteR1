@@ -54,6 +54,18 @@ public static class Csv
         parser.SetDelimiters(",");
         while(!parser.EndOfData)yield return parser.ReadFields()??[];
     }
+    // The resource system exports these facility tables as fixed comma-separated fields,
+    // with literal quotes in names rather than RFC CSV quoting. Never apply this to arbitrary CSV.
+    public static bool IsRawFacility(string path,string encoding)
+    {
+        using var r=new StreamReader(path,EncodingFor(encoding),false);var h=(r.ReadLine()??"").TrimStart('\ufeff').Split(',');
+        return h.Length>=9&&h.Take(9).SequenceEqual(new[]{"ID","设施名称","设施编码","所属末端网格","所属地市","所属区县","站点名称/位置点","机房名称","所属社区"});
+    }
+    public static IEnumerable<string[]> ReadRawFacility(string path,string encoding)
+    {
+        using var r=new StreamReader(path,EncodingFor(encoding),false);var h=(r.ReadLine()??"").TrimStart('\ufeff').Split(',');yield return h;int row=1;string? line;
+        while((line=r.ReadLine())!=null){row++;if(line.Length==0)continue;var cells=line.Split(',');if(cells.Length!=h.Length||cells[0].Length<15||!cells[0].All(char.IsDigit))throw new InvalidDataException($"固定设施导出第{row}行字段错位，请检查原表；未自动猜测所属站点");yield return cells;}
+    }
     public static readonly string[] RawResourceHeaders=["ID","名称","长度","空闲数量","占用数量","中继纤芯数量","占有率","业务状态","始端区域","终端区域","始端站点","终端站点","始端机房","终端机房","始端设施","终端设施","关联光缆段"];
     public static bool IsResourceExport(string path,string encoding)
     {using var r=new StreamReader(path,EncodingFor(encoding=="自动"?DetectEncoding(path):encoding),false);return (r.ReadLine()??"").TrimStart('\ufeff').Split(',').SequenceEqual(RawResourceHeaders);}

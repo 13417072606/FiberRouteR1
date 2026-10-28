@@ -54,7 +54,7 @@ public sealed partial class MainForm
                         if(!ok){state.Text=status.Text;return;}
                         if(program)
                         {
-                            string launcher=Path.Combine(ApplicationRoot,"光路调度智能分析.exe");if(!File.Exists(launcher))launcher=Application.ExecutablePath;
+                            string launcher=Path.Combine(ApplicationRoot,"光路调度路由查询.exe");if(!File.Exists(launcher))launcher=Application.ExecutablePath;
                             var start=new ProcessStartInfo(Path.Combine(helper!,"FiberRoute.Updater.exe")){UseShellExecute=false,WorkingDirectory=helper!};foreach(string arg in new[]{Environment.ProcessId.ToString(),package!,ApplicationRoot,launcher,release.Sha256})start.ArgumentList.Add(arg);Process.Start(start);launched=true;package=null;dialog.Close();BeginInvoke((Action)Close);return;
                         }
                         if(prepared==null)throw new InvalidDataException("没有可应用的数据预览");

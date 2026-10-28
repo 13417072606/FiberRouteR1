@@ -56,4 +56,4 @@ public sealed record TypeChange(string Name, string Before, string After, string
 
 public sealed record RouteStep(int Edge,int From,int To);
 public sealed record ClusterTransfer(int From,int To,int BeforeSegment);
-public sealed record ClusterRecord(string Id,string Name,string Type,string[] Members,string Source,string Status,string Reason,bool Enabled);
+public sealed record ClusterRecord(string Id,string Name,string Type,string[] Members,string Source,string Status,string Reason,bool Enabled,string Station="");

@@ -7,7 +7,7 @@ public sealed partial class Store
 {
     public string Root {get;} public string Database=>Path.Combine(Root,"resources.db");
     public string Personal=>Path.Combine(Root,"personal.db"); public Graph Graph {get;private set;}=new([],[],"未导入");
-    public Store(string root) {Root=root;Directory.CreateDirectory(root);using var c=Open(Personal);Run(c,"CREATE TABLE IF NOT EXISTS types(name TEXT PRIMARY KEY,type TEXT NOT NULL); CREATE TABLE IF NOT EXISTS settings(name TEXT PRIMARY KEY,value TEXT NOT NULL)");InitMetadata();Reload();}
+    public Store(string root) {Root=root;Directory.CreateDirectory(root);using var c=Open(Personal);Run(c,"CREATE TABLE IF NOT EXISTS types(name TEXT PRIMARY KEY,type TEXT NOT NULL); CREATE TABLE IF NOT EXISTS settings(name TEXT PRIMARY KEY,value TEXT NOT NULL)");InitMetadata();using(var stations=Open(Personal))EnsureStations(stations);Reload();}
     static SqliteConnection Open(string path) { var c=new SqliteConnection(new SqliteConnectionStringBuilder{DataSource=path,Pooling=false}.ToString());c.Open();return c; }
     static void Run(SqliteConnection c,string sql) {using var q=c.CreateCommand();q.CommandText=sql;q.ExecuteNonQuery();}
     public string? Setting(string name) {using var c=Open(Personal);using var q=c.CreateCommand();q.CommandText="SELECT value FROM settings WHERE name=$n";q.Parameters.AddWithValue("$n",name);return q.ExecuteScalar() as string;}
@@ -18,7 +18,7 @@ public sealed partial class Store
         using var c=Open(Personal);using var t=c.BeginTransaction();using var q=c.CreateCommand();q.Transaction=t;q.CommandText="INSERT OR REPLACE INTO types VALUES($n,$v)";q.Parameters.Add("$n",SqliteType.Text);q.Parameters.Add("$v",SqliteType.Text);
         var known=Graph.Nodes.Select(n=>n.Name).ToHashSet(StringComparer.Ordinal);
         var changed=changes.Where(x=>x.Status=="可更新").ToArray();
-        foreach(var x in changed) {if(!known.Contains(x.Name)||string.IsNullOrWhiteSpace(x.After))continue;q.Parameters[0].Value=x.Name;q.Parameters[1].Value=x.After;q.ExecuteNonQuery();}t.Commit();foreach(var x in changed)SaveTypeMeta(x.Name,source,"已确认","");Reload();
+        foreach(var x in changed) {if(!known.Contains(x.Name)||string.IsNullOrWhiteSpace(x.After))continue;q.Parameters[0].Value=x.Name;q.Parameters[1].Value=ClassifyType(x.Name,x.After);q.ExecuteNonQuery();}t.Commit();foreach(var x in changed)SaveTypeMeta(x.Name,source,"已确认","");Reload();
     }
     public List<TypeChange> PreviewTypes(string path,string encoding,string nameColumn,string typeColumn,string? sheet=null,CancellationToken ct=default)
     {
@@ -35,7 +35,7 @@ public sealed partial class Store
     Graph LoadGraph(string path,Dictionary<string,string> manual)
     {
         using var c=Open(path);
-        var ns=new List<Node>();using(var q=c.CreateCommand()){q.CommandText="SELECT id,name,type FROM nodes ORDER BY id";using var r=q.ExecuteReader();while(r.Read()){var name=r.GetString(1);bool confirmed=manual.TryGetValue(name,out var type);ns.Add(new(r.GetInt32(0),name,confirmed?type!:r.GetString(2),confirmed));}}
+        var ns=new List<Node>();using(var q=c.CreateCommand()){q.CommandText="SELECT id,name,type FROM nodes ORDER BY id";using var r=q.ExecuteReader();while(r.Read()){var name=r.GetString(1);bool confirmed=manual.TryGetValue(name,out var type);ns.Add(new(r.GetInt32(0),name,ClassifyType(name,confirmed?type!:r.GetString(2)),confirmed));}}
         var es=new List<Edge>();using(var q=c.CreateCommand()){q.CommandText="SELECT id,business_id,name,a,b,length,free,total,CASE WHEN json_valid(raw) THEN COALESCE(json_extract(raw,'$.始端区域'),'') ELSE '' END,CASE WHEN json_valid(raw) THEN COALESCE(json_extract(raw,'$.终端区域'),'') ELSE '' END,CASE WHEN json_valid(raw) THEN COALESCE(json_extract(raw,'$.业务状态'),'') ELSE '' END FROM edges ORDER BY id";using var r=q.ExecuteReader();while(r.Read())es.Add(new(r.GetInt32(0),r.GetString(1),r.GetString(2),r.GetInt32(3),r.GetInt32(4),r.IsDBNull(5)?null:r.GetDouble(5),r.GetInt32(6),r.GetInt32(7),"",r.GetString(8).Trim(),r.GetString(9).Trim(),r.GetString(10).Trim()));}
         using var v=c.CreateCommand();v.CommandText="SELECT value FROM meta WHERE name='version'";var graph=new Graph(WithRegions(Decorate(ns.ToArray()),es.ToArray()),es.ToArray(),v.ExecuteScalar() as string??"未知");
         EnsureResourceRooms(c);graph.SetClusters(RoutingGroups(graph,ResourceRooms(c)));return graph;
@@ -73,8 +73,8 @@ public sealed partial class Store
                 int NodeId(string name,string type,string room)
                 {
                     if(nodes.TryGetValue(name,out int existing))return existing; int id=nodes.Count;nodes.Add(name,id);
-                    if(string.IsNullOrWhiteSpace(type)) type=name.Contains("GJ",StringComparison.OrdinalIgnoreCase)?"光交箱":name.Contains("机房")||!string.IsNullOrWhiteSpace(room)?"机房":System.Text.RegularExpressions.Regex.IsMatch(name,@"(?:^|[/\-])GF\d*",System.Text.RegularExpressions.RegexOptions.IgnoreCase)?"分纤箱":"未识别";
-                    nq.Transaction=transaction;nq.Parameters[0].Value=id;nq.Parameters[1].Value=name;nq.Parameters[2].Value=type;nq.ExecuteNonQuery();return id;
+                    if(name.Contains("POS",StringComparison.OrdinalIgnoreCase))type="分纤箱";else if(string.IsNullOrWhiteSpace(type)) type=name.Contains("GJ",StringComparison.OrdinalIgnoreCase)?"光交箱":name.Contains("机房")||!string.IsNullOrWhiteSpace(room)?"机房":System.Text.RegularExpressions.Regex.IsMatch(name,@"(?:^|[/\-])GF\d*",System.Text.RegularExpressions.RegexOptions.IgnoreCase)?"分纤箱":"未识别";
+                    nq.Transaction=transaction;nq.Parameters[0].Value=id;nq.Parameters[1].Value=name;nq.Parameters[2].Value=ClassifyType(name,type);nq.ExecuteNonQuery();return id;
                 }
                 try
                 {
