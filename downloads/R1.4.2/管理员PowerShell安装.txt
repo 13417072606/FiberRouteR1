@@ -1,0 +1,17 @@
+﻿& {
+    $ErrorActionPreference = 'Stop'
+    $PSNativeCommandUseErrorActionPreference = $false
+    $s = Join-Path $env:TEMP 'FiberRouteR1-R1.4.2-install.ps1'
+    $rev = '5575aabee5e5501bbff59fdadfc139418df739ae'
+    $urls = @(
+        "https://api.github.com/repos/13417072606/FiberRouteR1/contents/downloads/R1.4.2/Download-Install-R1.4.2.ps1?ref=$rev",
+        "https://raw.githubusercontent.com/13417072606/FiberRouteR1/$rev/downloads/R1.4.2/Download-Install-R1.4.2.ps1"
+    )
+    $ok = $false
+    for ($i = 0; $i -lt 4; $i++) {
+        curl.exe --fail --location --http1.1 --tlsv1.2 --retry 2 --connect-timeout 20 --max-time 90 --header 'Accept: application/vnd.github.raw+json' --output $s $urls[$i % 2]
+        if ($LASTEXITCODE -eq 0 -and (Get-FileHash -LiteralPath $s -Algorithm SHA256).Hash -eq 'b18b86dc6a4467e085fa67ba8d500c92b37bdc91aa2d520ff383c60b702c9aa6') { $ok = $true; break }
+    }
+    if (!$ok) { throw '下载未完成或校验失败，现有程序未修改。请重新运行。' }
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File $s
+}

@@ -1,0 +1,2 @@
+PASS pinned public bootstrap bytes and SHA256
+PASS public bundle download, verified inner ZIP/script and R1.4.1 upgrade; all payload hashes and customer DB bytes preserved; temporary extraction cleaned. Linux command adapters used; native launch separately checked in Wine.
