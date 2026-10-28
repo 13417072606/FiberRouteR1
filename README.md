@@ -1,6 +1,6 @@
 ## 光路调度路由查询 R1.4.5
 
-[下载累计补丁安装包](downloads/R1.4.5/FiberRouteR1-R1.4.5-install.zip?raw=true) · [下载完整程序](downloads/R1.4.5/FiberRouteR1-win-x64-R1.4.5.zip?raw=true) · [安装说明](downloads/R1.4.5/使用说明.txt) · [修改及验证](docs/R1.4.5/)
+[按原方式用 PowerShell 下载并安装](downloads/R1.4.5/Download-Install-R1.4.5.ps1) · [下载累计补丁安装包](downloads/R1.4.5/FiberRouteR1-R1.4.5-install.zip?raw=true) · [下载完整程序](downloads/R1.4.5/FiberRouteR1-win-x64-R1.4.5.zip?raw=true) · [安装说明](downloads/R1.4.5/使用说明.txt) · [修改及验证](docs/R1.4.5/)
 
 修复后台同站点跨光交箱、分纤箱的集群归并、名称拆分、成员漏匹配和去重丢失；后续导入持续自动分析。累计包含 R1.4.4 修改，保留数据库和人工维护。旧版本下载补丁安装包，完整解压后双击「安装补丁.cmd」，选择原运行目录。
 
