@@ -12,7 +12,7 @@ public sealed partial class MainForm
     {
         if(resourceGrid.CurrentRow?.Cells["内部序号"].Value is not int ix)return;
         using var f=new Form{Text="中继段完整详情",Width=850,Height=650,Font=Font,StartPosition=FormStartPosition.CenterParent};var t=new TextBox{Dock=DockStyle.Fill,Multiline=true,ReadOnly=true,ScrollBars=ScrollBars.Both,BorderStyle=BorderStyle.None,BackColor=Color.White};
-        t.Text=JsonSerializer.Serialize(JsonSerializer.Deserialize<JsonElement>(store.Raw(ix)),new JsonSerializerOptions{WriteIndented=true,Encoder=System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping});f.Controls.Add(t);f.ShowDialog(this);
+        t.Text=JsonSerializer.Serialize(ShantouRegions.ExportFields(JsonSerializer.Deserialize<Dictionary<string,string>>(store.Raw(ix))!,store.Graph.Edges[ix]),new JsonSerializerOptions{WriteIndented=true,Encoder=System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping});f.Controls.Add(t);f.ShowDialog(this);
     }
     void BuildResourceWorkspace()
     {

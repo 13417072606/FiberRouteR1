@@ -9,6 +9,6 @@ public sealed partial class MainForm
     bool buildingFilters;
     void RefreshAreaChoices()
     {
-        buildingFilters=true;try{var g=store.Graph;FillChoices(resourceStartArea,g.Edges.Select(e=>Area(e.StartRegion)),"全部区域");FillChoices(resourceEndArea,g.Edges.Select(e=>Area(e.EndRegion)),"全部区域");FillChoices(resourceBusiness,g.Edges.Select(e=>Area(e.BusinessStatus)),"全部状态");FillChoices(nodeArea,g.Nodes.Select(n=>Area(n.Region)),"全部区域");RefreshRoomAreaChoices();}finally{buildingFilters=false;}
+        buildingFilters=true;try{var g=store.Graph;var areas=FiberRoute.Core.ShantouRegions.Districts.Append("未提供");FillChoices(resourceStartArea,areas,"全部区域");FillChoices(resourceEndArea,areas,"全部区域");FillChoices(resourceBusiness,g.Edges.Select(e=>Area(e.BusinessStatus)),"全部状态");FillChoices(nodeArea,g.Nodes.Select(n=>Area(n.Region)),"全部区域");RefreshRoomAreaChoices();}finally{buildingFilters=false;}
     }
 }
