@@ -46,7 +46,7 @@ public sealed partial class MainForm
     {
         int index=0;foreach(var grid in new[]{routeGrid,segments,resourceGrid,typeGrid,importGrid,typePreview,clusterGrid,assignmentGrid,roomGrid})
         {
-            string key=(grid==clusterGrid?"grid-v7-":grid==resourceGrid?"grid-v6-":"grid-v4-")+index++;grid.Name=key;
+            string key=(grid==clusterGrid?"grid-v8-":grid==resourceGrid?"grid-v6-":"grid-v4-")+index++;grid.Name=key;
             try{if(store.Setting(key) is string json)gridStates[grid]=JsonSerializer.Deserialize<GridState>(json)!;}catch{}
             PrepareGrid(grid);grid.DataBindingComplete+=(_,_)=>FitGrid(grid);
             grid.SizeChanged+=(_,_)=>{if(!gridStates.ContainsKey(grid))FitGrid(grid);else QueueRowMeasure(grid);};
