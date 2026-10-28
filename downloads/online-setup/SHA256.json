@@ -1,4 +1,8 @@
 {
+  "Start-Online-Update.ps1": {
+    "Bytes": 2134,
+    "Sha256": "19e826efbe60ec7c66e27f51221ccdba8965b597db745f01a7dbef922d50bc29"
+  },
   "FiberRoute-Online-Setup-20261028.zip": {
     "Bytes": 86298,
     "Sha256": "ab1cc52584f923bb13539dc4ad02351100358a5c66d1cdce92caebdd63550819"
