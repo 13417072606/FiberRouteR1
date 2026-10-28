@@ -74,11 +74,12 @@ public sealed partial class MainForm:Form
     {
         if(routeGraph is not Graph g||routeOptions is not RouteOptions o)return;int ix=schemeChoice.SelectedIndex;if(ix<0||ix>=routes.Count)return;var r=routes[ix];
         pathView.SetRoute(g,r);
+        routeSequence.Text=string.Join(" → ",ExportPlan.FromRoute(g,r,o,ix+1).Sequence);copyRoute.Enabled=routeSequence.Text.Length>0;
         schemeChoice.BackColor=r.Edges.Length>0&&!r.HasCapacity(o.Demand)?Color.FromArgb(255,240,224):Theme.Tint;
         segments.DataSource=r.Edges.Select((i,j)=>{var e=g.Edges[i];var step=r.Steps.ElementAtOrDefault(j);return new{序号=j+1,起端设施=g.Nodes[step?.From??e.A].Name,终端设施=g.Nodes[step?.To??e.B].Name,长度米=e.Length?.ToString("0.##",CultureInfo.InvariantCulture)??"未知",空闲_总芯=$"{e.Free} / {e.Total}",需求后余量=e.Free-o.Demand};}).ToList();
         foreach(DataGridViewColumn c in segments.Columns)c.HeaderText=c.Name=="长度米"?"长度（米）":c.Name.Replace("_"," / ");
     }
-    void ClearRoutes(){routes=[];routeGraph=null;routeOptions=null;routeGrid.DataSource=null;segments.DataSource=null;pathView.Clear();schemeChoice.Items.Clear();schemeChoice.BackColor=Theme.Tint;routeSummary.Text="候选路由 · 选择起终点后查询";}
+    void ClearRoutes(){routeSequence.Clear();copyRoute.Enabled=false;routes=[];routeGraph=null;routeOptions=null;routeGrid.DataSource=null;segments.DataSource=null;pathView.Clear();schemeChoice.Items.Clear();schemeChoice.BackColor=Theme.Tint;routeSummary.Text="候选路由 · 选择起终点后查询";}
     void ExportRoutes(bool currentOnly=false)
     {
         try
@@ -113,7 +114,7 @@ public sealed partial class MainForm:Form
         if(busy){resourceRefreshPending=true;return;}
         var g=store.Graph;string term=resourceSearch.Text.Trim(),type=resourceType.Text,endType=resourceEndType.Text,from=resourceStartArea.Text,to=resourceEndArea.Text,business=resourceBusiness.Text;int minimum=(int)minFree.Value;ResourceRow[] filtered=[];
         bool ok=await Work("正在筛选资源…",async ct=>{
-            filtered=await Task.Run(()=>{var ids=term.Length>0?SearchRaw(term):null;ct.ThrowIfCancellationRequested();return g.Edges.Where(e=>e.Free>=minimum&&(ids==null||ids.Contains(e.Index))&&TypeMatches(g.Nodes[e.A].Type,type)&&TypeMatches(g.Nodes[e.B].Type,endType)&&(from.Length==0||from=="全部区域"||Area(e.StartRegion)==from)&&(to.Length==0||to=="全部区域"||Area(e.EndRegion)==to)&&(business.Length==0||business=="全部状态"||Area(e.BusinessStatus)==business)).Select(e=>new ResourceRow(0,e.Index,g.Nodes[e.A].Name,g.Nodes[e.A].Type,Area(e.StartRegion),g.Nodes[e.B].Name,g.Nodes[e.B].Type,Area(e.EndRegion),e.Length,$"{e.Free} / {e.Total}",e.BusinessStatus,"详情")).ToArray();},ct);
+            filtered=await Task.Run(()=>{var ids=term.Length>0?SearchRaw(term):null;ct.ThrowIfCancellationRequested();return g.Edges.Where(e=>e.Free>=minimum&&(ids==null||ids.Contains(e.Index))&&TypeMatches(g.Nodes[e.A].Type,type)&&TypeMatches(g.Nodes[e.B].Type,endType)&&(from.Length==0||from=="全部区域"||Area(e.StartRegion)==from)&&(to.Length==0||to=="全部区域"||Area(e.EndRegion)==to)&&(business.Length==0||business=="全部状态"||Area(e.BusinessStatus)==business)).Select(e=>new ResourceRow(0,e.Index,g.Nodes[e.A].Name,Area(e.StartRegion),g.Nodes[e.A].Type,g.Nodes[e.B].Name,Area(e.EndRegion),g.Nodes[e.B].Type,e.Length,$"{e.Free} / {e.Total}",e.BusinessStatus,"详情")).ToArray();},ct);
         });if(!ok)return;filtered=Ordered(resourceGrid,filtered);resourcePageSize=resourcePager.PageSize;resourcePager.Set(filtered.Length,(int)page.Value);page.Value=resourcePager.Page;int skip=((int)page.Value-1)*resourcePageSize;
         resourceGrid.DataSource=filtered.Skip(skip).Take(resourcePageSize).Select((r,i)=>r with{序号=skip+i+1}).ToList();
         if(resourceGrid.Columns.Contains("内部序号"))resourceGrid.Columns["内部序号"].Visible=false;foreach(DataGridViewColumn c in resourceGrid.Columns)c.HeaderText=c.Name=="长度米"?"长度（米）":c.Name.Replace("_"," / ");

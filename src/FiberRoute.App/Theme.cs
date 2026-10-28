@@ -33,6 +33,7 @@ internal static class Theme
         var state=g.Save();g.TranslateTransform(bounds.X,bounds.Y);g.ScaleTransform(bounds.Width/24f,bounds.Height/24f);g.SmoothingMode=SmoothingMode.AntiAlias;using var p=new Pen(color,1.8f){StartCap=LineCap.Round,EndCap=LineCap.Round,LineJoin=LineJoin.Round};
         switch(kind)
         {
+            case "copy":g.DrawRectangle(p,8,7,13,15);g.DrawLines(p,new Point[]{new(5,17),new(3,17),new(3,2),new(16,2),new(16,4)});break;
             case "software":using(var b=new SolidBrush(color)){g.FillRectangle(b,4,14,4,8);g.FillRectangle(b,10,9,4,13);g.FillRectangle(b,16,3,4,19);}break;
             case "desktop":g.DrawRectangle(p,2,3,20,14);g.DrawLine(p,12,17,12,22);g.DrawLine(p,7,22,17,22);break;
             case "grid":g.DrawRectangle(p,2,3,20,18);g.DrawLine(p,2,9,22,9);g.DrawLine(p,9,3,9,21);break;

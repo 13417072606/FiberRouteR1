@@ -3,7 +3,7 @@ namespace FiberRoute.App;
 public sealed class NodePicker:UserControl
 {
     sealed record Choice(Node Node,string Label);
-    readonly TextBox input=new(){BorderStyle=BorderStyle.None,Dock=DockStyle.Fill,PlaceholderText="输入机房或设施名称搜索"};
+    readonly TextBox input=new(){BorderStyle=BorderStyle.None,AutoSize=false,Dock=DockStyle.None,PlaceholderText="输入机房或设施名称搜索"};
     readonly ListBox list=new(){BorderStyle=BorderStyle.None,DrawMode=DrawMode.OwnerDrawFixed,ItemHeight=40};
     readonly ToolStripDropDown dropdown=new(){Padding=Padding.Empty,AutoClose=false};
     readonly Func<Graph> graph;readonly System.Windows.Forms.Timer timer=new(){Interval=220};Node? selected;bool selecting;
@@ -18,6 +18,11 @@ public sealed class NodePicker:UserControl
         input.KeyDown+=(_,e)=>{if(e.KeyCode==Keys.Down){if(!dropdown.Visible)Find();list.Focus();if(list.Items.Count>0)list.SelectedIndex=0;e.Handled=true;}else if(e.KeyCode==Keys.Enter&&dropdown.Visible){Choose();e.SuppressKeyPress=true;}else if(e.KeyCode==Keys.Escape)dropdown.Close();};
         input.Leave+=(_,_)=>{if(IsHandleCreated)BeginInvoke((Action)(()=>{if(!list.ContainsFocus&&!input.ContainsFocus)dropdown.Close();}));};list.Leave+=(_,_)=>{if(!input.ContainsFocus)dropdown.Close();};
         MouseDown+=(_,_)=>{input.Focus();Find();};SizeChanged+=(_,_)=>Invalidate();
+    }
+    bool placingInput;
+    protected override void OnLayout(LayoutEventArgs e)
+    {
+        base.OnLayout(e);if(placingInput||input==null)return;placingInput=true;try{float scale=DeviceDpi/96f;int height=Math.Max(input.PreferredHeight,input.Font.Height)+(int)(4*scale);input.SetBounds((int)(40*scale),Math.Max(0,(ClientSize.Height-height)/2),Math.Max(20,ClientSize.Width-(int)(76*scale)),height);}finally{placingInput=false;}
     }
     void Find()
     {

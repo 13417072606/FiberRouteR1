@@ -46,7 +46,7 @@ public sealed partial class MainForm
     {
         int index=0;foreach(var grid in new[]{routeGrid,segments,resourceGrid,typeGrid,importGrid,typePreview,clusterGrid,assignmentGrid,roomGrid})
         {
-            string key=(grid==resourceGrid?"grid-v5-":"grid-v4-")+index++;grid.Name=key;
+            string key=(grid==resourceGrid||grid==clusterGrid?"grid-v6-":"grid-v4-")+index++;grid.Name=key;
             try{if(store.Setting(key) is string json)gridStates[grid]=JsonSerializer.Deserialize<GridState>(json)!;}catch{}
             PrepareGrid(grid);grid.DataBindingComplete+=(_,_)=>FitGrid(grid);
             grid.SizeChanged+=(_,_)=>{if(!gridStates.ContainsKey(grid))FitGrid(grid);};
@@ -59,7 +59,7 @@ public sealed partial class MainForm
     }
     void SizeGridHeaders(DataGridView grid)
     {
-        grid.AutoResizeColumnHeadersHeight();if(grid==resourceGrid)grid.ColumnHeadersHeight=Math.Max(grid.ColumnHeadersHeight,48*grid.DeviceDpi/96);
+        grid.AutoResizeColumnHeadersHeight();if(grid==resourceGrid||grid==clusterGrid)grid.ColumnHeadersHeight=Math.Max(grid.ColumnHeadersHeight,48*grid.DeviceDpi/96);
     }
     bool remembering;
     void FitGrid(DataGridView grid)
@@ -73,9 +73,10 @@ public sealed partial class MainForm
             else foreach(DataGridViewColumn c in grid.Columns)c.DisplayIndex=c.Index;
             if(savedState==null)
             {
-                var columns=grid.Columns.Cast<DataGridViewColumn>().Where(c=>c.Visible).ToArray();int Weight(DataGridViewColumn c)=>c.Name.Contains("设施")||c.Name is "名称" or "始端" or "终端" or "成员"?4:c.Name.Contains("ID")?2:1;int available=Math.Max(320,grid.ClientSize.Width-(grid.RowHeadersVisible?grid.RowHeadersWidth:0)-SystemInformation.VerticalScrollBarWidth-3),total=columns.Sum(Weight);
+                var columns=grid.Columns.Cast<DataGridViewColumn>().Where(c=>c.Visible).ToArray();int Weight(DataGridViewColumn c)=>c.Name.Contains("设施")||c.Name is "名称" or "始端" or "终端" or "成员" or "集群名称" or "成员名单"?4:c.Name.Contains("ID")?2:1;int available=Math.Max(320,grid.ClientSize.Width-(grid.RowHeadersVisible?grid.RowHeadersWidth:0)-SystemInformation.VerticalScrollBarWidth-3),total=columns.Sum(Weight);
                 int Initial(DataGridViewColumn c)
                 {
+                    if(grid==clusterGrid)return (int)((c.Name switch{"序号"=>48,"集群名称"=>208,"成员数"=>82,"类型"=>90,"确认状态"=>88,"路由状态"=>88,"原因"=>168,"成员名单"=>400,"操作"=>62,_=>70})*grid.DeviceDpi/96f);
                     if(grid==resourceGrid)return (int)((c.Name switch{"序号"=>54,"始端设施"=>210,"始端类型" or "终端类型"=>94,"始端区域" or "终端区域"=>90,"终端设施"=>244,"长度米"=>92,"空闲_总芯"=>104,"业务状态"=>88,"操作"=>64,_=>70})*grid.DeviceDpi/96f);
                     return (int)((c.Name.Contains("设施")||c.Name is "名称" or "始端" or "终端" or "成员" or "所属机房"?200:c.Name is "序号" or "操作"?70:c.Name=="空闲_总芯"?116:c.Name=="需求后余量"?120:c.Name is "确认状态" or "类型"?86:c.Name.Contains("ID")?150:100)*grid.DeviceDpi/96f);
                 }

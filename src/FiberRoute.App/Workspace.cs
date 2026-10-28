@@ -3,6 +3,8 @@ namespace FiberRoute.App;
 
 public sealed partial class MainForm
 {
+    readonly TextBox routeSequence=new(){Dock=DockStyle.Fill,Multiline=true,ReadOnly=true,BorderStyle=BorderStyle.None,BackColor=Color.White,ScrollBars=ScrollBars.Vertical,WordWrap=true};
+    readonly UiButton copyRoute=new(){Text="复制路由",Glyph="copy",Width=112,Height=32,Enabled=false};
     readonly Label routeSummary=new(){Text="候选路由 · 选择起终点后查询",Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleLeft,AutoEllipsis=true};
     readonly ComboBox schemeChoice=new UiComboBox(){Dock=DockStyle.Fill,DropDownStyle=ComboBoxStyle.DropDownList};
     readonly UiCheckBox requireCapacity=new(){Text="仅看满足需求芯数的方案",Checked=true};
@@ -15,7 +17,7 @@ public sealed partial class MainForm
     static Control QueryField(string title,Control editor)
     {
         var row=new TableLayoutPanel{Height=42,ColumnCount=2,RowCount=1,Margin=new Padding(0,3,0,3),BackColor=Color.White};row.RowStyles.Add(new(SizeType.Percent,100));row.ColumnStyles.Add(new(SizeType.Percent,48));row.ColumnStyles.Add(new(SizeType.Percent,52));row.Controls.Add(new Label{Text=title,Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleLeft},0,0);
-        var border=new Surface{Dock=DockStyle.Fill,BackColor=Color.White,Padding=new Padding(9),Margin=new Padding(0,2,0,2)};if(editor is NumericUpDown number)number.BorderStyle=BorderStyle.None;editor.Dock=DockStyle.None;border.Controls.Add(editor);void Place(){editor.Width=Math.Max(50,border.ClientSize.Width-18);editor.Location=new Point(9,Math.Max(3,(border.ClientSize.Height-editor.Height)/2));}border.SizeChanged+=(_,_)=>Place();Place();row.Controls.Add(border,1,0);return row;
+        if(editor is NumericUpDown number)number.BorderStyle=BorderStyle.None;var border=InputFrame(editor);border.Margin=new Padding(0,2,0,2);row.Controls.Add(border,1,0);return row;
     }
     void BuildRouteWorkspace()
     {
@@ -43,6 +45,9 @@ public sealed partial class MainForm
         };
         var select=new Panel{Dock=DockStyle.Top,Height=42,BackColor=Color.White,Padding=new Padding(0,3,0,6)};schemeChoice.Font=new Font(Font,FontStyle.Bold);schemeChoice.BackColor=Theme.Tint;select.Controls.Add(schemeChoice);schemeChoice.SelectedIndexChanged+=(_,_)=>ShowRoute();
         var diagram=new Surface{Dock=DockStyle.Fill,Padding=new Padding(10)};diagram.Controls.Add(pathView);var diagramHeading=new Panel{Dock=DockStyle.Top,Height=30,BackColor=Color.White};diagramHeading.Controls.Add(new Label{Text="路径示意",Dock=DockStyle.Fill,Font=new Font(Font.FontFamily,10.5f,FontStyle.Bold),TextAlign=ContentAlignment.MiddleLeft});var tools=new FlowLayoutPanel{Dock=DockStyle.Right,Width=185,Height=29,FlowDirection=FlowDirection.RightToLeft,BackColor=Color.White};foreach(string label in new[]{"恢复默认","自动排布"}){var b=ActionButton(label,pathView.ResetLayout);b.Size=new(88,27);b.MinimumSize=new(72,26);b.Margin=new Padding(3,0,0,0);tools.Controls.Add(b);}diagramHeading.Controls.Add(tools);diagram.Controls.Add(diagramHeading);
+        var sequence=new Surface{Dock=DockStyle.Bottom,Height=110,Padding=new Padding(10,4,10,8),SurfaceColor=Color.FromArgb(247,252,253)};
+        var sequenceHeading=new Panel{Dock=DockStyle.Top,Height=35,BackColor=Color.White};sequenceHeading.Controls.Add(new Label{Text="跳纤路由 · 当前方案",Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleLeft,Font=new Font(Font,FontStyle.Bold),BackColor=Color.White});copyRoute.Dock=DockStyle.Right;sequenceHeading.Controls.Add(copyRoute);copyRoute.Click+=(_,_)=>{if(routeSequence.Text.Length==0)return;try{Clipboard.SetText(routeSequence.Text);status.Text="当前方案跳纤路由已复制";}catch(System.Runtime.InteropServices.ExternalException){status.Text="剪贴板暂时不可用，可选中文字后按Ctrl+C复制";}};
+        sequence.Controls.Add(routeSequence);sequence.Controls.Add(sequenceHeading);diagram.Controls.Add(sequence);
         var details=Card("资源详情",segments);routeDetailsHost=Rows([55,45],diagram,details);var content=new Panel{Dock=DockStyle.Fill,BackColor=Color.White};content.Controls.Add(routeDetailsHost);content.Controls.Add(select);
         right.Controls.Add(content);right.Controls.Add(filter);right.Controls.Add(sorting);right.Controls.Add(summary);tab.Controls.Add(Columns(25,left,75,right));
     }
@@ -50,6 +55,6 @@ public sealed partial class MainForm
     {
         routeSummary.Text=$"候选路由  {routes.Count} 个方案 · "+(result.Cancelled?"已停止":result.Limited?"达到搜索上限":"搜索完成");
         schemeChoice.BeginUpdate();schemeChoice.Items.Clear();for(int i=0;i<routes.Count;i++){var r=routes[i];string capacity=r.Edges.Length>0?$"路由最小空闲芯数 {r.Bottleneck} 芯":"内部关系容量待核验";schemeChoice.Items.Add($"方案 {i+1:00}  ·  {r.CapacityStatus(routeOptions!.Demand)}  ·  {r.Length:0.##} 米  ·  跳纤 {r.Jumps} 次  ·  {capacity}");}schemeChoice.EndUpdate();if(schemeChoice.Items.Count>0)schemeChoice.SelectedIndex=0;
-        if(routes.Count==0){segments.DataSource=null;pathView.Clear();schemeChoice.BackColor=Theme.Tint;}
+        if(routes.Count==0){routeSequence.Clear();copyRoute.Enabled=false;segments.DataSource=null;pathView.Clear();schemeChoice.BackColor=Theme.Tint;}
     }
 }

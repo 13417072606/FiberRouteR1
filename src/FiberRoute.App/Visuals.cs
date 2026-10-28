@@ -41,12 +41,20 @@ public sealed partial class MainForm
     static Control InputFrame(Control input,string placeholder="")
     {
         if(input is TextBox text&&placeholder.Length>0)text.PlaceholderText=placeholder;
-        var frame=new Surface{Dock=DockStyle.Fill,Height=40,Padding=new Padding(9,6,9,6),Margin=new Padding(0,3,0,3),BackColor=Color.White};
-        if(input is TextBox box)box.BorderStyle=BorderStyle.None;
-        input.Dock=DockStyle.None;frame.Controls.Add(input);
-        void Place(){int inset=9*frame.DeviceDpi/96;input.Width=Math.Max(30,frame.ClientSize.Width-2*inset);input.Location=new Point(inset,Math.Max(4*frame.DeviceDpi/96,(frame.ClientSize.Height-input.Height)/2));}
-        frame.SizeChanged+=(_,_)=>Place();input.FontChanged+=(_,_)=>Place();Place();return frame;
+        var frame=new Surface{Dock=DockStyle.Fill,Height=42,Padding=new Padding(9,4,9,4),Margin=new Padding(0,3,0,3),BackColor=Color.White};
+        if(input is TextBox box){box.BorderStyle=BorderStyle.None;box.BackColor=Color.White;if(!box.Multiline)box.AutoSize=false;}
+        input.Dock=DockStyle.None;input.Margin=Padding.Empty;frame.Controls.Add(input);bool placing=false;
+        void Place()
+        {
+            if(placing||frame.IsDisposed)return;placing=true;try{float scale=frame.DeviceDpi/96f;int inset=(int)(9*scale),height=input.Height;
+                if(input is TextBox tb&&!tb.Multiline)height=Math.Max(tb.PreferredHeight,tb.Font.Height)+(int)(4*scale);
+                else if(input is NumericUpDown number)height=Math.Max(number.PreferredHeight,number.Font.Height)+(int)(4*scale);
+                if(input.Height!=height)input.Height=height;input.Width=Math.Max(30,frame.ClientSize.Width-2*inset);input.Location=new Point(inset,Math.Max(0,(frame.ClientSize.Height-input.Height)/2));
+            }finally{placing=false;}
+        }
+        frame.Layout+=(_,_)=>Place();frame.SizeChanged+=(_,_)=>Place();frame.DpiChangedAfterParent+=(_,_)=>Place();input.FontChanged+=(_,_)=>Place();input.HandleCreated+=(_,_)=>Place();Place();return frame;
     }
+
     void PaintBadges(DataGridView grid)
     {
         grid.CellPainting+=(_,e)=>{
