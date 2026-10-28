@@ -1,4 +1,8 @@
 {
+  "Download-Install-R1.4.4.ps1": {
+    "Size": 4324,
+    "Sha256": "addf0fd6366d7b1354eee7c5a56db460feef505afe93333a9f97b8640238ba1c"
+  },
   "FiberRouteR1-R1.4.4-install.zip": {
     "Size": 7469093,
     "Sha256": "cbbaab8119aa02b40ec1533a318734aa60017d9889f603c894f14432be648d16"
