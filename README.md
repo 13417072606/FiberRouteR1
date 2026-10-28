@@ -1,6 +1,6 @@
 ## 光路调度路由查询 R1.4.6
 
-[下载累计补丁安装包](downloads/R1.4.6/FiberRouteR1-R1.4.6-install.zip?raw=true) · [下载完整程序](downloads/R1.4.6/FiberRouteR1-win-x64-R1.4.6.zip?raw=true) · [安装说明](downloads/R1.4.6/使用说明.txt) · [修改及验证](docs/R1.4.6/)
+[直接下载累计补丁安装包（CDN）](https://cdn.jsdelivr.net/gh/13417072606/FiberRouteR1@375c76ae26cd15cbdccc85eda0243c127ec8c3e7/downloads/R1.4.6/FiberRouteR1-R1.4.6-install.zip) · [下载完整程序](downloads/R1.4.6/FiberRouteR1-win-x64-R1.4.6.zip?raw=true) · [安装说明](downloads/R1.4.6/使用说明.txt) · [修改及验证](docs/R1.4.6/)
 
 纯光交箱集群按模板成员名单匹配，不以所属站点差异否决；至少两个成员有中继段才参与路由。一个光交箱与同站点分纤箱组成的集群，只需至少一个成员有中继段。R1.4.6 为累计补丁，适用于 R1.3 至 R1.4.5；安装前退出程序，保留数据库及人工维护记录。
 
