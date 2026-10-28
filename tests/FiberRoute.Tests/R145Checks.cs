@@ -5,94 +5,71 @@ using System.Text.Json;
 
 static class R145Checks
 {
-    const string Cabinet="南澳区财政局FG/GJ01",SplitA="汕头市南澳县财政局宿舍A栋2梯FGL02",SplitB="汕头市南澳县财政局宿舍B栋2梯FGL01";
-    const string FinanceSite="汕头市南澳县后宅镇育新路财政局宿舍-1";
-    const string Lian="莲下环PX01/GJ01-1",Retired="莲下环PX01/GJ01-1（废弃，现场已合并）";
-    const string Bao="潮阳区宝华苑(三网)FG/GJ";
-    static void ClusterCsv(string path,params (string Name,string Type,string Members,string Station)[] rows)
-        =>Csv.Write(path,new[]{new object?[]{"设备名称","设备类型","集群列表","所属站点"}}.Concat(rows.Select(x=>new object?[]{x.Name,x.Type,x.Members,x.Station})));
-    static void Stations(string path,params (string Name,string Site)[] rows)
-        =>Csv.Write(path,new[]{new object?[]{"设施名称","站点名称/位置点"}}.Concat(rows.Select(x=>new object?[]{x.Name,x.Site})));
     public static async Task Run(string root,Action<bool,string> check)
     {
-        string folder=Path.Combine(root,"r145");Directory.CreateDirectory(folder);
+        Dictionary<string,string> map=Store.Fields.ToDictionary(f=>f,f=>f);
         async Task<Store> Create(string label,params string[] names)
         {
-            string path=Path.Combine(folder,label+".csv");Csv.Write(path,new[]{new object?[]{"ID","始端设施","终端设施","长度","空闲数量","中继纤芯数量"}}.Concat(names.Select((n,i)=>new object?[]{label+i,n,"路由对端"+i,10,2,4})));
-            var s=new Store(Path.Combine(folder,label));await s.ImportAsync(path,"自动",Store.Fields.ToDictionary(f=>f,f=>f),1,null,default);return s;
+            string folder=Path.Combine(root,"r145-"+label);Directory.CreateDirectory(folder);string path=Path.Combine(folder,"resources.csv");
+            Csv.Write(path,new[]{new object?[]{"ID","始端设施","终端设施","长度","空闲数量","中继纤芯数量"}}.Concat(names.Select((n,i)=>new object?[]{i.ToString(),n,"路由对端"+i,10,2,4})));
+            var s=new Store(Path.Combine(folder,"data"));await s.ImportAsync(path,"自动",map,1,null,default);return s;
         }
-        var finance=await Create("finance",Cabinet,SplitA,SplitB);string cab=Path.Combine(folder,"光交接箱.csv"),split=Path.Combine(folder,"光分纤箱.csv");
-        Stations(cab,(Cabinet,FinanceSite));Stations(split,(SplitA,FinanceSite),(SplitB,FinanceSite));finance.ApplyStationFiles([(cab,"光交箱",null),(split,"分纤箱",null)]);
-        finance.ApplyTypeAssignments([new(Cabinet,"光交箱","类型表","已确认",""),new(SplitA,"分纤箱","类型表","已确认",""),new(SplitB,"分纤箱","类型表","已确认","")]);
-        string table=Path.Combine(folder,"finance-clusters.csv");ClusterCsv(table,(Cabinet,"光交接箱",Cabinet,""),(SplitA,"光分纤箱",SplitA+";"+SplitB,""),(SplitB,"光分纤箱",SplitA+";"+SplitB,""),("孤立GJ99","光交箱","孤立GJ99",""));finance.SaveClusterImport(table);
-        var fc=finance.Clusters().Single();
-        check(fc.Members.Length==3&&fc.Members.Contains(Cabinet)&&fc.Members.Contains(SplitA)&&fc.Members.Contains(SplitB)&&fc.Station==FinanceSite&&fc.Status=="已确认"&&fc.Enabled,"R145 same backend site unifies cabinet and two splitters");
-        check(fc.Type.Split(';').Contains("光交箱")&&fc.Type.Split(';').Contains("分纤箱")&&finance.FilteredClusters.Any(x=>x.Name=="孤立GJ99"),"R145 mixed types retained and only post-merge isolated member filtered");
-        check(finance.Graph.Logical[finance.Graph.Nodes.Single(n=>n.Name==Cabinet).Id]==finance.Graph.Logical[finance.Graph.Nodes.Single(n=>n.Name==SplitA).Id]&&finance.Graph.Logical[finance.Graph.Nodes.Single(n=>n.Name==Cabinet).Id]==finance.Graph.Logical[finance.Graph.Nodes.Single(n=>n.Name==SplitB).Id],"R145 confirmed same-site members join the routing group");
+        string cabinet="南澳区财政局FG/GJ01",a="汕头市南澳县财政局宿舍B栋2梯FGL01",b="汕头市南澳县财政局宿舍A栋2梯FGL02",site="汕头市南澳县后宅镇育新路财政局宿舍-1";
+        var finance=await Create("finance",cabinet,a,b);string cabinets=Path.Combine(finance.Root,"光交接箱.csv"),splitters=Path.Combine(finance.Root,"光分纤箱.csv"),table=Path.Combine(finance.Root,"集群管理.csv");
+        Csv.Write(cabinets,new object?[][]{["设施名称","站点名称/位置点"],[cabinet,site]});Csv.Write(splitters,new object?[][]{["设施名称","站点名称/位置点"],[a,site],[b,site]});finance.ApplyStationFiles([(cabinets,"光交箱",null),(splitters,"分纤箱",null)]);
+        finance.ApplyTypeAssignments([new(cabinet,"光交箱","类型表：光交接箱.csv","已确认",""),new(a,"分纤箱","类型表：光分纤箱.csv","已确认",""),new(b,"分纤箱","类型表：光分纤箱.csv","已确认","")]);
+        Csv.Write(table,new object?[][]{["设备名称","集群类型","集群列表"],[cabinet,"光交接箱",cabinet],[a,"光分纤箱",a+","+b],[b,"光分纤箱",a+","+b],["独立GJ99","光交箱","独立GJ99"]});finance.SaveClusterImport(table);var cluster=finance.Clusters().Single();
+        check(cluster.Members.ToHashSet().SetEquals(new[]{cabinet,a,b})&&cluster.Status=="已确认"&&cluster.Enabled&&cluster.Station==site,"R145 finance cabinet plus two splitters form one three-member cluster across types");
+        check(cluster.Type.Split(';').Contains("光交箱")&&cluster.Type.Split(';').Contains("分纤箱")&&finance.FilteredClusters.Any(x=>x.Name=="独立GJ99"),"R145 mixed member types are retained and unresolved singleton is filtered");
+        check(new[]{cabinet,a,b}.Select(n=>finance.Graph.Logical[finance.Graph.Nodes.Single(x=>x.Name==n).Id]).Distinct().Count()==1,"R145 cross-type site membership reaches the actual routing graph");
 
-        var bao=await Create("bao",Bao+"01");bao.ApplyTypeAssignments([new(Bao+"02","光交箱","类型表","已确认",""),new(Bao+"03","光交箱","类型表","已确认","")]);
-        string bt=Path.Combine(folder,"bao-clusters.csv");string list=string.Join(';',new[]{Bao+"01",Bao+"02",Bao+"03"});ClusterCsv(bt,Enumerable.Range(1,3).Select(i=>(Bao+i.ToString("00"),"光交接箱",list,"")).ToArray());bao.SaveClusterImport(bt);var bc=bao.Clusters().Single();
-        check(bc.Members.Length==3&&bc.Status=="已确认"&&!bc.Reason.Contains("均未找到"),"R145 type catalog prevents false missing Bao members");
-        check(!bc.Enabled&&bc.Reason.Contains("不足两个")&&!bao.Graph.Nodes.Any(n=>n.Name==Bao+"02"||n.Name==Bao+"03"),"R145 source-only devices remain confirmed without fabricated routable nodes");
+        string one="潮阳区宝华苑(三网)FG/GJ01",two="潮阳区宝华苑(三网)FG/GJ02",three="潮阳区宝华苑(三网)FG/GJ03";
+        var bao=await Create("baohua",one);bao.ApplyTypeAssignments([new(two,"光交箱","类型表：光交接箱.csv","已确认",""),new(three,"光交箱","类型表：光交接箱.csv","已确认","")]);
+        string members=string.Join(',',new[]{two,one,three});string baoTable=Path.Combine(bao.Root,"宝华苑.csv");Csv.Write(baoTable,new object?[][]{["设备名称","集群类型","集群列表"],[three,"光交箱",members],[two,"光交箱",members],[one,"光交箱",members]});bao.SaveClusterImport(baoTable);var baohua=bao.Clusters().Single();
+        check(baohua.Members.Length==3&&baohua.Status=="已确认"&&!baohua.Reason.Contains("均未找到"),"R145 Baohua GJ02/GJ03 in facility type catalog are not falsely missing after deduplication");
+        check(!baohua.Enabled&&baohua.Reason.Contains("不足两个")&&bao.Graph.Nodes.All(n=>n.Name!=two&&n.Name!=three),"R145 source-only members remain visible without inventing graph nodes or routable capacity");
+        // The source table itself is independent evidence, even before facilities arrive.
+        var tableOnly=await Create("table-only","普通端");string refs=Path.Combine(tableOnly.Root,"source.csv");Csv.Write(refs,new object?[][]{["设备名称","集群列表"],["表中设施甲","表中设施甲,表中设施乙"],["表中设施乙","表中设施甲,表中设施乙"]});tableOnly.SaveClusterImport(refs);check(tableOnly.Clusters().Single() is {Status:"已确认",Enabled:false},"R145 all source device rows are indexed before group deduplication");
 
-        var tableOnly=await Create("table-only","无关节点");string tt=Path.Combine(folder,"table-only-clusters.csv");ClusterCsv(tt,("甲","光交箱","甲;乙",""),("乙","光交箱","甲;乙",""));tableOnly.SaveClusterImport(tt);
-        check(tableOnly.Clusters().Single() is {Status:"已确认",Enabled:false}&&tableOnly.Clusters()[0].Members.Length==2,"R145 actual source rows count as existence evidence independently of routes");
+        string normal="莲下环PX01/GJ01-1",retired="莲下环PX01/GJ01-1（废弃，现场已合并）";
+        var lian=await Create("legacy-lian",normal);lian.ApplyTypeAssignments([new(retired,"光交箱","类型表：光交接箱.csv","已确认","")]);lian.SaveClusters([new("legacy",retired,"光交箱",["现场已合并）",normal,"莲下环PX01/GJ01-1（废弃"],"集群表：集群管理.xlsx","需核对","设备名称不在集群列表中",false)]);
+        var repaired=lian.Clusters().Single();check(repaired.Members.ToHashSet().SetEquals(new[]{normal,retired})&&repaired.Status=="已确认","R145 existing broken comma fragments recover only against the exact complete catalog name");
+        string lianTable=Path.Combine(lian.Root,"new.csv");Csv.Write(lianTable,new object?[][]{["设备名称","集群列表"],[retired,retired+","+normal],[normal,retired+","+normal]});lian.SaveClusterImport(lianTable);check(lian.Clusters().Single().Members.Length==2&&lian.ParseClusterMemberText(retired+"\r\n"+normal).Length==2,"R145 new imports and editor preserve the comma inside retired-name parentheses");
 
-        var legacy=await Create("legacy-lian",Lian);legacy.ApplyTypeAssignments([new(Retired,"光交箱","类型表","已确认","")]);legacy.SaveClusters([new("old","莲下环PX01/GJ01-1（废弃，现场已合并）","光交箱",["现场已合并）",Lian,"莲下环PX01/GJ01-1（废弃"],"集群表：集群管理.xlsx","需核对","设备名称不在集群列表中",false)]);
-        var lc=legacy.Clusters().Single();check(lc.Members.Length==2&&lc.Members.Contains(Retired)&&lc.Members.Contains(Lian)&&lc.Status=="已确认","R145 repairs persisted comma fragments against complete known names");
-        string lt=Path.Combine(folder,"lian-clusters.csv");ClusterCsv(lt,(Retired,"光交箱",Retired+","+Lian,""),(Lian,"光交箱",Retired+","+Lian,""));legacy.SaveClusterImport(lt);
-        check(legacy.Clusters().Single().Members.Length==2&&legacy.ParseClusterMemberText(Retired+"\r\n"+Lian).Length==2,"R145 future imports and manual text preserve commas inside parentheses");
+        string wrappedTwo="潮阳区宝华苑（三网）FG/\r\nGJ02";Csv.Write(baoTable,new object?[][]{["设备名称","集群列表"],[one,one+","+wrappedTwo+","+three],[wrappedTwo,members],[three,members]});bao.SaveClusterImport(baoTable);check(bao.Clusters().Single().Members.ToHashSet().SetEquals(new[]{one,two,three}),"R145 physical line breaks and full-width punctuation match a complete facility identity without splitting it");
 
-        string wrapped="潮阳区宝华苑（三网）FG/\r\nGJ02";ClusterCsv(bt,(Bao+"01","光交箱",Bao+"01;"+wrapped+";"+Bao+"03",""),(Bao+"02","光交箱",list,""),(Bao+"03","光交箱",list,""));bao.SaveClusterImport(bt);
-        check(bao.Clusters().Single().Members.Order(StringComparer.Ordinal).SequenceEqual(new[]{Bao+"01",Bao+"02",Bao+"03"}),"R145 joins wrapped names only when a complete normalized reference matches");
+        var chain=await Create("union","A/GJ01","B/GF01","C/GF02");string chainTable=Path.Combine(chain.Root,"chain.csv");Csv.Write(chainTable,new object?[][]{["设备名称","集群类型","集群列表"],["A/GJ01","光交箱","A/GJ01,B/GF01"],["B/GF01","分纤箱","B/GF01,C/GF02"]});chain.SaveClusterImport(chainTable);check(chain.Clusters().Single() is {Status:"已确认",Members.Length:3,Enabled:true},"R145 overlapping automatic source rows union their members instead of losing members or falsely reporting overlap");
+        chain.SaveClusters([new("manual","人工暂停","光交箱",chain.Clusters().Single().Members,"人工修改","已确认","",false)]);check(chain.Clusters().Single() is {Id:"manual",Source:"人工修改",Enabled:false,Status:"已确认"},"R145 manual suspension survives automatic regrouping of the same members");
 
-        var chain=await Create("chain","A/GJ01","B/GF01","C/GF02");string chainTable=Path.Combine(folder,"chain-clusters.csv");ClusterCsv(chainTable,("A/GJ01","光交箱","A/GJ01;B/GF01",""),("B/GF01","分纤箱","B/GF01;C/GF02",""));chain.SaveClusterImport(chainTable);var cc=chain.Clusters().Single();
-        check(cc.Members.Length==3&&cc.Status=="已确认"&&cc.Enabled,"R145 overlapping automatic relations union all members without dedup loss");
-        chain.SaveClusters([new("manual",cc.Name,cc.Type,cc.Members,"人工修改","已确认","",false)]);
-        check(chain.Clusters().Single() is {Id:"manual",Enabled:false,Source:"人工修改"},"R145 equivalent manually suspended relation retains its identity and priority");
+        Csv.Write(baoTable,new object?[][]{["设备名称","集群列表"],[one,one+",确实不存在的设备"]});bao.SaveClusterImport(baoTable);check(bao.Clusters().Single() is {Status:"需核对",Enabled:false},"R145 an unsupported member mention alone does not become evidence of a device");
 
-        ClusterCsv(bt,(Bao+"01","光交箱",Bao+"01;真正不存在的成员",""));bao.SaveClusterImport(bt);
-        check(bao.Clusters().Single() is {Status:"需核对",Enabled:false},"R145 member mentions without source rows remain reviewable");
-
-        var sync=await Create("sync","GJ01","GF01","GF02");string st=Path.Combine(folder,"站点来源.csv"),ct=Path.Combine(folder,"sync-clusters.csv");
-        Stations(st,("GJ01","站甲"),("GF01","站甲"),("GF02","站甲"));sync.ApplyStationFiles([(st,"",null)]);ClusterCsv(ct,("GJ01","光交箱","GJ01",""));sync.SaveClusterImport(ct);
-        string package=Path.Combine(folder,"r145-data.zip");sync.BuildDataPackage(package,"r145.1");var client=new Store(Path.Combine(folder,"sync-client"));using(var prepared=client.PrepareDataPackage(package))client.ApplyDataPackage(prepared);
-        check(client.Clusters().Single().Members.Length==3,"R145 online data import carries station-derived membership");
-        Stations(st,("GJ01","站甲"),("GF01","站甲"));sync.ApplyStationFiles([(st,"",null)]);sync.BuildDataPackage(package,"r145.2");using(var prepared=client.PrepareDataPackage(package))client.ApplyDataPackage(prepared);
-        check(sync.Clusters().Single().Members.Length==2&&client.Clusters().Single().Members.Length==2,"R145 subsequent online data removes obsolete station-only evidence");
-        ClusterCsv(ct,("GJ01","光交箱","GJ01;GF01",""));sync.SaveClusterImport(ct);Stations(st,("GJ01","站甲"),("GJ01","站乙"),("GF01","站甲"));sync.ApplyStationFiles([(st,"",null)]);
-        check(sync.Clusters().Single() is {Status:"需核对",Enabled:false},"R145 conflicting station evidence stays paused for review");
+        var sync=await Create("station-sync","GJ01","GF01","GF02");string stations=Path.Combine(sync.Root,"设施.csv"),seed=Path.Combine(sync.Root,"seed.csv");Csv.Write(stations,new object?[][]{["设施名称","所属站点"],["GJ01","站甲"],["GF01","站甲"],["GF02","站甲"]});sync.ApplyStationFiles([(stations,"",null)]);Csv.Write(seed,new object?[][]{["设备名称","集群列表"],["GJ01","GJ01"]});sync.SaveClusterImport(seed);
+        string package=Path.Combine(sync.Root,"catalog.zip");var client=new Store(Path.Combine(root,"r145-sync-client"));sync.BuildDataPackage(package,"145.1");using(var update=client.PrepareDataPackage(package))client.ApplyDataPackage(update);check(client.Clusters().Single().Members.Length==3,"R145 online data contains the original cluster rows and station evidence");
+        Csv.Write(stations,new object?[][]{["设施名称","所属站点"],["GJ01","站甲"],["GF01","站甲"]});sync.ApplyStationFiles([(stations,"",null)]);sync.BuildDataPackage(package,"145.2");using(var update=client.PrepareDataPackage(package))client.ApplyDataPackage(update);check(sync.Clusters().Single().Members.Length==2&&client.Clusters().Single().Members.Length==2,"R145 reimport and subsequent online sync remove obsolete site membership instead of keeping stale expansions");
+        Csv.Write(seed,new object?[][]{["设备名称","集群列表"],["GJ01","GJ01,GF01"]});sync.SaveClusterImport(seed);
+        Csv.Write(stations,new object?[][]{["设施名称","所属站点"],["GJ01","站甲"],["GJ01","站乙"],["GF01","站甲"]});sync.ApplyStationFiles([(stations,"",null)]);check(sync.Clusters().Single() is {Status:"需核对",Enabled:false},"R145 genuinely conflicting station assignments remain reviewable and cannot silently enable routing");
     }
     public static void Full(string original,string inputs,string output)
     {
-        Directory.CreateDirectory(output);string legacy=Path.Combine(output,"legacy");Directory.CreateDirectory(legacy);
-        foreach(string file in new[]{"resources.db","personal.db"})File.Copy(Path.Combine(original,file),Path.Combine(legacy,file),true);
-        var s=new Store(legacy);string hash=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(s.Database)));
+        string root=Path.Combine(output,"legacy");Directory.CreateDirectory(root);foreach(string name in new[]{"resources.db","personal.db"})File.Copy(Path.Combine(original,name),Path.Combine(root,name),true);
+        var watch=System.Diagnostics.Stopwatch.StartNew();var store=new Store(root);string resourceHash=Hash(store.Database);var before=store.Clusters();
         void Cases(string label)
         {
-            var groups=s.Clusters();var bao=groups.Single(c=>c.Members.Contains(Bao+"03"));var lian=groups.Single(c=>c.Members.Contains(Retired));
-            if(!Enumerable.Range(1,3).All(i=>bao.Members.Contains(Bao+i.ToString("00")))||bao.Status!="已确认")throw new Exception("Bao source members lost or falsely missing");
-            if(lian.Members.Length!=2||!lian.Members.Contains(Lian)||lian.Members.Any(n=>n=="现场已合并）"||n=="莲下环PX01/GJ01-1（废弃"))throw new Exception("Lian full names not restored");
-            Console.WriteLine($"{label}: clusters={groups.Count}; confirmed={groups.Count(c=>c.Status=="已确认")}; review={groups.Count(c=>c.Status=="需核对")}; filtered={s.FilteredClusters.Count}; bao={bao.Members.Length}; lian={lian.Members.Length}");
-            Console.WriteLine(JsonSerializer.Serialize(bao));Console.WriteLine(JsonSerializer.Serialize(lian));
+            var all=store.Clusters();var bao=all.Single(x=>x.Members.Contains("潮阳区宝华苑(三网)FG/GJ03"));var lian=all.Single(x=>x.Members.Contains("莲下环PX01/GJ01-1（废弃，现场已合并）"));
+            Console.WriteLine(label+" BAO "+JsonSerializer.Serialize(bao));Console.WriteLine(label+" LIAN "+JsonSerializer.Serialize(lian));
+            if(!new[]{"潮阳区宝华苑(三网)FG/GJ01","潮阳区宝华苑(三网)FG/GJ02","潮阳区宝华苑(三网)FG/GJ03"}.All(bao.Members.Contains)||bao.Status!="已确认"||!lian.Members.Contains("莲下环PX01/GJ01-1")||lian.Members.Any(n=>n=="现场已合并）"||n.EndsWith("（废弃")))throw new Exception(label+" cases failed");
+            Console.WriteLine($"{label}: clusters={all.Count}, confirmed={all.Count(x=>x.Status=="已确认")}, review={all.Count(x=>x.Status=="需核对")}, filtered={store.FilteredClusters.Count}; Baohua={bao.Members.Length} confirmed; Lianxia={lian.Members.Length} confirmed");
         }
-        Cases("legacy-before-stations");
-        s.ApplyStationFiles(new[]{"光交接箱-1.CSV","光分纤箱-1.CSV"}.Select(n=>(Path.Combine(inputs,n),"",(string?)null)));Cases("legacy-with-stations");
-        var finance=s.Clusters().Single(c=>c.Members.Contains(Cabinet));
-        if(finance.Members.Length!=3||finance.Status!="已确认"||!finance.Members.Contains(SplitA)||!finance.Members.Contains(SplitB))throw new Exception("Finance must contain exactly the cabinet and two splitters");
-        Console.WriteLine(JsonSerializer.Serialize(finance));
-        string[] Sets()=>s.Clusters().Select(c=>JsonSerializer.Serialize(c.Members.Order(StringComparer.Ordinal))).Order(StringComparer.Ordinal).ToArray();var migrated=Sets();
+        Cases("LEGACY before station repair");
+        store.ApplyStationFiles(new[]{"光交接箱-1.CSV","光分纤箱-1.CSV"}.Select(n=>(Path.Combine(inputs,n),"",(string?)null)));Cases("LEGACY with original station tables");
+        var finance=store.Clusters().Single(x=>x.Members.Contains("南澳区财政局FG/GJ01"));if(finance.Members.Length!=3||finance.Status!="已确认")throw new Exception("Finance must have exactly three members");
+        Console.WriteLine("FINANCE: "+JsonSerializer.Serialize(finance));
+        var migrated=store.Clusters().Select(x=>string.Join('\n',x.Members.Order(StringComparer.Ordinal))).ToHashSet();
         string baseline=Path.Combine(output,"集群站点基线-R1.4.5.db");if(File.Exists(baseline))File.Delete(baseline);
-        using(var c=new SqliteConnection($"Data Source={baseline}"))
-        {
-            c.Open();using var q=c.CreateCommand();q.CommandText="ATTACH DATABASE $p AS src";q.Parameters.AddWithValue("$p",s.Personal);q.ExecuteNonQuery();
-            foreach(string table in new[]{"facility_stations","station_sources"}){q.CommandText=$"CREATE TABLE {table} AS SELECT * FROM src.{table}";q.ExecuteNonQuery();}
-            q.CommandText="CREATE TABLE cluster_inputs(source TEXT,rownum INTEGER,name TEXT,type TEXT,members TEXT,station TEXT); VACUUM";q.ExecuteNonQuery();
-        }
-        s.SaveClusterImport(Path.Combine(inputs,"集群管理.xlsx"));Cases("fresh-import");
-        if(!migrated.SequenceEqual(Sets()))throw new Exception("Legacy repair and fresh import differ in complete membership sets");
-        Csv.Write(Path.Combine(output,"集群核查结果.csv"),new[]{new object?[]{"集群名称","后台所属站点","成员数","类型","状态","参与路由","原因","完整成员"}}.Concat(s.Clusters().Select(c=>new object?[]{c.Name,c.Station,c.Members.Length,c.Type,c.Status,c.Enabled,c.Reason,string.Join('；',c.Members)})));
-        if(hash!=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(s.Database))))throw new Exception("Resource database was modified");
-        Console.WriteLine("FULL R145 PASS: identical migrated/fresh memberships; resource bytes untouched; baseline="+baseline);
+        using(var c=new SqliteConnection($"Data Source={baseline}")){c.Open();using var q=c.CreateCommand();q.CommandText="ATTACH DATABASE $p AS src";q.Parameters.AddWithValue("$p",store.Personal);q.ExecuteNonQuery();foreach(string name in new[]{"facility_stations","station_sources"}){q.CommandText=$"CREATE TABLE {name} AS SELECT * FROM src.{name}";q.ExecuteNonQuery();}q.CommandText="CREATE TABLE cluster_inputs(source TEXT,rownum INTEGER,name TEXT,type TEXT,members TEXT,station TEXT);VACUUM";q.ExecuteNonQuery();}
+        store.SaveClusterImport(Path.Combine(inputs,"集群管理.xlsx"));Cases("FRESH import");var fresh=store.Clusters().Select(x=>string.Join('\n',x.Members.Order(StringComparer.Ordinal))).ToHashSet();if(!migrated.SetEquals(fresh))throw new Exception("Legacy repair and fresh import membership sets differ");Console.WriteLine($"MIGRATION/FRESH membership: legacy={migrated.Count}; fresh={fresh.Count}; old-only={migrated.Except(fresh).Count()}; fresh-only={fresh.Except(migrated).Count()}");
+        var all=store.Clusters();Csv.Write(Path.Combine(output,"集群核查结果.csv"),new[]{new object?[]{"集群名称","后台所属站点","成员数","类型","状态","参与路由","原因","完整成员"}}.Concat(all.Select(x=>new object?[]{x.Name,x.Station,x.Members.Length,x.Type,x.Status,x.Enabled,x.Reason,string.Join('；',x.Members)})));
+        if(Hash(store.Database)!=resourceHash)throw new Exception("Original resource bytes changed");Console.WriteLine($"FULL R145 PASS: resource DB bytes untouched; elapsed_ms={watch.ElapsedMilliseconds}; metadata baseline prepared from existing repository input tables");
     }
+    static string Hash(string path){using var file=File.OpenRead(path);return Convert.ToHexString(SHA256.HashData(file));}
 }

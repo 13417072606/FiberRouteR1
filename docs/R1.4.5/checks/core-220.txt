@@ -1,0 +1,233 @@
+PASS workbook sequence omits endpoint representatives and retains real endpoints and middle transfers
+PASS workbook follows oriented route steps rather than stored edge directions
+PASS workbook contains only overview and selected numbered route sheets
+PASS overview exports exact arrow-separated route including XML characters
+PASS shortage routes export actual negative remainder and clear capacity status
+PASS overview and detail hyperlinks preserve original route numbers
+PASS deleted explanation and removed-sheet references are absent
+PASS actual internal transfers remain separate from real segment capacities
+PASS independent Excel reader opens generated workbook and Chinese headings
+PASS internal-only route never fabricates available capacity
+PASS unknown length and real zero length remain distinct in Excel
+PASS failed export preserves existing workbook and cleans temporary files
+PASS facility text remains literal rather than an Excel formula
+PASS sample 12 edges / 20 nodes
+PASS sample 1659.56 m
+PASS sample 40 aggregate cores
+PASS long ID exact text
+PASS A route exists
+PASS A length / jumps / capacity / residual
+PASS B insufficient cores
+PASS C avoid type
+PASS D avoid node
+PASS E zero jumps
+PASS F endpoint type exemption
+PASS G zero length allowed
+PASS explicit endpoint conflict rejected
+PASS route cancellation
+PASS queue upper bound reported
+PASS expansion upper bound reported
+PASS time upper bound reported
+PASS manual multi-label type changes routing
+PASS manual types survive resource replacement
+PASS type import conflicts / unknown / empty preview
+PASS type preview creates no nodes and changes nothing
+PASS quoted multiline CSV and invalid isolation
+PASS trim exact endpoints / missing length retained
+PASS leading zeros preserved
+PASS anomaly report header + 2 records
+PASS resource rollback preserves manual settings
+PASS mid-import cancellation preserves original database
+PASS failed import preserves original database
+PASS GBK import + km conversion
+PASS GB18030 import + km conversion
+PASS 400 random multigraph ordering comparisons against exhaustive oracle
+PASS RSA-PSS signed manifest verification
+PASS tampered manifest rejected
+PASS program ZIP layout and license extraction
+PASS update ZIP traversal rejected
+PASS update cannot overwrite personal exports
+PASS automatic utf8 / strict text / ID / quoted multiline
+PASS automatic utf8bom / strict text / ID / quoted multiline
+PASS automatic gbk / strict text / ID / quoted multiline
+PASS automatic gb18030 / strict text / ID / quoted multiline
+PASS automatic utf16 / strict text / ID / quoted multiline
+PASS automatic utf16be / strict text / ID / quoted multiline
+PASS automatic utf16nobom / strict text / ID / quoted multiline
+PASS GB18030 four-byte character
+PASS xls native format and sheet discovery
+PASS xls actual import / mapping / exact long ID / zero and missing length
+PASS xls numeric ID precision risk rejects and preserves database
+PASS xls native type preview / conflicts / unknown / blank / no mutation
+PASS xls missing sheet actionable error
+PASS xls cancellation retains original
+PASS xlsx native format and sheet discovery
+PASS xlsx actual import / mapping / exact long ID / zero and missing length
+PASS xlsx numeric ID precision risk rejects and preserves database
+PASS xlsx native type preview / conflicts / unknown / blank / no mutation
+PASS xlsx missing sheet actionable error
+PASS xlsx cancellation retains original
+PASS invalid UTF-8 BOM payload never replaced silently
+PASS Excel binary never parsed as CSV text
+PASS invalid Excel gives format error
+PASS corrupt Excel container rejected
+PASS cluster disabled cannot bridge disconnected devices
+PASS unconfirmed cluster cannot connect routing
+PASS cluster hard rules and exact real endpoints Candidates
+PASS cluster hard rules and exact real endpoints Distance
+PASS cluster hard rules and exact real endpoints Jumps
+PASS cluster hard rules and exact real endpoints Capacity
+PASS cluster cannot bypass real capacity
+PASS cluster does not erase actual hop
+PASS cluster type exclusion enforced
+PASS avoiding either cluster member excludes logical node
+PASS cluster member avoid endpoint conflict rejected
+PASS reverse cluster path retains direction
+PASS same cluster endpoint relation has no invented capacity or resource
+PASS capacity filter can explicitly include a clearly marked shortage reference
+PASS reference routes still enforce exclusions and hop limits
+PASS endpoint type exemption remains after its UI wording is removed
+PASS sufficient routes precede shortage references without inventing capacity on zero-free edges
+PASS default capacity filter never returns shortage routes
+PASS zero-segment room relation does not claim verified capacity
+PASS cluster routing cancellation
+PASS automatic identification is pending, not abnormal
+PASS real asset type table tolerates duplicate unused headers and confirms exact matches
+PASS unmatched type mapping retained for future resource snapshots
+PASS type import flags manual conflict without overwriting manual value
+PASS manual correction clears abnormal state
+PASS conflicting type tables require review
+PASS type transaction cancellation preserves metadata
+PASS reciprocal cluster rows deduplicated and table import confirms
+PASS persisted cluster builds logical graph
+PASS restart preserves types clusters status
+PASS overlap and missing members do not silently merge
+PASS explicit raw 17-column export preserves literal quotes and final multi-value field
+PASS identical periodic resource import skips DB replacement
+PASS full cluster refresh removes stale table groups and retains manual groups
+PASS table refresh preserves conflicting manual cluster and flags review
+PASS 320 random contracted multigraph comparisons against independent exhaustive oracle
+PASS ODF and ODB with explicit room affiliation route as one room core
+PASS room aggregation retains all real resources and names the room core
+PASS unambiguous cabinet room affiliation participates without a startup approval gate
+PASS explicit user suspension overrides default cabinet affiliation
+PASS room field does not automatically contract non ODF ODB cabinet facilities
+PASS explicit cabinet room confirmation enables its real segments
+PASS room aggregation never bypasses real segment capacity
+PASS explicit cluster cannot silently bridge two different room cores
+PASS conflicting explicit room fields are quarantined and upstream room is not used
+PASS human choice resolves a room affiliation conflict using a supplied room value
+PASS reopen retains room choices and cabinet approval
+PASS user can suspend cabinet aggregation without deleting real resources
+PASS periodic room update replaces same source rows and does not accumulate obsolete affiliations
+PASS compact room baseline is applied once and exposes conflicts rather than guessing
+PASS human room choice cannot invent an unavailable affiliation
+PASS R1.3 database migration reconstructs explicit resource room fields
+PASS cancelled affiliation refresh preserves previous room rows
+PASS R1.4 resource area and business fields survive loading with both endpoint areas distinct
+PASS R1.4 full CSV parser preserves commas, multiline cells, duplicate auxiliary headers and exact source row
+PASS conflicting area sources require review and wall-location room stays quarantined
+PASS suspect wall location cannot be enabled as a room without correcting its source
+PASS unchanged evidence import skips duplicate writes
+PASS source CSV is not copied into the customer database directory
+PASS new same-source evidence replaces obsolete rows without accumulating copies
+PASS data publishing emits normalized databases and manifest without personal.db or original tables
+PASS published catalogue contains no administrator settings or residual private setting bytes
+PASS data preview detects adds, changes, removals, exact duplicates and human type conflict
+PASS preparing data update never changes either live database
+PASS online data apply replaces resource snapshot and preserves customer type and settings
+PASS customer room choice survives a conflicting server affiliation and is exposed for review
+PASS identical subsequent data update ignores existing unchanged records
+PASS cancelled data preparation preserves the active resource snapshot
+PASS resource room-only auxiliary change is included in data diff instead of being ignored
+PASS resource room-only update applies the new source while retaining human conflict for review
+PASS cloud cluster conflict preserves human members and visibly pauses logical merge
+PASS removed affiliation source retains customer choice for review instead of silently dropping it
+PASS publisher creates public client configuration and missing service remains explicitly unconfigured
+PASS management release produces client-verifiable signed independent data channel
+PASS online check and download validate signed release, declared bytes and content hash
+PASS invalid download hash is rejected and temporary package cleaned
+PASS update download cannot silently redirect to an unrelated origin
+PASS program version and data compatibility checks distinguish new, current and incompatible releases
+PASS R1.4.1 server-directory publishing copies active signed files and excludes the management private key
+PASS R1.4.1 external manifest verification matches the exact signed release prepared by the publisher
+PASS R1.4.1 publishing refuses a destination inside the private management workspace
+PASS R1.4.1 an existing version cannot silently be replaced by different data under the same version number
+PASS R1.4.1 failed package copy leaves the server's previous manifest live and cleans its temporary upload
+PASS R1.4.1 cancelled publication cannot switch customers to an incomplete release
+PASS R1.4.1 GUI service address changes preserve the signing key and rebase signed package URLs
+PASS R1.4.1 service configuration rejects a manifest filename where a directory URL is required
+PASS R1.4.1 external verification rejects a cached or stale signed manifest instead of reporting successful deployment
+PASS R143 balanced parentheses preserve commas in complete cluster names
+PASS R143 POS override and supported categories apply to old and newly imported types
+PASS R143 fixed facility export preserves literal unmatched quotes without shifting station fields
+PASS R143 station expands singleton across cabinet and splitters; source-only member does not invalidate the whole group
+PASS R143 unresolved singleton is excluded with an audit reason
+PASS R143 reimport replaces station evidence and recalculates memberships without stale expanded members
+PASS R143 one real segment has only two route endpoints and no fabricated endpoint jump entries
+PASS R143 publisher emits automatic 24MiB parts with signed per-part and overall metadata, no oversized public ZIP
+PASS R143 publishing validates part files and keeps manifest last
+PASS R143 client downloads parts in order and reconstructs exact original ZIP
+PASS R143 corrupt or missing part cannot leave an installable partial file
+PASS R143 combined hash is independently checked after individual parts pass
+PASS R143 cross-origin part URL is rejected before network access
+PASS R143 cancellation cleans partial downloads
+PASS R143 service URL changes rebase every signed part without changing key or files
+PASS R143 repair baseline is idempotent and preserves an existing manually suspended cluster
+PASS R143 online data package synchronizes station evidence and original cluster inputs
+PASS R144 exactly six districts and one county are embedded
+PASS R144 requested streets map to their districts
+PASS R144 towns and existing Nanao alias normalize consistently
+PASS R144 bare business and community names are not guessed from town substrings
+PASS R144 both directions normalize independently
+PASS R144 missing placeholders infer only from the endpoint's own complete facility name
+PASS R144 exact same endpoint evidence can fill a missing field without copying the opposite endpoint
+PASS R144 street and district evidence from facilities agree after normalization
+PASS R144 conflicting explicit source districts remain unresolved with review evidence
+PASS R144 ambiguous multi-district facility name is not arbitrarily classified
+PASS R144 established Shantou district-name prefix is recognized without guessing a business-name substring
+PASS R144 a known far endpoint cannot fill a missing near endpoint
+PASS R144 display/export carry normalized districts, original values and evidence without overwriting raw data
+PASS R144 region review does not change manually confirmed facility types
+PASS R144 existing data reopens normalized without reimport or resource database changes
+管理方数据：1 条中继段、2 个节点；来源：/tmp/fiber-tests-b413e93a-dcc3-4817-9cbf-4a9c5b857cf0/online-delivery/runtime/数据
+正在从管理方数据库生成标准数据更新包…
+正在生成软件更新包 R1.4.4…
+PASS online preparation rejects real signing-key paths before publishing a software channel
+管理方数据：1 条中继段、2 个节点；来源：/tmp/fiber-tests-b413e93a-dcc3-4817-9cbf-4a9c5b857cf0/online-delivery/runtime/数据
+正在从管理方数据库生成标准数据更新包…
+正在生成软件更新包 R1.4.4…
+PASS online preparation reuses the signing key and preserves both administrator databases
+PASS core publisher accepts the required System.Private.CoreLib runtime assembly
+PASS online preparation publishes both channels and automatically splits the real oversized software package
+PASS Cloudflare upload ZIP preserves the root manifest and channel directories without keys, raw personal data or an extra site folder
+PASS software package contains the matching public configuration and omits stale configuration backups and auxiliary tooling
+PASS local client configuration is installed with the preceding configuration retained
+正在完整验证软件 1.4.4，31.37 MiB…
+正在完整验证数据 2026-10-28.210000，0 MiB…
+PASS online verifier exercises the real client download, part merging, software extraction and data validation for both channels
+管理方数据：1 条中继段、2 个节点；来源：/tmp/fiber-tests-b413e93a-dcc3-4817-9cbf-4a9c5b857cf0/online-delivery/runtime/数据
+正在从管理方数据库生成标准数据更新包…
+PASS repeated setup advances data while preserving an already published software version and signing key
+PASS online verifier cannot report success when a referenced local part is missing
+正在完整验证软件 1.4.4，31.37 MiB…
+PASS online verifier rejects a missing remote update part even when the signed manifest matches
+正在完整验证软件 1.4.4，31.37 MiB…
+PASS online verifier rejects corrupt remote bytes using the same hashes as the client
+PASS empty signed channels are not presented as a ready update service
+PASS R145 finance cabinet plus two splitters form one three-member cluster across types
+PASS R145 mixed member types are retained and unresolved singleton is filtered
+PASS R145 cross-type site membership reaches the actual routing graph
+PASS R145 Baohua GJ02/GJ03 in facility type catalog are not falsely missing after deduplication
+PASS R145 source-only members remain visible without inventing graph nodes or routable capacity
+PASS R145 all source device rows are indexed before group deduplication
+PASS R145 existing broken comma fragments recover only against the exact complete catalog name
+PASS R145 new imports and editor preserve the comma inside retired-name parentheses
+PASS R145 physical line breaks and full-width punctuation match a complete facility identity without splitting it
+PASS R145 overlapping automatic source rows union their members instead of losing members or falsely reporting overlap
+PASS R145 manual suspension survives automatic regrouping of the same members
+PASS R145 an unsupported member mention alone does not become evidence of a device
+PASS R145 online data contains the original cluster rows and station evidence
+PASS R145 reimport and subsequent online sync remove obsolete site membership instead of keeping stale expansions
+PASS R145 genuinely conflicting station assignments remain reviewable and cannot silently enable routing
+ALL PASS: 220 checks
