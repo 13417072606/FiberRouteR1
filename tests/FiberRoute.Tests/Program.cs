@@ -115,6 +115,7 @@ await R143Checks.Run(root,Check);
 await R144Checks.Run(root,Check);
 await OnlineDeliveryChecks.Run(root,Check);
 await R145Checks.Run(root,Check);
+await R146Checks.Run(root,Check);
     Console.WriteLine($"ALL PASS: {checks} checks");
 }finally{Directory.Delete(root,true);}
 sealed class ImmediateProgress(Action<ImportProgress> callback):IProgress<ImportProgress>{public void Report(ImportProgress value)=>callback(value);}

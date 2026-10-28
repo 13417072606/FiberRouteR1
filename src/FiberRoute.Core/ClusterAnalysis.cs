@@ -100,22 +100,32 @@ public sealed partial class Store
                 }
             }
         }
+        foreach(var row in all.Where(x=>!Human(x.Source)))
+        {
+            string name=Resolve(row.Name);
+            if(!types.TryGetValue(name,out var existing)||existing=="未识别")types[name]=row.Type;
+        }
         var bySite=station.Where(x=>x.Value.Count==1).GroupBy(x=>x.Value.Single()).ToDictionary(g=>g.Key,g=>g.Select(x=>x.Key).ToArray());
-        var candidates=new List<(ClusterRecord Row,HashSet<string> Members,HashSet<string> Sites,string Head)>();var manual=new List<ClusterRecord>();
+        bool Cabinet(string name)=>types.TryGetValue(name,out var type)&&type.Split(';').Select(NormalizeType).Contains("光交箱");
+        bool Splitter(string name)=>types.TryGetValue(name,out var type)&&type.Split(';').Select(NormalizeType).Contains("分纤箱");
+        var candidates=new List<(ClusterRecord Row,HashSet<string> Members,HashSet<string> Sites,string Head,bool ListedCabinets)>();var manual=new List<ClusterRecord>();
         foreach(var row in all)
         {
             var members=Members(row).ToHashSet(StringComparer.Ordinal);string head=Resolve(row.Name);
+            // A cabinet-only member list is an explicit relationship supplied by
+            // the cluster table. Its station labels do not define membership.
+            bool listedCabinets=!Human(row.Source)&&members.Count>=2&&members.All(Cabinet);
             var sites=members.Append(head).Where(station.ContainsKey).SelectMany(n=>station[n]).ToHashSet(StringComparer.Ordinal);
             if(HasStation(row.Station)){string key=MatchName(row.Station);sites.Add(key);stationLabels.TryAdd(key,row.Station);}
             if(Human(row.Source)){manual.Add(row with{Members=members.Order(StringComparer.Ordinal).ToArray(),Station=string.Join('；',sites.Select(s=>stationLabels[s]).Order(StringComparer.Ordinal))});continue;}
-            if(sites.Count==1)
+            if(sites.Count==1&&!listedCabinets)
             {
                 if(bySite.TryGetValue(sites.Single(),out var same))members.UnionWith(same);
                 // The explicit station on a device's source row also establishes
                 // its membership, even when the other facility file is absent.
                 if(HasStation(row.Station))members.Add(head);
             }
-            candidates.Add((row,members,sites,head));
+            candidates.Add((row,members,sites,head,listedCabinets));
         }
         // Merge reciprocal/subset rows and connected automatic relationships.
         // Deduplication unions the full members; it never deletes device names.
@@ -125,7 +135,7 @@ public sealed partial class Store
         for(int i=0;i<candidates.Count;i++)
         {
             foreach(string member in candidates[i].Members){if(owner.TryGetValue(member,out int old))Join(i,old);else owner[member]=i;}
-            if(candidates[i].Sites.Count==1){string site=candidates[i].Sites.Single();if(siteOwner.TryGetValue(site,out int old))Join(i,old);else siteOwner[site]=i;}
+            if(!candidates[i].ListedCabinets&&candidates[i].Sites.Count==1){string site=candidates[i].Sites.Single();if(siteOwner.TryGetValue(site,out int old))Join(i,old);else siteOwner[site]=i;}
         }
         for(int i=0;i<candidates.Count;i++)if(owner.TryGetValue(candidates[i].Head,out int related))Join(i,related);
         var automatic=new List<ClusterRecord>();
@@ -134,7 +144,8 @@ public sealed partial class Store
             var rows=component.Select(i=>candidates[i]).ToArray();var representative=rows.OrderByDescending(x=>x.Row.Type.Split(';').Select(NormalizeType).Contains("光交箱")).ThenBy(x=>x.Row.Name,StringComparer.Ordinal).First().Row;
             var members=rows.SelectMany(x=>x.Members).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();var sites=rows.SelectMany(x=>x.Sites).Distinct().ToArray();var reasons=new List<string>();
             if(members.Length<2){foreach(var row in rows)FilteredClusters.Add((row.Row.Name,"按原始集群关系及所属站点跨类型补齐后仍只有自身或不足两个成员"));continue;}
-            if(sites.Length>1)reasons.Add("成员所属站点冲突："+string.Join('；',sites.Select(s=>stationLabels[s]).Order(StringComparer.Ordinal)));
+            bool cabinetOnly=members.All(Cabinet)&&rows.All(x=>x.ListedCabinets);
+            if(sites.Length>1&&!cabinetOnly)reasons.Add("成员所属站点冲突："+string.Join('；',sites.Select(s=>stationLabels[s]).Order(StringComparer.Ordinal)));
             if(rows.Any(x=>!members.Contains(x.Head,StringComparer.Ordinal)))reasons.Add("设备名称不在集群列表中");
             var tags=rows.SelectMany(x=>x.Row.Type.Split(';')).Concat(members.Where(types.ContainsKey).SelectMany(n=>types[n].Split(';'))).Select(NormalizeType).Where(t=>t.Length>0).Distinct().ToArray();
             if(tags.Length>1)tags=tags.Where(t=>t!="未识别").ToArray();
@@ -152,8 +163,10 @@ public sealed partial class Store
             if(Human(row.Source)&&manual.Any(other=>other.Id!=row.Id&&other.Members.Intersect(row.Members).Any()))reasons.Add("人工集群成员归属重叠");
             bool bad=reasons.Count>0;var idle=row.Members.Where(n=>!graphNames.Contains(n)&&facilityNames.Contains(n)).ToArray();if(idle.Length>0)reasons.Add("设施表存在，暂无中继段："+string.Join('；',idle));
             var tableOnly=row.Members.Where(n=>!graphNames.Contains(n)&&!facilityNames.Contains(n)&&tableNames.Contains(n)).ToArray();if(tableOnly.Length>0)reasons.Add("集群原表存在，暂无设施表或中继段："+string.Join('；',tableOnly));
-            int routable=row.Members.Count(graphNames.Contains);if(routable<2)reasons.Add("当前可参与路由的成员不足两个，集群保留且不纳入路由");
-            return row with{Status=bad?"需核对":row.Status,Enabled=row.Enabled&&!bad&&routable>=2,Reason=string.Join('；',reasons)};
+            bool mixedOneCabinet=row.Members.Count(Cabinet)==1&&row.Members.Any(Splitter)&&row.Members.All(n=>Cabinet(n)||Splitter(n))&&row.Station.Length>0&&!row.Station.Contains('；');
+            int minimum=mixedOneCabinet?1:2;
+            int routable=row.Members.Count(graphNames.Contains);if(routable<minimum)reasons.Add("当前可参与路由的成员不足"+(minimum==1?"一个":"两个")+"，集群保留且不纳入路由");
+            return row with{Status=bad?"需核对":row.Status,Enabled=row.Enabled&&!bad&&routable>=minimum,Reason=string.Join('；',reasons)};
         }).OrderBy(x=>x.Name,StringComparer.Ordinal).ToList();
     }
 }
