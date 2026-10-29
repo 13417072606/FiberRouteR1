@@ -158,13 +158,18 @@ public sealed partial class Store
         return unique.Select(row=>
         {
             var reasons=new List<string>();if(row.Status=="需核对"&&row.Reason.Length>0&&row.Reason!="成员未匹配当前资源")reasons.Add(row.Reason);
-            var missing=row.Members.Where(n=>!known.Contains(n)&&!graphNames.Contains(n)).ToArray();if(missing.Length>0)reasons.Add("集群原表、设施表与中继段均未找到："+string.Join('；',missing));
             if(!Human(row.Source)&&row.Members.Any(manualMembers.Contains))reasons.Add("自动关系与人工维护集群重叠，保留人工关系优先");
             if(Human(row.Source)&&manual.Any(other=>other.Id!=row.Id&&other.Members.Intersect(row.Members).Any()))reasons.Add("人工集群成员归属重叠");
-            bool bad=reasons.Count>0;var idle=row.Members.Where(n=>!graphNames.Contains(n)&&facilityNames.Contains(n)).ToArray();if(idle.Length>0)reasons.Add("设施表存在，暂无中继段："+string.Join('；',idle));
+            // Explicit member lists establish the intended relationship. A member
+            // lacking a separate device row is useful audit information, not a
+            // reason to reject the whole cluster or override its routing count.
+            bool bad=reasons.Count>0;
+            var missing=row.Members.Where(n=>!known.Contains(n)&&!graphNames.Contains(n)).ToArray();if(missing.Length>0)reasons.Add("名单成员暂无独立设施行或中继段："+string.Join('；',missing));
+            var idle=row.Members.Where(n=>!graphNames.Contains(n)&&facilityNames.Contains(n)).ToArray();if(idle.Length>0)reasons.Add("设施表存在，暂无中继段："+string.Join('；',idle));
             var tableOnly=row.Members.Where(n=>!graphNames.Contains(n)&&!facilityNames.Contains(n)&&tableNames.Contains(n)).ToArray();if(tableOnly.Length>0)reasons.Add("集群原表存在，暂无设施表或中继段："+string.Join('；',tableOnly));
             bool mixedOneCabinet=row.Members.Count(Cabinet)==1&&row.Members.Any(Splitter)&&row.Members.All(n=>Cabinet(n)||Splitter(n))&&row.Station.Length>0&&!row.Station.Contains('；');
-            int minimum=mixedOneCabinet?1:2;
+            bool splitterOnly=row.Members.All(Splitter);
+            int minimum=mixedOneCabinet||splitterOnly?1:2;
             int routable=row.Members.Count(graphNames.Contains);if(routable<minimum)reasons.Add("当前可参与路由的成员不足"+(minimum==1?"一个":"两个")+"，集群保留且不纳入路由");
             return row with{Status=bad?"需核对":row.Status,Enabled=row.Enabled&&!bad&&routable>=minimum,Reason=string.Join('；',reasons)};
         }).OrderBy(x=>x.Name,StringComparer.Ordinal).ToList();
