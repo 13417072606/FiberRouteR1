@@ -1,4 +1,8 @@
 {
+  "FiberRouteR1-R1.4.7-install.zip": {
+    "Size": 12810479,
+    "Sha256": "0f23e919a570f8c196799fa865a58d91d8eafb6f6afa1ac4885c40176304777e"
+  },
   "FiberRouteR1-R1.4.7-patch.zip": {
     "Size": 12808416,
     "Sha256": "ba901ed27be2b20aa0859344654abbb68bc499357d384aac835ce783d312391c"
@@ -6,5 +10,9 @@
   "FiberRouteR1-win-x64-R1.4.7.zip": {
     "Size": 78043936,
     "Sha256": "d9b82da3b10bfd7d63ff33b040779fd9e7ef2533e5926c4789b4a05ffc32f9e6"
+  },
+  "Install-R1.4.7-patch.ps1": {
+    "Size": 9942,
+    "Sha256": "c9c4bfe814e04b468c9112184ba30c1dd8e6605d33d8bcdf13fbaaf69337576a"
   }
 }
