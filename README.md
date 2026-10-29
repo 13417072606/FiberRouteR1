@@ -1,6 +1,6 @@
 ## 光路调度路由查询 R1.4.7
 
-[下载累计补丁安装包](downloads/R1.4.7/FiberRouteR1-R1.4.7-install.zip?raw=true) · [下载完整程序](downloads/R1.4.7/FiberRouteR1-win-x64-R1.4.7.zip?raw=true) · [安装说明](downloads/R1.4.7/使用说明.txt) · [修改及验证](docs/R1.4.7/)
+[直接下载累计补丁安装包（CDN）](https://cdn.jsdelivr.net/gh/13417072606/FiberRouteR1@71418412d633ac5fe7dc26d49c2963bb6fbd0534/downloads/R1.4.7/FiberRouteR1-R1.4.7-install.zip) · [下载完整程序](downloads/R1.4.7/FiberRouteR1-win-x64-R1.4.7.zip?raw=true) · [安装说明](downloads/R1.4.7/使用说明.txt) · [修改及验证](docs/R1.4.7/)
 
 集群表明确列出的成员即使缺独立设施行，也只作提示，不再将整组误判为需核对；全为分纤箱的集群有一个成员具备中继段即可启用。龙潭古寺、潮阳综合楼据此已确认并启用，上村宽带环已确认但因没有路由而暂停。
 
