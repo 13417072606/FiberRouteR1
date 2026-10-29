@@ -118,6 +118,7 @@ internal static class Program
                 await R144UiChecks.Run(form,s,output,Check,Idle,Shot);
                 await R145UiChecks.Run(form,s,output,Check,Idle,Shot);
                 await R146UiChecks.Run(form,s,output,Check,Idle,Shot);
+                await R147UiChecks.Run(form,s,output,Check,Idle,Shot);
                 log.Add("ALL PASS: "+passed+" UI checks; DeviceDpi="+form.DeviceDpi+"; Font="+form.Font.Name);File.WriteAllLines(Path.Combine(output,"ui-checks.txt"),log);form.Close();
             }
             catch(Exception e){log.Add("FAIL "+e);File.WriteAllLines(Path.Combine(output,"ui-checks.txt"),log);Environment.ExitCode=1;form.Close();}
