@@ -53,6 +53,11 @@ if sys.argv[1] == '--payload':
     old = {f['Path']: f for f in previous['Files']}
     with zipfile.ZipFile(root / 'downloads/R1.4.9/FiberRouteR1-R1.4.9-patch.zip') as prior_zip:
         prior149 = {f['Path']: f['Sha256'] for f in json.loads(prior_zip.read('补丁校验.json'))['Files']}
+    legacy = {}
+    for version in ('R1.4.6','R1.4.7'):
+        with zipfile.ZipFile(root / f'downloads/{version}/FiberRouteR1-{version}-patch.zip') as legacy_zip:
+            for legacy_name in legacy_zip.namelist():
+                legacy.setdefault(legacy_name, set()).add(sha(legacy_zip.read(legacy_name)))
     prior150 = {}
     if patch.exists():
         with zipfile.ZipFile(patch) as earlier:
@@ -66,6 +71,9 @@ if sys.argv[1] == '--payload':
             hashes = sorted(set(hashes + [prior149[name]]))
         if name in prior150:
             hashes = sorted(set(hashes + [prior150[name]]))
+        hashes = sorted(set(hashes).union(legacy.get(name, set())))
+        if name == '资源/机房设施ID基线.db':
+            hashes = [] # New in later releases; absent in R1.4.6 is valid.
         manifest.append(dict(Path=name, Length=len(data), Sha256=sha(data), PreviousSha256=hashes))
     files['在线升级辅助/补丁校验.json'] = json.dumps(dict(Version='1.5.0', Files=manifest), ensure_ascii=False, indent=2).encode()
     archive(patch, files)

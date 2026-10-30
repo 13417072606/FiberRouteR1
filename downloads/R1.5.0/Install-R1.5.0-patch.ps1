@@ -21,8 +21,8 @@ if (!(Test-RunDirectory $Target)) { throw ('所选文件夹不是运行目录：
 if (Get-Process -Name FiberRouteR1,FiberRoute.Publisher,FiberRoute.Brand,FiberRoute.Updater,FiberRoute.Admin,FiberRoute.Online -ErrorAction SilentlyContinue) { throw '请关闭主程序、管理方工具和图标工具，再重新运行本补丁。' }
 $work = Join-Path ([IO.Path]::GetDirectoryName($Target)) 'R1.5.0补丁文件'
 New-Item -ItemType Directory -Path $work -Force | Out-Null
-$expectedSize = 17375072
-$expectedSha = 'd198b923391abaed4c0b830e49594f5b9411af99873c0c2cb873d32c2182bb7c'
+$expectedSize = 17375758
+$expectedSha = '44ffcee4efeb3f39f930a79d87eb18846b00ca59434e098a93d274a34f165784'
 function Test-Patch($path) {
     return ((Test-Path -LiteralPath $path -PathType Leaf) -and (Get-Item -LiteralPath $path).Length -eq $expectedSize -and (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -eq $expectedSha)
 }
