@@ -21,8 +21,8 @@ if (!(Test-RunDirectory $Target)) { throw ('所选文件夹不是运行目录：
 if (Get-Process -Name FiberRouteR1,FiberRoute.Publisher,FiberRoute.Brand,FiberRoute.Updater,FiberRoute.Admin,FiberRoute.Online -ErrorAction SilentlyContinue) { throw '请关闭主程序、管理方工具和图标工具，再重新运行本补丁。' }
 $work = Join-Path ([IO.Path]::GetDirectoryName($Target)) 'R1.5.0补丁文件'
 New-Item -ItemType Directory -Path $work -Force | Out-Null
-$expectedSize = 17078619
-$expectedSha = '64320fe2f59e833b78af3619ee54db302d6421fd6d44d75325f98a2eaef49b20'
+$expectedSize = 17077432
+$expectedSha = '9396a0374dff023cf5399006028cc2ede1024babfdbc9211ae89bbc082c04396'
 function Test-Patch($path) {
     return ((Test-Path -LiteralPath $path -PathType Leaf) -and (Get-Item -LiteralPath $path).Length -eq $expectedSize -and (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -eq $expectedSha)
 }
@@ -32,7 +32,10 @@ if ($OfflineZip) {
 } else { throw '请解压完整的 R1.5.0 安装包并双击安装补丁.cmd。' }
 $stage = Join-Path $work ('校验中-' + [Guid]::NewGuid().ToString('N'))
 
-$previousVersion = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $Target '程序\FiberRouteR1.dll')).Version.ToString(3)
+$installedAssembly = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $Target '程序\FiberRouteR1.dll'))
+if ($installedAssembly.Name -ne 'FiberRouteR1') { throw '所选目录中的主程序程序集不正确，未修改现有程序。' }
+$previousVersion = $installedAssembly.Version.ToString(3)
+if (@('1.4.6','1.4.7','1.4.8','1.4.9','1.5.0') -notcontains $previousVersion) { throw ('不支持从 R' + $previousVersion + ' 升级，请选择 R1.4.6 至 R1.5.0 的原程序目录。') }
 $backupRoot = Join-Path $Target '补丁备份'
 $backup = Join-Path $backupRoot ('R' + $previousVersion)
 $changes = New-Object 'System.Collections.Generic.List[object]'
@@ -53,12 +56,6 @@ try {
         if ($allowed -cnotcontains $file.Path) { throw '补丁清单路径错误。' }
         $source = Join-Path $stage $file.Path
         if ((Get-Item -LiteralPath $source).Length -ne $file.Length -or (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ne $file.Sha256) { throw ('补丁内容校验失败：' + $file.Path) }
-        if (@($file.PreviousSha256).Count -gt 0) {
-            $destination = Join-Path $Target $file.Path
-            if (!(Test-Path -LiteralPath $destination -PathType Leaf)) { throw ('现有程序缺少文件：' + $file.Path) }
-            $current = (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash
-            if (@($file.PreviousSha256) -notcontains $current.ToLowerInvariant() -and $current -ne $file.Sha256) { throw ('现有文件与已发布的 已发布版本不符，请勿混用补丁：' + $file.Path) }
-        }
     }
 
     $location = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'FiberRouteR1\data-location.txt'

@@ -13,7 +13,7 @@ sha = lambda b: hashlib.sha256(b).hexdigest()
 patch = out / 'FiberRouteR1-R1.5.0-patch.zip'
 full = out / 'FiberRouteR1-win-x64-R1.5.0.zip'
 installer = out / 'Install-R1.5.0-patch.ps1'
-bundle = out / 'FiberRouteR1-R1.5.0-upgrade-fixed.zip'
+bundle = out / 'FiberRouteR1-R1.5.0-upgrade-corefix.zip'
 
 def archive(path, files):
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as z:
@@ -34,7 +34,7 @@ def metadata():
 if sys.argv[1] == '--payload':
     with zipfile.ZipFile(root / 'downloads/R1.4.7/FiberRouteR1-R1.4.7-patch.zip') as z:
         files = {n: z.read(n) for n in z.namelist()}
-    previous = json.loads(files.pop('补丁校验.json'))
+    files.pop('补丁校验.json')
     files.pop('R1.4.7更新说明.md')
     for name in list(files):
         if name.startswith(('在线升级辅助/','服务器部署/','数据/','导出结果/')) or name.endswith(('更新说明.md','验证报告.md','文件校验SHA256.json')) or name in ('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','使用说明.txt','资源/update-service.example.json','更换品牌图标.exe'):
@@ -53,34 +53,9 @@ if sys.argv[1] == '--payload':
 
 
 
-    old = {f['Path']: f for f in previous['Files']}
-    with zipfile.ZipFile(root / 'downloads/R1.4.9/FiberRouteR1-R1.4.9-patch.zip') as prior_zip:
-        prior149 = {f['Path']: f['Sha256'] for f in json.loads(prior_zip.read('补丁校验.json'))['Files']}
-    legacy = {}
-    for version in ('R1.4.6','R1.4.7'):
-        with zipfile.ZipFile(root / f'downloads/{version}/FiberRouteR1-{version}-patch.zip') as legacy_zip:
-            for legacy_name in legacy_zip.namelist():
-                legacy.setdefault(legacy_name, set()).add(sha(legacy_zip.read(legacy_name)))
-    prior150 = {}
-    if patch.exists():
-        with zipfile.ZipFile(patch) as earlier:
-            old_manifest = '在线升级辅助/补丁校验.json' if '在线升级辅助/补丁校验.json' in earlier.namelist() else '在线升级辅助/文件校验SHA256.json'
-            prior150 = {f['Path']: f['Sha256'] for f in json.loads(earlier.read(old_manifest))['Files']}
     manifest = []
     for name, data in sorted(files.items()):
-        hashes = old.get(name, {}).get('PreviousSha256', [])
-        if hashes:
-            hashes = sorted(set(hashes + [old[name]['Sha256']]))
-        if name in prior149:
-            hashes = sorted(set(hashes + [prior149[name]]))
-        if name in prior150:
-            hashes = sorted(set(hashes + [prior150[name]]))
-        hashes = sorted(set(hashes).union(legacy.get(name, set())))
-        if name == '资源/机房设施ID基线.db':
-            hashes = [] # New in later releases; absent in R1.4.6 is valid.
-        if name not in ('程序/FiberRouteR1.dll','程序/FiberRoute.Core.dll'):
-            hashes = [] # Only core binaries identify the installed release; launchers and helpers may be customized.
-        manifest.append(dict(Path=name, Length=len(data), Sha256=sha(data), PreviousSha256=hashes))
+        manifest.append(dict(Path=name, Length=len(data), Sha256=sha(data)))
     files['在线升级辅助/补丁校验.json'] = json.dumps(dict(Version='1.5.0', Files=manifest), ensure_ascii=False, indent=2).encode()
     archive(patch, files)
 
@@ -92,12 +67,16 @@ elif sys.argv[1] == '--bundle':
     with zipfile.ZipFile(patch) as z:
         allowed = sorted(z.namelist())
     script = re.sub(r'    \$allowed = @\([^\n]+\)', '    $allowed = @(' + ','.join("'" + n + "'" for n in allowed) + ')', script)
-    script = script.replace('R1.3 至 R1.4.6 不符', '已发布版本不符')
+    script, removed = re.subn(r'(?s)        if \(@\(\$file\.PreviousSha256\)\.Count -gt 0\) \{\n.*?\n        \}\n', '', script, count=1)
+    assert removed == 1
     script = script.replace("$backup = Join-Path $Target '补丁备份\\R1.5.0'", '')
     script = script.replace("    $manifest = Get-Content -LiteralPath (Join-Path $stage '补丁校验.json')", "    $manifestPath = Join-Path $stage '在线升级辅助\\补丁校验.json'\n    if (!(Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw '升级包缺少在线升级辅助\\补丁校验.json；请重新下载本版升级包并解压到新文件夹。' }\n    $manifest = Get-Content -LiteralPath $manifestPath")
     script = re.sub(r"(?s)        \$saved = Join-Path \$backup \$file.Path\n        if \(\$existed\) \{.*?\n        \}\n        \$snapshot", '        $snapshot', script)
     # Keep only the immediately preceding program version; installation rollback stays temporary.
-    backup_setup = """$previousVersion = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $Target '程序\\FiberRouteR1.dll')).Version.ToString(3)
+    backup_setup = """$installedAssembly = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $Target '程序\\FiberRouteR1.dll'))
+if ($installedAssembly.Name -ne 'FiberRouteR1') { throw '所选目录中的主程序程序集不正确，未修改现有程序。' }
+$previousVersion = $installedAssembly.Version.ToString(3)
+if (@('1.4.6','1.4.7','1.4.8','1.4.9','1.5.0') -notcontains $previousVersion) { throw ('不支持从 R' + $previousVersion + ' 升级，请选择 R1.4.6 至 R1.5.0 的原程序目录。') }
 $backupRoot = Join-Path $Target '补丁备份'
 $backup = Join-Path $backupRoot ('R' + $previousVersion)
 """
