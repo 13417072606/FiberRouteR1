@@ -154,9 +154,22 @@ $backup = Join-Path $backupRoot ('R' + $previousVersion)
     }
     $legacyBackup = Join-Path $Target '补丁备份'
     if (Test-Path -LiteralPath $legacyBackup -PathType Container) { Remove-Item -LiteralPath $legacyBackup -Recurse -Force }
-    foreach ($obsolete in @('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','验证报告.md','文件校验SHA256.json','R1.4.7更新说明.md','R1.4.8更新说明.md','R1.4.9更新说明.md','在线升级辅助/Continue-Online-Update.ps1','在线升级辅助/使用说明.md','更换品牌图标.exe','服务器部署/Windows服务器部署说明.md','服务器部署/Setup-IIS-UpdateDirectory.ps1')) {
+    foreach ($obsolete in @('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','验证报告.md','文件校验SHA256.json','R1.4.6更新说明.md','机房归属来源复核.xlsx','R1.4.7更新说明.md','R1.4.8更新说明.md','R1.4.9更新说明.md','在线升级辅助/Continue-Online-Update.ps1','在线升级辅助/使用说明.md','更换品牌图标.exe','服务器部署/Windows服务器部署说明.md','服务器部署/Setup-IIS-UpdateDirectory.ps1')) {
         $oldFile = Join-Path $Target $obsolete
         if (Test-Path -LiteralPath $oldFile -PathType Leaf) { Remove-Item -LiteralPath $oldFile -Force }
+    }
+    $oldExports = Join-Path $Target '导出结果'
+    if (Test-Path -LiteralPath $oldExports -PathType Container) {
+        $exportFiles = @(Get-ChildItem -LiteralPath $oldExports -Recurse -File)
+        if ($exportFiles.Count -gt 0) {
+            $archiveRoot = Join-Path ([Environment]::GetFolderPath('MyDocuments')) ('光路调度历史导出-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+            Move-Item -LiteralPath $oldExports -Destination $archiveRoot
+            Write-Host ('旧导出文件已移至：' + $archiveRoot)
+        } else { Remove-Item -LiteralPath $oldExports -Recurse -Force }
+    }
+    foreach ($folder in @('第三方许可','在线升级辅助','服务器部署')) {
+        $oldFolder = Join-Path $Target $folder
+        if ((Test-Path -LiteralPath $oldFolder -PathType Container) -and @(Get-ChildItem -LiteralPath $oldFolder -Force).Count -eq 0) { Remove-Item -LiteralPath $oldFolder -Force }
     }
     Write-Host ('SUCCESS:""")
     installer.write_text(script, encoding='utf-8-sig')
