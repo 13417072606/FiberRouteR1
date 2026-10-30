@@ -39,7 +39,7 @@ public sealed partial class Store
         var es=new List<Edge>();using(var q=c.CreateCommand()){q.CommandText="SELECT id,business_id,name,a,b,length,free,total,CASE WHEN json_valid(raw) THEN COALESCE(json_extract(raw,'$.始端区域'),'') ELSE '' END,CASE WHEN json_valid(raw) THEN COALESCE(json_extract(raw,'$.终端区域'),'') ELSE '' END,CASE WHEN json_valid(raw) THEN COALESCE(json_extract(raw,'$.业务状态'),'') ELSE '' END FROM edges ORDER BY id";using var r=q.ExecuteReader();while(r.Read())es.Add(new(r.GetInt32(0),r.GetString(1),r.GetString(2),r.GetInt32(3),r.GetInt32(4),r.IsDBNull(5)?null:r.GetDouble(5),r.GetInt32(6),r.GetInt32(7),"",r.GetString(8).Trim(),r.GetString(9).Trim(),r.GetString(10).Trim()));}
         var regions=ResolveRegions(Decorate(ns.ToArray()),es.ToArray());
         using var v=c.CreateCommand();v.CommandText="SELECT value FROM meta WHERE name='version'";var graph=new Graph(regions.Nodes,regions.Edges,v.ExecuteScalar() as string??"未知");
-        EnsureResourceRooms(c);graph.SetClusters(RoutingGroups(graph,ResourceRooms(c)));return graph;
+        graph.SetClusters(RoutingGroups(graph));return graph;
     }
     public string Raw(int index) {using var c=Open(Database);using var q=c.CreateCommand();q.CommandText="SELECT raw FROM edges WHERE id=$i";q.Parameters.AddWithValue("$i",index);return q.ExecuteScalar() as string??"{}";}
     public static readonly string[] Fields=["ID","名称","长度","空闲数量","中继纤芯数量","始端设施","终端设施","始端类型","终端类型"];
@@ -54,7 +54,7 @@ public sealed partial class Store
         ct.ThrowIfCancellationRequested();string signature=digest+JsonSerializer.Serialize(new{encoding,sheet,unit,mapping=mapping.OrderBy(x=>x.Key).ToArray()});
         if(File.Exists(Database)){using var old=Open(Database);using var sig=old.CreateCommand();sig.CommandText="SELECT value FROM meta WHERE name='import_signature'";if((string?)sig.ExecuteScalar()==signature)return new(Graph.Edges.Length,Graph.Edges.Length,0,Graph.Nodes.Length,Graph.Version,Directory.GetFiles(Root,"导入异常-*.csv").OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault()??"",true);}
         string temp=Path.Combine(Root,"import-"+Guid.NewGuid()+".db"),errors=Path.Combine(Root,"导入异常-"+DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")+".csv");
-        long read=0,accepted=0,invalid=0;var nodes=new Dictionary<string,int>(StringComparer.Ordinal);string version=DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss zzz");
+        long read=0,accepted=0,invalid=0;var nodes=new Dictionary<string,int>(StringComparer.Ordinal);var seenIds=new HashSet<string>(StringComparer.Ordinal);string version=DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss zzz");
         try
         {
             using(var c=Open(temp))
@@ -91,6 +91,7 @@ public sealed partial class Store
                         if(reason.Length>0){invalid++;report.WriteLine(Csv.Line(new object?[]{read+1,reason,JsonSerializer.Serialize(r)}));}
                         else
                         {
+                            if(!seenIds.Add(id))throw new InvalidDataException($"中继段 ID 重复：{id}（第 {read+1} 行）；本次导入未应用");
                             var raw=headers.Select((h,i)=>(h,i)).ToDictionary(x=>x.h,x=>r[x.i]);int ai=NodeId(a,Get(r,"始端类型"),raw.GetValueOrDefault("始端机房","")),bi=NodeId(b,Get(r,"终端类型"),raw.GetValueOrDefault("终端机房",""));
                             Room(a,raw.GetValueOrDefault("始端机房",""));Room(b,raw.GetValueOrDefault("终端机房",""));
                             eq.Transaction=transaction;object[] vals=[(int)accepted,id,Get(r,"名称"),ai,bi,length is null?DBNull.Value:length.Value,free,total,JsonSerializer.Serialize(raw,new JsonSerializerOptions{Encoder=System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping})];for(int i=0;i<vals.Length;i++)eq.Parameters[i].Value=vals[i];eq.ExecuteNonQuery();accepted++;
@@ -104,11 +105,18 @@ public sealed partial class Store
                 Run(c,"CREATE INDEX edge_a ON edges(a); CREATE INDEX edge_b ON edges(b);");
                 using var check=c.CreateCommand();check.CommandText="PRAGMA integrity_check";if((string?)check.ExecuteScalar()!="ok")throw new InvalidDataException("数据库完整性校验失败");
             }
+            ValidateResourceIds(temp);
+            var changes=CompareResources(Database,temp,ct);
+            if(changes.Added+changes.Changed+changes.Removed==0&&File.Exists(Database))
+            {
+                using var current=Open(Database);using var save=current.CreateCommand();save.CommandText="INSERT INTO meta(name,value) VALUES('import_signature',$s) ON CONFLICT(name) DO UPDATE SET value=excluded.value";save.Parameters.AddWithValue("$s",signature);save.ExecuteNonQuery();
+                return new(read,accepted,invalid,Graph.Nodes.Length,Graph.Version,errors,true);
+            }
             var stagedGraph=LoadGraph(temp,ManualTypes());
             ct.ThrowIfCancellationRequested();
             // All connections have closed. File.Replace is atomic on supported local Windows volumes.
             if(File.Exists(Database))File.Replace(temp,Database,Database+".bak",true);else File.Move(temp,Database);
-            Graph=stagedGraph;progress?.Report(new(read,accepted,invalid,nodes.Count));return new(read,accepted,invalid,nodes.Count,version,errors);
+            Graph=stagedGraph;progress?.Report(new(read,accepted,invalid,nodes.Count));return new(read,accepted,invalid,nodes.Count,version,errors,false,changes.Added,changes.Changed,changes.Removed);
         }finally{if(File.Exists(temp))File.Delete(temp);foreach(var stale in Directory.GetFiles(Root,"导入异常-*.csv").OrderByDescending(File.GetLastWriteTimeUtc).Skip(1))File.Delete(stale);}
     }
     public void Rollback() {string backup=Database+".bak";if(!File.Exists(backup))throw new FileNotFoundException("无上一版数据库");string temp=Database+".rollback";File.Copy(backup,temp,true);File.Replace(temp,Database,backup,true);Reload();}

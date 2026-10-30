@@ -196,7 +196,7 @@ public sealed partial class MainForm:Form
         string file=importPath.Text,enc=detectedEncoding;string? sheet=resourceFormat.SelectedIndex==1&&sheets.Items.Count==0?"__RESOURCE_RAW__":sheets.SelectedItem as string;double unit=units.SelectedIndex==0?1:1000;var mapping=map.ToDictionary(x=>x.Key,x=>x.Value.Text);
         await Work("开始导入…",async ct=>{
             var progress=new Progress<ImportProgress>(p=>status.Text=$"读取 {p.Read:N0} · 可接入 {p.Accepted:N0} · 异常 {p.Invalid:N0} · 节点 {p.Nodes:N0}（可取消）");
-            var r=await store.ImportAsync(file,enc,mapping,unit,progress,ct,sheet);store.SetSetting("remoteResourceVersion","");errorFile=r.ErrorFile;RefreshData();if(r.Unchanged){status.Text="文件内容及导入设置无变化，已跳过更新，不新增数据库或报告。";return;}previewStats.Text=$"校验完成：读取 {r.Read:N0} 条 · 可接入 {r.Accepted:N0} 条 · 隔离异常 {r.Invalid:N0} 条";status.Text=$"完成：{r.Accepted:N0} 段，{r.Nodes:N0} 节点，{r.Invalid:N0} 条异常。数据版本 {r.Version}";
+            var r=await store.ImportAsync(file,enc,mapping,unit,progress,ct,sheet);if(!r.Unchanged)store.SetSetting("remoteResourceVersion","");errorFile=r.ErrorFile;RefreshData();if(r.Unchanged){status.Text="中继段 ID 与内容均无变化，已跳过资源更新。";return;}previewStats.Text=$"校验完成：读取 {r.Read:N0} 条 · 可接入 {r.Accepted:N0} 条 · 隔离异常 {r.Invalid:N0} 条";status.Text=$"完成：新增 {r.Added:N0} · 更新 {r.Changed:N0} · 删除旧 ID {r.Removed:N0}；现有 {r.Accepted:N0} 段。数据版本 {r.Version}";
         });
     }
     void RefreshData()

@@ -19,12 +19,12 @@ public sealed partial class MainForm
     }
     static Control Field(string title,Control control){var p=new FlowLayoutPanel{Height=40,Width=285,WrapContents=false};p.Controls.Add(new Label{Text=title,Width=155,Margin=new Padding(3,7,3,3)});p.Controls.Add(control);return p;}
     static Control Card(string title,Control body){var p=new Surface{Dock=DockStyle.Fill,Padding=new Padding(10),Margin=new Padding(4)};body.Dock=DockStyle.Fill;p.Controls.Add(body);p.Controls.Add(new Label{Text=title,Dock=DockStyle.Top,Height=30,AutoEllipsis=true,BackColor=Color.White,Font=new Font("Microsoft YaHei UI",10.5f,FontStyle.Bold),ForeColor=Theme.Ink});return p;}
-    Control Columns(float a,Control left,float b,Control right)=>Split(left,right,Orientation.Vertical,a/(a+b));
+    Control Columns(float a,Control left,float b,Control right,string? layoutKey=null)=>Split(left,right,Orientation.Vertical,a/(a+b),layoutKey);
     Control Rows(float[] weights,params Control[] controls)
     {if(controls.Length==1)return controls[0];return Split(controls[0],Rows(weights.Skip(1).ToArray(),controls.Skip(1).ToArray()),Orientation.Horizontal,weights[0]/weights.Sum());}
-    Control Split(Control first,Control second,Orientation orientation,float fraction)
+    Control Split(Control first,Control second,Orientation orientation,float fraction,string? layoutKey=null)
     {
-        string id="split-v4-"+splitSerial++;var split=new SplitContainer{Dock=DockStyle.Fill,Orientation=orientation,SplitterWidth=12,BackColor=Theme.Canvas,Panel1MinSize=80,Panel2MinSize=80};first.Dock=second.Dock=DockStyle.Fill;split.Panel1.Controls.Add(first);split.Panel2.Controls.Add(second);savedSplits[id]=split;
+        string id=layoutKey??"split-v4-"+splitSerial++;var split=new SplitContainer{Dock=DockStyle.Fill,Orientation=orientation,SplitterWidth=12,BackColor=Theme.Canvas,Panel1MinSize=80,Panel2MinSize=80};first.Dock=second.Dock=DockStyle.Fill;split.Panel1.Controls.Add(first);split.Panel2.Controls.Add(second);savedSplits[id]=split;
         bool applied=false;split.SizeChanged+=(_,_)=>{int size=orientation==Orientation.Vertical?split.ClientSize.Width:split.ClientSize.Height;if(applied||size<400)return;applied=true;float ratio=float.TryParse(store.Setting("layout-"+id),System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var old)?old:fraction;split.SplitterDistance=Math.Clamp((int)(size*ratio),80,size-92);};Shown+=(_,_)=>BeginInvoke((Action)(()=>{int size=orientation==Orientation.Vertical?split.ClientSize.Width:split.ClientSize.Height;if(size<200)return;float ratio=float.TryParse(store.Setting("layout-"+id),System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var old)?old:fraction;split.SplitterDistance=Math.Clamp((int)(size*ratio),80,size-92);}));return split;
     }
     Control Stats()

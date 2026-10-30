@@ -55,7 +55,7 @@ public sealed record Route(int[] Nodes, int[] Edges, double Length, int Unknown,
 }
 public sealed record RouteResult(List<Route> Routes, bool Limited, bool Cancelled, int Expansions, long ElapsedMs);
 public sealed record ImportProgress(long Read, long Accepted, long Invalid, int Nodes);
-public sealed record ImportResult(long Read, long Accepted, long Invalid, int Nodes, string Version, string ErrorFile,bool Unchanged=false);
+public sealed record ImportResult(long Read, long Accepted, long Invalid, int Nodes, string Version, string ErrorFile,bool Unchanged=false,long Added=0,long Changed=0,long Removed=0);
 public sealed record TypeChange(string Name, string Before, string After, string Status);
 
 public sealed record RouteStep(int Edge,int From,int To);

@@ -1,0 +1,54 @@
+{
+  "FiberRouteR1-R1.4.9-install.zip": {
+    "Size": 23316318,
+    "Sha256": "50ad3fe1946db80b24c4bb2019a9e6cfdcec28979d2cfc5d017d081c07b41efb"
+  },
+  "FiberRouteR1-R1.4.9-patch.zip": {
+    "Size": 23998253,
+    "Sha256": "108aea1879ee83c67fc28ba97f3dc0ff2fc9eb67bd2bceb25331ead27a1dbf79"
+  },
+  "FiberRouteR1-win-x64-R1.4.9.zip": {
+    "Size": 89235071,
+    "Sha256": "daf49dc03096410aba5b81177c9492647edacf5197993cbcdf5a182f6c19b6e0"
+  },
+  "FiberRouteR1-win-x64-R1.4.9.zip.001": {
+    "Size": 15728640,
+    "Sha256": "d2597e1577043a454beab654828aed54b5886cee2ee43bb2680df74f46ed9456"
+  },
+  "FiberRouteR1-win-x64-R1.4.9.zip.002": {
+    "Size": 15728640,
+    "Sha256": "0e41c1d1371db7e61e66133f2095ed7f9736fbe4bdfb5c80f0bf0293976d72a6"
+  },
+  "FiberRouteR1-win-x64-R1.4.9.zip.003": {
+    "Size": 15728640,
+    "Sha256": "70937328dd679fb3ad0c2207bf8dbea409124d5f6c7138ce4c9afcc31fe4be34"
+  },
+  "FiberRouteR1-win-x64-R1.4.9.zip.004": {
+    "Size": 15728640,
+    "Sha256": "6baa68ae87d3eee0bf8a3bc8ae5ef335f64965b1e5b30f085a3a5152ee29b828"
+  },
+  "FiberRouteR1-win-x64-R1.4.9.zip.005": {
+    "Size": 15728640,
+    "Sha256": "18ea0b1ba56ae7912fd2aa68c6c6f54c0b9b00a6361d548b1d150b94eb2f255a"
+  },
+  "FiberRouteR1-win-x64-R1.4.9.zip.006": {
+    "Size": 10591871,
+    "Sha256": "1314dcabdce698fc073cf9658c66046dc8cd121f70c75c35b913712d15939e37"
+  },
+  "Install-R1.4.9-patch.ps1": {
+    "Size": 8577,
+    "Sha256": "a9689c52cb188a71e9305a916caa948369d8e17c7003e995822c1b5454169703"
+  },
+  "Join-R1.4.9-Full.cmd": {
+    "Size": 116,
+    "Sha256": "31202366f255a64511ff77db2d093e85c231235e6716d21ce5a88e238806e977"
+  },
+  "Join-R1.4.9-Full.ps1": {
+    "Size": 2383,
+    "Sha256": "803325a19737d2deac0050a6c972c9fc76881a0dd701c3c2b935400752fe5134"
+  },
+  "完整程序分包校验.json": {
+    "Size": 1145,
+    "Sha256": "8579e281ad1ca69b3aacc4235a20470c53bbcb8a0ad9d190146b141637058d84"
+  }
+}

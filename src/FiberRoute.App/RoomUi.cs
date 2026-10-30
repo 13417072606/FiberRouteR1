@@ -15,7 +15,7 @@ public sealed partial class MainForm
         var actionButtons=Flow();actionButtons.Dock=DockStyle.Bottom;actionButtons.BackColor=Color.White;actionButtons.Controls.AddRange([B("查看来源",ShowRoomEvidence),B("查看成员",ShowRoomMembers)]);right.Controls.Add(actionButtons);
         roomRouteFilter.Items.AddRange(["全部归并状态","已纳入","部分纳入","已暂停"]);roomRouteFilter.SelectedIndex=0;
         var actions=Flow();actions.BackColor=Color.White;roomSearch.Width=220;var frame=InputFrame(roomSearch);frame.Width=230;actions.Controls.AddRange([frame,roomArea,roomRouteFilter,B("重置",()=>{buildingFilters=true;roomSearch.Clear();roomArea.SelectedIndex=roomRouteFilter.SelectedIndex=0;buildingFilters=false;roomState="全部";roomPage.Value=1;LoadRooms();}),B("导入所属机房表",ImportRoomTables),B("导出筛选清单",()=>{var p=Save("机房归属.csv");if(p!=null)Csv.Write(p,new[]{new object?[]{"设施名称","所属机房","确认状态","参与机房整体路由","来源","原因"}}.Concat(visibleRooms.SelectMany(g=>g).Select(x=>new object?[]{x.Name,x.Room,x.Status,x.Enabled,x.Source,x.Reason})));})]);
-        roomStatusChips=StatusChips(()=>roomState,value=>{roomState=value;roomPage.Value=1;LoadRooms();});left.Controls.Add(roomGrid);ConfigurePager(roomPager,"rooms",()=>{roomPage.Value=roomPager.Page;LoadRooms();});left.Controls.Add(roomPager);left.Controls.Add(actions);left.Controls.Add(roomStatusChips);tab.Controls.Add(Columns(73,left,27,right));
+        roomStatusChips=StatusChips(()=>roomState,value=>{roomState=value;roomPage.Value=1;LoadRooms();});left.Controls.Add(roomGrid);ConfigurePager(roomPager,"rooms",()=>{roomPage.Value=roomPager.Page;LoadRooms();});left.Controls.Add(roomPager);left.Controls.Add(actions);left.Controls.Add(roomStatusChips);tab.Controls.Add(Columns(76,left,24,right,"split-v5-room-affiliation"));
         tab.Controls.Add(new Label{Text="以真实所属机房为核心，异常归属复核前暂停归并；保留实际设施和中继段。",Dock=DockStyle.Top,Height=38,ForeColor=Theme.Muted,Padding=new Padding(6)});
         Sortable(roomGrid,()=>{roomPage.Value=1;LoadRooms();});roomGrid.SelectionChanged+=(_,_)=>LoadRoomDetails();roomGrid.CellDoubleClick+=(_,e)=>{if(e.RowIndex>=0)ShowRoomMembers();};roomGrid.CellContentClick+=(_,e)=>{if(e.RowIndex>=0&&e.ColumnIndex>=0&&roomGrid.Columns[e.ColumnIndex].Name=="操作")ShowRoomMembers();};
         var timer=new System.Windows.Forms.Timer{Interval=300};roomSearch.TextChanged+=(_,_)=>{timer.Stop();timer.Start();};timer.Tick+=(_,_)=>{timer.Stop();if(!buildingFilters){roomPage.Value=1;LoadRooms();}};FormClosed+=(_,_)=>timer.Dispose();foreach(var box in new[]{roomArea,roomRouteFilter})box.SelectedIndexChanged+=(_,_)=>{if(!buildingFilters){roomPage.Value=1;LoadRooms();}};
@@ -58,9 +58,19 @@ public sealed partial class MainForm
     async Task ImportRoomTables()
     {
         if(busy)return;using var f=new OpenFileDialog{Filter=TableInput.Filter,Multiselect=true,Title="选择含设施名称和机房名称/所属机房字段的表格"};if(f.ShowDialog()!=DialogResult.OK)return;
-        var files=f.FileNames.Select(p=>(p,"",(string?)null)).ToArray();List<RoomAssignment> values=[];if(!await Work("读取明确的所属机房字段…",async ct=>values=await Task.Run(()=>store.PreviewRoomFiles(files,ct),ct)))return;
-        if(values.Count==0)throw new InvalidDataException("未找到非空的机房名称/所属机房字段；不会使用上联机房替代。");
-        if(MessageBox.Show($"读取 {values.Count:N0} 条归属。按本次文件替换同来源的归属记录，保留人工启用选择；明确且无冲突的光交归属会在路径图内显示提示。继续？","导入机房归属",MessageBoxButtons.YesNo)!=DialogResult.Yes)return;
+        var selected=new List<(string Path,string Type,string? Sheet)>();
+        foreach(string path in f.FileNames)
+        {
+            using var dialog=new Form{Text="机房设施表类别 · "+Path.GetFileName(path),Width=540,Height=230,Font=Font};var stack=Stack();
+            var kind=new UiComboBox{Width=260,DropDownStyle=ComboBoxStyle.DropDownList};kind.Items.AddRange(["ODF","光交接箱","光分纤箱","光终端盒","多媒体箱"]);
+            string filename=Path.GetFileName(path);kind.SelectedItem=filename.Contains("ODF",StringComparison.OrdinalIgnoreCase)?"ODF":filename.Contains("光交")?"光交接箱":filename.Contains("分纤")?"光分纤箱":filename.Contains("终端")?"光终端盒":filename.Contains("多媒体")?"多媒体箱":null;
+            InputInfo? info=null;if(!await Work("识别设施表…",async ct=>info=await Task.Run(()=>TableInput.Inspect(path,"自动",ct),ct)))return;
+            var sheet=new UiComboBox{Width=300,DropDownStyle=ComboBoxStyle.DropDownList};sheet.Items.AddRange(info!.Sheets);if(sheet.Items.Count>0)sheet.SelectedIndex=0;
+            stack.Controls.AddRange([L("选择设施表类别以确定跨表 ID 的优先级"),kind,L("工作表"),sheet,B("确定",()=>{if(kind.SelectedItem==null)throw new InvalidDataException("请选择设施表类别");dialog.DialogResult=DialogResult.OK;})]);dialog.Controls.Add(stack);
+            if(dialog.ShowDialog(this)!=DialogResult.OK)return;selected.Add((path,(string)kind.SelectedItem!,sheet.SelectedItem as string));
+        }
+        var files=selected.ToArray();List<RoomAssignment> values=[];long removed=0;if(!await Work("读取明确的所属机房字段…",async ct=>{values=await Task.Run(()=>store.PreviewRoomFiles(files,ct),ct);removed=await Task.Run(()=>store.CountRoomRemovals(files,ct),ct);}))return;
+        if(MessageBox.Show($"本次文件含 {values.Count:N0} 条有效机房归属，其中 {values.Count(x=>x.Status=="需核对"):N0} 条需核对；将清除本次设施类别中新表未列出的 {removed:N0} 个旧 ID。相同 ID 内容不变则跳过，内容变化则更新；其他设施类别不受影响。继续？","导入机房归属",MessageBoxButtons.YesNo)!=DialogResult.Yes)return;
         if(await Work("更新机房归属…",ct=>Task.Run(()=>store.ApplyRoomFiles(files,ct),ct))){RefreshData();}
     }
 }
