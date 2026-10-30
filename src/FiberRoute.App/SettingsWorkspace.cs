@@ -29,14 +29,14 @@ public sealed partial class MainForm
             var info=new Panel{Dock=DockStyle.Fill,BackColor=Color.White};var title=TextLabel(program?"软件更新":"数据更新",15,FontStyle.Bold);title.Dock=DockStyle.Top;title.Height=30;
             var version=TextLabel(Current(),10);version.Dock=DockStyle.Top;version.Height=24;version.ForeColor=Theme.Muted;version.AutoEllipsis=true;
             var state=TextLabel("检查状态：尚未检查",9.5f);state.Dock=DockStyle.Fill;state.ForeColor=Theme.Muted;state.AutoEllipsis=true;info.Controls.Add(state);info.Controls.Add(version);info.Controls.Add(title);top.Controls.Add(info,1,0);
-            var note=TextLabel(program?"发现新版后，可直接下载并安装\n保留现有数据库与人工记录":"查看变更后更新本地资源\n忽略无变化数据，保留人工确认",10);note.TextAlign=ContentAlignment.MiddleCenter;note.ForeColor=Theme.Muted;note.Dock=DockStyle.Bottom;note.Height=52;
+            var note=TextLabel(program?"发现新版后，可直接下载并安装\n保留现有数据库与人工记录":"先下载并预览中继段、节点类型、集群及机房归属\n人工冲突保留本机值，确认后才应用",10);note.TextAlign=ContentAlignment.MiddleCenter;note.ForeColor=Theme.Muted;note.Dock=DockStyle.Bottom;note.Height=52;
             ReleaseItem? available=null;var check=new UiButton{Text=program?"检测软件更新":"检测数据更新",Primary=true,Height=46,Font=new Font(Font.FontFamily,12,FontStyle.Bold),Margin=Padding.Empty};
             check.Click+=async(_,_)=>
             {
                 if(busy)return;check.Enabled=false;
                 try
                 {
-                    var config=Updates.LoadConfig(UpdateConfiguration);if(config==null){state.Text="更新服务未配置";service.Text="管理方配置国内更新服务后，即可在这里直接在线更新。";return;}
+                    var config=Updates.LoadConfig(UpdateConfiguration);if(config==null){state.Text="更新服务未配置";service.Text="请管理方提供公开配置文件，放入本机程序目录的“资源”文件夹；每台电脑只需配置一次。";return;}
                     if(available==null)
                     {
                         ReleaseManifest? manifest=null;state.Text="正在检测…";bool ok=await Work("正在检测"+(program?"软件":"数据")+"更新…",async ct=>manifest=await Updates.Check(config,ct));if(!ok){state.Text=status.Text;return;}
@@ -71,7 +71,7 @@ public sealed partial class MainForm
 
             var action=new Panel{Dock=DockStyle.Fill,BackColor=Color.White};action.Controls.Add(check);void Place(){check.Width=Math.Max(180*action.DeviceDpi/96,action.ClientSize.Width-36*action.DeviceDpi/96);check.Location=new Point((action.Width-check.Width)/2,Math.Max(0,(action.Height-check.Height)/2));}action.SizeChanged+=(_,_)=>Place();Place();card.Controls.Add(action);card.Controls.Add(top);card.Controls.Add(note);onlineBody.Controls.Add(card,column,0);
         }
-        UpdateCard(true,0);UpdateCard(false,1);try{if(Updates.LoadConfig(UpdateConfiguration)!=null)service.Text="已配置更新服务；软件与数据分别检测和更新。";}catch(Exception ex){service.Text="更新服务配置有误："+ex.Message;}body.Controls.Add(online);
+        UpdateCard(true,0);UpdateCard(false,1);try{if(Updates.LoadConfig(UpdateConfiguration)!=null)service.Text="已配置更新服务；本机可独立检测并下载管理方发布的软件和数据。";}catch(Exception ex){service.Text="更新服务配置有误："+ex.Message;}body.Controls.Add(online);
         var directory=new Surface{Height=144,Padding=new Padding(20,12,20,12),Margin=new Padding(0,0,0,12)};var dirTitle=TextLabel("数据与目录",17,FontStyle.Bold);dirTitle.Dock=DockStyle.Top;dirTitle.Height=34;
         var row=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=4,RowCount=1,BackColor=Color.White};row.ColumnStyles.Add(new(SizeType.AutoSize));row.ColumnStyles.Add(new(SizeType.Percent,100));row.ColumnStyles.Add(new(SizeType.Absolute,150));row.ColumnStyles.Add(new(SizeType.Absolute,150));row.RowStyles.Add(new(SizeType.Percent,100));var prefix=TextLabel("当前数据目录：",11);prefix.AutoSize=true;prefix.Anchor=AnchorStyles.Left;
         var path=InputFrame(new TextBox{Text=store.Root,ReadOnly=true,BackColor=Color.FromArgb(247,250,253)});path.Dock=DockStyle.Fill;path.Margin=new Padding(4,4,10,4);hint.SetToolTip(path,store.Root);
@@ -90,7 +90,7 @@ public sealed partial class MainForm
     bool ConfirmDataUpdate(Form owner,PreparedDataUpdate update)
     {
         using var dialog=new Form{Text="数据更新预览 · "+update.Manifest.Version,Width=1000,Height=650,Font=Font,StartPosition=FormStartPosition.CenterParent};var grid=Grid();grid.DataSource=update.Details.Take(1000).ToList();grid.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.Fill;grid.AutoSizeRowsMode=DataGridViewAutoSizeRowsMode.AllCells;dialog.Controls.Add(grid);
-        dialog.Controls.Add(new Label{Text=$"新增 {update.Added:N0} · 变更 {update.Changed:N0} · 删除 {update.Removed:N0} · 无变化 {update.Unchanged:N0}\n元数据变更 {update.MetadataChanged:N0} · 人工冲突 {update.ManualConflicts:N0}（保留人工值并标需核对） · 预览明细最多1000项",Dock=DockStyle.Top,Height=64,Padding=new Padding(10),BackColor=Theme.Tint});var actions=Flow();actions.Dock=DockStyle.Bottom;actions.Controls.AddRange([B("确认更新",()=>dialog.DialogResult=DialogResult.OK),B("取消",()=>dialog.DialogResult=DialogResult.Cancel)]);dialog.Controls.Add(actions);return dialog.ShowDialog(owner)==DialogResult.OK;
+        dialog.Controls.Add(new Label{Text=$"中继段：新增 {update.Added:N0} · 修改 {update.Changed:N0} · 删除 {update.Removed:N0} · 无变化 {update.Unchanged:N0}\n目录资料处理 {update.MetadataChanged:N0} 次：节点类型 {update.TypeOperations:N0} · 集群 {update.ClusterOperations:N0} · 机房归属 {update.RoomOperations:N0} · 来源证据 {update.EvidenceOperations:N0}\n目录数字是数据库行操作次数，不等于发生变化的设施数量。\n人工冲突 {update.ManualConflicts:N0}：保留本机人工值并标需核对。下表只列中继段变化和人工冲突，最多 1000 项；列表为空时目录资料仍可能更新。",Dock=DockStyle.Top,Height=142,Padding=new Padding(10),BackColor=Theme.Tint});var actions=Flow();actions.Dock=DockStyle.Bottom;actions.Controls.AddRange([B("确认更新",()=>dialog.DialogResult=DialogResult.OK),B("取消",()=>dialog.DialogResult=DialogResult.Cancel)]);dialog.Controls.Add(actions);return dialog.ShowDialog(owner)==DialogResult.OK;
     }
     internal static void CleanupUpdateHelpers()
     {

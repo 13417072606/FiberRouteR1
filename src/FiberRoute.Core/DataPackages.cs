@@ -11,6 +11,7 @@ public sealed class PreparedDataUpdate : IDisposable
 {
     public string Directory {get;internal set;}="";public DataManifest Manifest {get;internal set;}=null!;
     public long Added {get;internal set;}public long Changed {get;internal set;}public long Removed {get;internal set;}public long Unchanged {get;internal set;}public long MetadataChanged {get;internal set;}
+    public long TypeOperations {get;internal set;}public long ClusterOperations {get;internal set;}public long RoomOperations {get;internal set;}public long EvidenceOperations {get;internal set;}
     public List<DataChange> Details {get;}=[];public int ManualConflicts {get;internal set;}
     public bool HasChanges=>Added+Changed+Removed+MetadataChanged>0;
     public void Dispose(){try{if(System.IO.Directory.Exists(Directory))System.IO.Directory.Delete(Directory,true);}catch(IOException){}catch(UnauthorizedAccessException){}}
@@ -99,7 +100,7 @@ public sealed partial class Store
         long Execute(string sql){ct.ThrowIfCancellationRequested();using var q=c.CreateCommand();q.Transaction=tx;q.CommandText=sql;return q.ExecuteNonQuery();}
         long Total(){using var q=c.CreateCommand();q.Transaction=tx;q.CommandText="SELECT total_changes()";return(long)q.ExecuteScalar()!;}
         string Scope(string key,string[] incoming){var old=Setting("cloud-scope-"+key);var values=incoming.Concat(old==null?[]:JsonSerializer.Deserialize<string[]>(old)??[]).Distinct().ToArray();return values.Length==0?"NULL":string.Join(',',values.Select(s=>"'"+s.Replace("'","''")+"'"));}
-        long before=Total();string human="(coalesce(m.source,'') LIKE '人工%' OR coalesce(m.source,'') LIKE '历史确认%')";
+        long before=Total(),categoryStart=before;string human="(coalesce(m.source,'') LIKE '人工%' OR coalesce(m.source,'') LIKE '历史确认%')";
         using(var conflicts=c.CreateCommand())
         {
             conflicts.Transaction=tx;conflicts.CommandText=$"SELECT t.name,t.type,i.type FROM main.types t JOIN main.type_meta m ON m.name=t.name JOIN incoming.types i ON i.name=t.name WHERE {human} AND t.type<>i.type";using var r=conflicts.ExecuteReader();while(r.Read()){prepared.ManualConflicts++;if(prepared.Details.Count<1000)prepared.Details.Add(new("人工类型",r.GetString(0),"需核对","保留人工类型："+r.GetString(1)+"；云端类型："+r.GetString(2)));}
@@ -109,6 +110,7 @@ public sealed partial class Store
         Execute($"INSERT INTO main.types(name,type) SELECT i.name,i.type FROM incoming.types i LEFT JOIN main.type_meta m ON m.name=i.name WHERE NOT {human} ON CONFLICT(name) DO UPDATE SET type=excluded.type WHERE type<>excluded.type");
         Execute($"INSERT INTO main.type_meta(name,source,status,reason) SELECT i.name,CASE WHEN i.source LIKE '云端：%' THEN i.source ELSE '云端：'||i.source END,i.status,i.reason FROM incoming.type_meta i LEFT JOIN main.type_meta m ON m.name=i.name WHERE NOT {human} ON CONFLICT(name) DO UPDATE SET source=excluded.source,status=excluded.status,reason=excluded.reason WHERE source<>excluded.source OR status<>excluded.status OR reason<>excluded.reason");
         Execute("UPDATE main.type_meta SET status='需核对',reason='云端类型与人工确认不一致，保留人工类型；云端类型：'||(SELECT type FROM incoming.types i WHERE i.name=type_meta.name) WHERE (source LIKE '人工%' OR source LIKE '历史确认%') AND EXISTS(SELECT 1 FROM incoming.types i JOIN main.types t ON t.name=i.name WHERE i.name=type_meta.name AND t.type<>i.type) AND (status<>'需核对' OR reason<>'云端类型与人工确认不一致，保留人工类型；云端类型：'||(SELECT type FROM incoming.types i WHERE i.name=type_meta.name))");
+        prepared.TypeOperations=Total()-categoryStart;categoryStart=Total();
         Execute("DELETE FROM main.clusters WHERE source NOT LIKE '人工%' AND source NOT LIKE '历史确认%' AND NOT EXISTS(SELECT 1 FROM incoming.clusters i WHERE i.id=main.clusters.id)");
         using(var read=c.CreateCommand())
         {
@@ -119,6 +121,7 @@ public sealed partial class Store
                 existing.Close();using var put=c.CreateCommand();put.Transaction=tx;put.CommandText="INSERT INTO main.clusters VALUES($a,$b,$c,$d,$e,$f,$g,$h) ON CONFLICT(id) DO UPDATE SET name=excluded.name,type=excluded.type,members=excluded.members,source=excluded.source,status=excluded.status,reason=excluded.reason,enabled=excluded.enabled WHERE name<>excluded.name OR type<>excluded.type OR members<>excluded.members OR source<>excluded.source OR status<>excluded.status OR reason<>excluded.reason OR enabled<>excluded.enabled";for(int i=0;i<8;i++)put.Parameters.AddWithValue("$"+(char)('a'+i),i==4?(r.GetString(i).StartsWith("云端：")?r.GetString(i):"云端："+r.GetString(i)):r.GetValue(i));put.ExecuteNonQuery();
             }
         }
+        prepared.ClusterOperations=Total()-categoryStart;categoryStart=Total();
         Execute("DELETE FROM main.room_members");
         string[] roomKinds=prepared.Manifest.RoomKinds??[];
         if(roomKinds.Length==0){using var kinds=c.CreateCommand();kinds.Transaction=tx;kinds.CommandText="SELECT DISTINCT kind FROM incoming.room_facilities";using var kindsReader=kinds.ExecuteReader();var found=new List<string>();while(kindsReader.Read())found.Add(kindsReader.GetString(0));roomKinds=found.ToArray();}
@@ -130,14 +133,16 @@ public sealed partial class Store
             using var mark=c.CreateCommand();mark.Transaction=tx;mark.CommandText="INSERT OR IGNORE INTO main.room_kind_imports VALUES($kind)";mark.Parameters.AddWithValue("$kind",kind);mark.ExecuteNonQuery();
         }
         Execute("INSERT INTO main.room_facilities(id,name,room,source,kind,rank,rownum) SELECT id,name,CASE WHEN instr(room,'挂墙')>0 THEN '' ELSE room END,source,kind,rank,rownum FROM incoming.room_facilities WHERE true ON CONFLICT(kind,id) DO UPDATE SET name=excluded.name,room=excluded.room,source=excluded.source,rank=excluded.rank,rownum=excluded.rownum WHERE name<>excluded.name OR room<>excluded.room OR rank<>excluded.rank");
+        prepared.RoomOperations=Total()-categoryStart;categoryStart=Total();
         string evidenceScope=Scope("evidence",prepared.Manifest.EvidenceSources);
         Execute($"DELETE FROM main.facility_evidence WHERE source IN({evidenceScope}) AND NOT EXISTS(SELECT 1 FROM incoming.facility_evidence i WHERE i.name=facility_evidence.name AND i.source=facility_evidence.source AND i.rownum=facility_evidence.rownum); DELETE FROM main.evidence_sources WHERE source IN({evidenceScope}) AND NOT EXISTS(SELECT 1 FROM incoming.evidence_sources i WHERE i.source=evidence_sources.source)");
         Execute("INSERT INTO main.facility_evidence SELECT * FROM incoming.facility_evidence WHERE true ON CONFLICT(name,source,rownum) DO UPDATE SET region=excluded.region,room=excluded.room,field=excluded.field,sheet=excluded.sheet WHERE region<>excluded.region OR room<>excluded.room OR field<>excluded.field OR sheet<>excluded.sheet; INSERT INTO main.evidence_sources SELECT * FROM incoming.evidence_sources WHERE true ON CONFLICT(source) DO UPDATE SET signature=excluded.signature WHERE signature<>excluded.signature");
         Execute($"DELETE FROM main.facility_stations WHERE source IN({evidenceScope}) AND NOT EXISTS(SELECT 1 FROM incoming.facility_stations i WHERE i.source=facility_stations.source AND i.name=facility_stations.name AND i.rownum=facility_stations.rownum); DELETE FROM main.station_sources WHERE source IN({evidenceScope}) AND NOT EXISTS(SELECT 1 FROM incoming.station_sources i WHERE i.source=station_sources.source)");
         Execute("INSERT INTO main.facility_stations SELECT * FROM incoming.facility_stations WHERE true ON CONFLICT(name,source,rownum) DO UPDATE SET station=excluded.station WHERE station<>excluded.station; INSERT INTO main.station_sources SELECT * FROM incoming.station_sources WHERE true ON CONFLICT(source) DO UPDATE SET signature=excluded.signature WHERE signature<>excluded.signature");
+        prepared.EvidenceOperations=Total()-categoryStart;categoryStart=Total();
         Execute("DELETE FROM main.cluster_inputs WHERE NOT EXISTS(SELECT 1 FROM incoming.cluster_inputs i WHERE i.source=main.cluster_inputs.source AND i.rownum=main.cluster_inputs.rownum)");
         Execute("INSERT INTO main.cluster_inputs SELECT * FROM incoming.cluster_inputs WHERE true ON CONFLICT(source,rownum) DO UPDATE SET name=excluded.name,type=excluded.type,members=excluded.members,station=excluded.station WHERE name<>excluded.name OR type<>excluded.type OR members<>excluded.members OR station<>excluded.station");
-        prepared.MetadataChanged=Total()-before;
+        prepared.ClusterOperations+=Total()-categoryStart;prepared.MetadataChanged=Total()-before;
         foreach(var (key,values) in new[]{("types",prepared.Manifest.TypeSources),("clusters",prepared.Manifest.ClusterSources),("rooms",prepared.Manifest.RoomSources),("evidence",prepared.Manifest.EvidenceSources)}){using var q=c.CreateCommand();q.Transaction=tx;q.CommandText="INSERT OR REPLACE INTO settings VALUES($k,$v)";q.Parameters.AddWithValue("$k","cloud-scope-"+key);q.Parameters.AddWithValue("$v",JsonSerializer.Serialize(values));q.ExecuteNonQuery();}
         foreach(var (key,value) in new[]{("remoteResourceVersion",prepared.Manifest.Version),("remoteCatalogHash",prepared.Manifest.CatalogSha256)}){using var q=c.CreateCommand();q.Transaction=tx;q.CommandText="INSERT OR REPLACE INTO settings VALUES($k,$v)";q.Parameters.AddWithValue("$k",key);q.Parameters.AddWithValue("$v",value);q.ExecuteNonQuery();}
         ct.ThrowIfCancellationRequested();tx.Commit();

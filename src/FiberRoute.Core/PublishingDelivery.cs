@@ -1,10 +1,49 @@
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.IO.Compression;
 namespace FiberRoute.Core;
 public static partial class PublishingDelivery
 {
     public sealed record TransferProgress(string Name,long Bytes,long Total);
+    public static string BuildClientActivationPackage(string workspace,string destination)
+    {
+        string source=Path.Combine(workspace,"client-config","update-service.json");
+        var config=Updates.LoadConfig(source)??throw new InvalidDataException("请先在第 2 步保存更新服务配置");
+        if(Updates.LoadConfig(Path.Combine(workspace,"update-service.json"))!=config)throw new InvalidDataException("管理方与客户配置不一致，请先在第 2 步重新保存服务配置");
+        string target=Path.GetFullPath(destination),temporary=target+".partial";
+        if(File.Exists(target))throw new IOException("客户启用包已存在，请选择新的文件名");
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        try
+        {
+            using(var zip=ZipFile.Open(temporary,ZipArchiveMode.Create))
+            {
+                zip.CreateEntryFromFile(source,"update-service.json",CompressionLevel.Optimal);
+                Write("Install.cmd","@echo off\r\npowershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File \"%~dp0Install-UpdateConfig.ps1\"\r\nif errorlevel 1 pause\r\n",Encoding.ASCII);
+                Write("Install-UpdateConfig.ps1","""
+                    $ErrorActionPreference = 'Stop'
+                    Add-Type -AssemblyName System.Windows.Forms
+                    $pick = New-Object System.Windows.Forms.FolderBrowserDialog
+                    $pick.Description = '选择客户端根目录（含光路调度路由查询.exe 和 程序 文件夹）'
+                    if ($pick.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { exit 1 }
+                    $root = $pick.SelectedPath
+                    if (-not (Test-Path -LiteralPath (Join-Path $root '光路调度路由查询.exe')) -or -not (Test-Path -LiteralPath (Join-Path $root '程序\FiberRouteR1.dll'))) {
+                        [System.Windows.Forms.MessageBox]::Show('所选目录不是客户端根目录。请选择包含主程序和“程序”文件夹的目录。','在线更新配置') | Out-Null
+                        exit 1
+                    }
+                    $source = Join-Path $PSScriptRoot 'update-service.json'
+                    $targetDir = Join-Path $root '资源'
+                    New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+                    Copy-Item -LiteralPath $source -Destination (Join-Path $targetDir 'update-service.json') -Force
+                    [System.Windows.Forms.MessageBox]::Show('在线更新已配置。重新打开客户端后，可在“设置”中检测和下载更新。','在线更新配置') | Out-Null
+                    """,new UTF8Encoding(true));
+                Write("使用说明.txt","此包只含公开更新地址和验签公钥，不含管理方私钥或业务数据。\r\n完整解压后双击 Install.cmd，选择本机客户端根目录（包含光路调度路由查询.exe 和 程序 文件夹）。\r\n每台电脑只需配置一次；之后管理方发布到 Cloudflare，用户可在各自客户端的“设置”中检测和下载。\r\n数据更新下载后仍需预览并确认应用。\r\n",new UTF8Encoding(true));
+                void Write(string name,string content,Encoding encoding){using var writer=new StreamWriter(zip.CreateEntry(name,CompressionLevel.Optimal).Open(),encoding);writer.Write(content);}
+            }
+            File.Move(temporary,target);return target;
+        }
+        finally{if(File.Exists(temporary))File.Delete(temporary);}
+    }
     public static string[] ActiveFiles(string workspace)
     {
         var config=Updates.LoadConfig(Path.Combine(workspace,"update-service.json"))??throw new InvalidDataException("请先设置真实HTTPS发布地址并初始化工作目录");

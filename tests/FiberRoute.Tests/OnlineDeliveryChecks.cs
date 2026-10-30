@@ -22,6 +22,12 @@ static class OnlineDeliveryChecks
         check(prepared.Contains("已生成 Cloudflare 上传 ZIP")&&before.All(p=>Hash(p.Key)==p.Value)&&Hash(Path.Combine(workspace,"private-key.pem"))==key,"online preparation reuses the signing key and preserves both administrator databases");
         string corePackage=Path.Combine(folder,"core-program.zip");Publishing.BuildProgramPackage(runtime,corePackage,"1.4.4");using(var coreZip=ZipFile.OpenRead(corePackage))check(coreZip.GetEntry("程序/System.Private.CoreLib.dll")!=null&&coreZip.GetEntry("资源/机房设施ID基线.db")==null,"core publisher keeps the required runtime assembly and excludes facility baselines");
         var config=Updates.LoadConfig(Path.Combine(workspace,"update-service.json"))!;var release=Updates.VerifyEnvelope(File.ReadAllBytes(Path.Combine(workspace,"site","manifest.json")),config.PublicKeyPem);
+        string activation=PublishingDelivery.BuildClientActivationPackage(workspace,Path.Combine(folder,"client-activation.zip"));
+        using(var clientZip=ZipFile.OpenRead(activation))
+        {
+            var names=clientZip.Entries.Select(e=>e.FullName).ToArray();var shipped=JsonSerializer.Deserialize<UpdateConfig>(Read(clientZip.GetEntry("update-service.json")!));
+            check(shipped==config&&names.Contains("Install.cmd")&&names.Contains("Install-UpdateConfig.ps1")&&!names.Any(n=>n.Contains("private")||n.EndsWith(".db")),"remote client activation ships only the public verification configuration and a one-time installer");
+        }
         check(release.Program?.Version=="1.4.4"&&release.Program.Parts?.Length==2&&release.Resources?.Version=="2026-10-28.210000","online preparation publishes both channels and automatically splits the real oversized software package");
         Publishing.SaveConfiguration(workspace,"https://updates.example.test/");var restored=Updates.VerifyEnvelope(File.ReadAllBytes(Path.Combine(workspace,"site","manifest.json")),config.PublicKeyPem);
         check(Hash(Path.Combine(workspace,"private-key.pem"))==key&&restored.Program?.Version==release.Program?.Version&&restored.Resources?.Version==release.Resources?.Version,"reconfiguring a recovered workspace retains the original signing key and both channels");
@@ -53,6 +59,8 @@ static class OnlineDeliveryChecks
         bool missing=false;try{await OnlineDelivery.Verify(workspace,transport:http);}catch(FileNotFoundException){missing=true;}finally{File.Move(partPath+".saved",partPath);}check(missing,"online verifier cannot report success when a referenced local part is missing");
         using var broken=new HttpClient(new Files(Path.Combine(workspace,"site"),missing:true));bool remoteMissing=false;try{await OnlineDelivery.Verify(workspace,transport:broken);}catch(HttpRequestException){remoteMissing=true;}check(remoteMissing,"online verifier rejects a missing remote update part even when the signed manifest matches");
         using var corrupt=new HttpClient(new Files(Path.Combine(workspace,"site"),corrupt:true));bool remoteCorrupt=false;try{await OnlineDelivery.Verify(workspace,transport:corrupt);}catch(InvalidDataException){remoteCorrupt=true;}check(remoteCorrupt,"online verifier rejects corrupt remote bytes using the same hashes as the client");
+        store.SetTypes([new("GJ01","","光交箱","可更新")],"类型表：测试");string catalogPackage=Path.Combine(folder,"catalog-breakdown.zip");store.BuildDataPackage(catalogPackage,"breakdown.1");var customer=new Store(Path.Combine(folder,"breakdown-client"));
+        using(var preview=customer.PrepareDataPackage(catalogPackage))check(preview.TypeOperations>0&&preview.MetadataChanged==preview.TypeOperations+preview.ClusterOperations+preview.RoomOperations+preview.EvidenceOperations,"data preview separates catalog row operations by source without changing its total");
         string empty=Path.Combine(folder,"empty");Publishing.Initialize(empty,"https://updates.example.test/");Publishing.SaveConfiguration(empty,"https://updates.example.test/");bool emptyRejected=false;try{OnlineDelivery.Inspect(empty);}catch(InvalidDataException){emptyRejected=true;}check(emptyRejected,"empty signed channels are not presented as a ready update service");
     }
     static byte[] Read(ZipArchiveEntry entry){using var stream=entry.Open();using var buffer=new MemoryStream();stream.CopyTo(buffer);return buffer.ToArray();}
