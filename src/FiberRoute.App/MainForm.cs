@@ -85,7 +85,7 @@ public sealed partial class MainForm:Form
         try
         {
             if(routeGraph==null||routeOptions==null||routes.Count==0)throw new InvalidOperationException("无方案可导出");
-            string directory=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","导出结果"));try{Directory.CreateDirectory(directory);}catch{directory=Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);}
+            string directory=Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             using var dialog=new SaveFileDialog{FileName="路由方案.xlsx",Filter="Excel工作簿|*.xlsx",DefaultExt="xlsx",AddExtension=true,InitialDirectory=directory};
             if(dialog.ShowDialog(this)!=DialogResult.OK)return;WriteRouteWorkbook(dialog.FileName,currentOnly);
         }
@@ -211,6 +211,6 @@ public sealed partial class MainForm:Form
     {
         try{if(store.Setting("route") is not string s)return;var r=JsonDocument.Parse(s).RootElement;showingRoute=true;requireCapacity.Checked=!r.TryGetProperty("capacityOnly",out var cap)||cap.GetBoolean();showingRoute=false;demand.Value=Math.Clamp(r.GetProperty("demand").GetInt32(),1,99999);jumps.Value=Math.Clamp(r.GetProperty("jumps").GetInt32(),0,100);count.Value=Math.Clamp(r.GetProperty("count").GetInt32(),1,50);order.SelectedIndex=Math.Clamp(r.GetProperty("order").GetInt32(),0,3);start.SelectNode(store.Graph.Nodes.FirstOrDefault(n=>n.Name==r.GetProperty("a").GetString()));end.SelectNode(store.Graph.Nodes.FirstOrDefault(n=>n.Name==r.GetProperty("b").GetString()));var ts=r.GetProperty("types").EnumerateArray().Select(x=>x.GetString()??"").ToHashSet();avoidTypes.SetCheckedTypes(ts);foreach(var name in r.GetProperty("nodes").EnumerateArray()){var node=store.Graph.Nodes.FirstOrDefault(n=>n.Name==name.GetString());if(node!=null)avoidNodes.Items.Add(node);}}catch{/* Older or damaged personal query preferences are optional. */}finally{showingRoute=false;}
     }
-    static string? Save(string name) {string dir=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","导出结果"));try{Directory.CreateDirectory(dir);}catch{dir=Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);}using var d=new SaveFileDialog(){FileName=name,Filter="CSV文件|*.csv",InitialDirectory=dir};return d.ShowDialog()==DialogResult.OK?d.FileName:null;}
+    static string? Save(string name) {string dir=Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);using var d=new SaveFileDialog(){FileName=name,Filter="CSV文件|*.csv",InitialDirectory=dir};return d.ShowDialog()==DialogResult.OK?d.FileName:null;}
 
 }
