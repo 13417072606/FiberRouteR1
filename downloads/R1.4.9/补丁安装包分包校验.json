@@ -1,0 +1,15 @@
+{
+  "FullZipSha256": "50ad3fe1946db80b24c4bb2019a9e6cfdcec28979d2cfc5d017d081c07b41efb",
+  "Parts": [
+    {
+      "Name": "FiberRouteR1-R1.4.9-install.zip.001",
+      "Size": 15728640,
+      "Sha256": "780c83c389e17e27e56dc17bd9ed1cbe50d087f44277191e4df383533b857c01"
+    },
+    {
+      "Name": "FiberRouteR1-R1.4.9-install.zip.002",
+      "Size": 7587678,
+      "Sha256": "f3fb63d1ef94602f7d83a380667b2454d063e69c33242b2308b8913ac94a70e6"
+    }
+  ]
+}

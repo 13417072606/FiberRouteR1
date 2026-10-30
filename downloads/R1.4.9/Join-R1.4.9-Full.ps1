@@ -1,13 +1,13 @@
 ﻿$ErrorActionPreference = 'Stop'
 $outputName = 'FiberRouteR1-win-x64-R1.4.9.zip'
-$expectedSha = 'daf49dc03096410aba5b81177c9492647edacf5197993cbcdf5a182f6c19b6e0'
+$expectedSha = '4d23752e7e04675f1c93fddafad9fd0ce5e054b7d202d9b59ceb62b54ee9dfd4'
 $parts = @(
-    @{ Name = 'FiberRouteR1-win-x64-R1.4.9.zip.001'; Size = 15728640; Sha256 = 'd2597e1577043a454beab654828aed54b5886cee2ee43bb2680df74f46ed9456' }
-    @{ Name = 'FiberRouteR1-win-x64-R1.4.9.zip.002'; Size = 15728640; Sha256 = '0e41c1d1371db7e61e66133f2095ed7f9736fbe4bdfb5c80f0bf0293976d72a6' }
-    @{ Name = 'FiberRouteR1-win-x64-R1.4.9.zip.003'; Size = 15728640; Sha256 = '70937328dd679fb3ad0c2207bf8dbea409124d5f6c7138ce4c9afcc31fe4be34' }
-    @{ Name = 'FiberRouteR1-win-x64-R1.4.9.zip.004'; Size = 15728640; Sha256 = '6baa68ae87d3eee0bf8a3bc8ae5ef335f64965b1e5b30f085a3a5152ee29b828' }
-    @{ Name = 'FiberRouteR1-win-x64-R1.4.9.zip.005'; Size = 15728640; Sha256 = '18ea0b1ba56ae7912fd2aa68c6c6f54c0b9b00a6361d548b1d150b94eb2f255a' }
-    @{ Name = 'FiberRouteR1-win-x64-R1.4.9.zip.006'; Size = 10591871; Sha256 = '1314dcabdce698fc073cf9658c66046dc8cd121f70c75c35b913712d15939e37' }
+    @{ Name = 'FiberRouteR1-win-x64-R1.4.9.zip.001'; Size = 15728640; Sha256 = '689ec28bc053e1fc9230ac04c328a6bbd1cf73f8ba2af86643cec8794bac2301' }
+    @{ Name = 'FiberRouteR1-win-x64-R1.4.9.zip.002'; Size = 15728640; Sha256 = 'c606a3cbfbb887d9c537d6d277e095495c516f1e15ba1ac808789cac1f86f676' }
+    @{ Name = 'FiberRouteR1-win-x64-R1.4.9.zip.003'; Size = 15728640; Sha256 = 'f37c298327656c35ffdf06509f782139f7b7f3600b0fa0c8cbc3f44e692f4710' }
+    @{ Name = 'FiberRouteR1-win-x64-R1.4.9.zip.004'; Size = 15728640; Sha256 = '3f1cfb569441b7515e92da57d399159531aa450e961e0079a96852d609248528' }
+    @{ Name = 'FiberRouteR1-win-x64-R1.4.9.zip.005'; Size = 15728640; Sha256 = 'a7912f8c8b89d9fd29492b8940f759350933b215eae9fca49947593818879345' }
+    @{ Name = 'FiberRouteR1-win-x64-R1.4.9.zip.006'; Size = 10591885; Sha256 = '1d6aa936d316163cc1ed550f52932283eb5af22e5bd0f29d7730f11366ea409f' }
 )
 $folder = Split-Path -Parent $MyInvocation.MyCommand.Path
 $output = Join-Path $folder $outputName
