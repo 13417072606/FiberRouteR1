@@ -73,7 +73,7 @@ public static class OnlineDelivery
                     string destination=Path.Combine(stage,relative);Directory.CreateDirectory(Path.GetDirectoryName(destination)!);File.Copy(file,destination);
                 }
             }
-            foreach(string name in new[]{"光路调度路由查询.exe","光路调度智能分析.exe","管理方发布工具.exe","更换品牌图标.exe","管理方发布工具.cmd","管理方在线更新发布指南.md","使用说明.txt"})if(File.Exists(Path.Combine(runtime,name)))File.Copy(Path.Combine(runtime,name),Path.Combine(stage,name));
+            foreach(string name in new[]{"光路调度路由查询.exe","光路调度智能分析.exe","管理方发布工具.exe","管理方发布工具.cmd","管理方在线更新发布指南.md","使用说明.txt"})if(File.Exists(Path.Combine(runtime,name)))File.Copy(Path.Combine(runtime,name),Path.Combine(stage,name));
             Directory.CreateDirectory(Path.Combine(stage,"资源"));File.Copy(Path.Combine(workspace,"client-config","update-service.json"),Path.Combine(stage,"资源","update-service.json"));
             WriteSoftwarePackage(stage,software,version);
         }

@@ -2,7 +2,7 @@ name: Publish R1.5.0 download
 on:
   push:
     tags:
-      - r1.5.0-download-v3
+      - r1.5.0-download-v4
 permissions:
   contents: write
 jobs:

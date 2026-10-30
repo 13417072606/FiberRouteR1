@@ -46,7 +46,7 @@ public static class BrandApplication
         {
             void Add(string relative,byte[] bytes){string path=Path.Combine(stage,"new",relative);Directory.CreateDirectory(Path.GetDirectoryName(path)!);File.WriteAllBytes(path,bytes);files.Add(relative,path);}
             Add("资源/品牌原图.png",original);Add("资源/光路调度路由查询.ico",icon);Add("资源/光路调度智能分析.ico",icon);Add("程序/app.ico",icon);
-            foreach(string relative in new[]{"光路调度路由查询.exe","光路调度智能分析.exe","管理方发布工具.exe","更换品牌图标.exe","程序/FiberRouteR1.exe","程序/FiberRoute.Publisher.exe"})
+            foreach(string relative in new[]{"光路调度路由查询.exe","光路调度智能分析.exe","管理方发布工具.exe","程序/FiberRouteR1.exe","程序/FiberRoute.Publisher.exe"})
             {
                 string target=Path.Combine(root,relative);if(!File.Exists(target))continue;string copy=Path.Combine(stage,"new",relative);Directory.CreateDirectory(Path.GetDirectoryName(copy)!);File.Copy(target,copy);PatchExecutable(copy,icon);files.Add(relative,copy);
             }
@@ -54,7 +54,7 @@ public static class BrandApplication
             {
                 string target=Path.Combine(root,pair.Key),backup=Path.Combine(stage,"old",pair.Key);if(File.Exists(target)){Directory.CreateDirectory(Path.GetDirectoryName(backup)!);File.Copy(target,backup);}else backup="";changes.Add((target,backup.Length==0?null:backup));Directory.CreateDirectory(Path.GetDirectoryName(target)!);File.Copy(pair.Value,target,true);
             }
-            string saved=Path.Combine(root,"补丁备份","品牌图标");if(Directory.Exists(saved))Directory.Delete(saved,true);Directory.CreateDirectory(saved);string old=Path.Combine(stage,"old");if(Directory.Exists(old))foreach(string file in Directory.GetFiles(old,"*",SearchOption.AllDirectories)){string target=Path.Combine(saved,Path.GetRelativePath(old,file));Directory.CreateDirectory(Path.GetDirectoryName(target)!);File.Copy(file,target);}SHChangeNotify(0x08000000,0,IntPtr.Zero,IntPtr.Zero);
+SHChangeNotify(0x08000000,0,IntPtr.Zero,IntPtr.Zero);
         }
         catch{foreach(var change in changes.AsEnumerable().Reverse())try{if(change.Backup!=null)File.Copy(change.Backup,change.Path,true);else File.Delete(change.Path);}catch{}throw;}
         finally{if(Directory.Exists(stage))Directory.Delete(stage,true);}

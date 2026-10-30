@@ -37,7 +37,7 @@ if sys.argv[1] == '--payload':
     previous = json.loads(files.pop('补丁校验.json'))
     files.pop('R1.4.7更新说明.md')
     for name in list(files):
-        if name.startswith(('在线升级辅助/','服务器部署/','数据/','导出结果/')) or name.endswith(('更新说明.md','验证报告.md','文件校验SHA256.json')) or name in ('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','使用说明.txt','资源/update-service.example.json'):
+        if name.startswith(('在线升级辅助/','服务器部署/','数据/','导出结果/')) or name.endswith(('更新说明.md','验证报告.md','文件校验SHA256.json')) or name in ('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','使用说明.txt','资源/update-service.example.json','更换品牌图标.exe'):
             files.pop(name)
     for name in ['FiberRouteR1.dll', 'FiberRoute.Core.dll', 'FiberRouteR1.deps.json',
                  'FiberRouteR1.exe', 'FiberRouteR1.runtimeconfig.json', 'app.ico']:
@@ -92,7 +92,7 @@ if sys.argv[1] == '--payload':
 
     # Remove obsolete and redundant customer-facing files; keep runtime and legal notices.
     for name in list(program):
-        if name.startswith(('在线升级辅助/', '服务器部署/', '数据/', '导出结果/')) or name.endswith(('更新说明.md', '验证报告.md', '文件校验SHA256.json')) or name in ('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','使用说明.txt','资源/update-service.example.json','资源/中继段导入模板.csv','资源/节点类型模板.csv','资源/调测中继段.csv'):
+        if name.startswith(('在线升级辅助/', '服务器部署/', '数据/', '导出结果/')) or name.endswith(('更新说明.md', '验证报告.md', '文件校验SHA256.json')) or name in ('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','使用说明.txt','资源/update-service.example.json','资源/中继段导入模板.csv','资源/节点类型模板.csv','资源/调测中继段.csv','更换品牌图标.exe'):
             program.pop(name)
     program['在线升级辅助/补丁校验.json'] = files['在线升级辅助/补丁校验.json']
     # One-time migration baselines remain until applied on existing installations.
@@ -154,7 +154,7 @@ $backup = Join-Path $backupRoot ('R' + $previousVersion)
     }
     $legacyBackup = Join-Path $Target '补丁备份'
     if (Test-Path -LiteralPath $legacyBackup -PathType Container) { Remove-Item -LiteralPath $legacyBackup -Recurse -Force }
-    foreach ($obsolete in @('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','验证报告.md','文件校验SHA256.json','R1.4.7更新说明.md','R1.4.8更新说明.md','R1.4.9更新说明.md','在线升级辅助/Continue-Online-Update.ps1','在线升级辅助/使用说明.md','服务器部署/Windows服务器部署说明.md','服务器部署/Setup-IIS-UpdateDirectory.ps1')) {
+    foreach ($obsolete in @('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','验证报告.md','文件校验SHA256.json','R1.4.7更新说明.md','R1.4.8更新说明.md','R1.4.9更新说明.md','在线升级辅助/Continue-Online-Update.ps1','在线升级辅助/使用说明.md','更换品牌图标.exe','服务器部署/Windows服务器部署说明.md','服务器部署/Setup-IIS-UpdateDirectory.ps1')) {
         $oldFile = Join-Path $Target $obsolete
         if (Test-Path -LiteralPath $oldFile -PathType Leaf) { Remove-Item -LiteralPath $oldFile -Force }
     }
