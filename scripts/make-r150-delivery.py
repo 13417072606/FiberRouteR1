@@ -43,7 +43,7 @@ if sys.argv[1] == '--payload':
                  'FiberRouteR1.exe', 'FiberRouteR1.runtimeconfig.json', 'app.ico']:
         files['程序/' + name] = (root / 'artifacts/app-r150' / name).read_bytes()
     for project, folder in [('FiberRoute.Publisher', 'publisher-r150'),
-                            ('FiberRoute.Brand', 'brand-r149'), ('FiberRoute.Admin', 'admin-r149')]:
+                            ('FiberRoute.Brand', 'brand-r149'), ('FiberRoute.Admin', 'admin-r149'), ('FiberRoute.Updater', 'updater-r150')]:
         for ext in ['.exe', '.dll', '.deps.json', '.runtimeconfig.json']:
             files['程序/' + project + ext] = (root / 'artifacts' / folder / (project + ext)).read_bytes()
     files['资源/机房设施ID基线.db'] = (root / 'artifacts/room-id-r148.db').read_bytes()
@@ -53,6 +53,10 @@ if sys.argv[1] == '--payload':
     old = {f['Path']: f for f in previous['Files']}
     with zipfile.ZipFile(root / 'downloads/R1.4.9/FiberRouteR1-R1.4.9-patch.zip') as prior_zip:
         prior149 = {f['Path']: f['Sha256'] for f in json.loads(prior_zip.read('补丁校验.json'))['Files']}
+    prior150 = {}
+    if patch.exists():
+        with zipfile.ZipFile(patch) as earlier:
+            prior150 = {f['Path']: f['Sha256'] for f in json.loads(earlier.read('在线升级辅助/补丁校验.json'))['Files']}
     manifest = []
     for name, data in sorted(files.items()):
         hashes = old.get(name, {}).get('PreviousSha256', [])
@@ -60,6 +64,8 @@ if sys.argv[1] == '--payload':
             hashes = sorted(set(hashes + [old[name]['Sha256']]))
         if name in prior149:
             hashes = sorted(set(hashes + [prior149[name]]))
+        if name in prior150:
+            hashes = sorted(set(hashes + [prior150[name]]))
         manifest.append(dict(Path=name, Length=len(data), Sha256=sha(data), PreviousSha256=hashes))
     files['在线升级辅助/补丁校验.json'] = json.dumps(dict(Version='1.5.0', Files=manifest), ensure_ascii=False, indent=2).encode()
     archive(patch, files)
@@ -116,6 +122,22 @@ $backup = Join-Path $backupRoot ('R' + $previousVersion)
             Copy-Item -LiteralPath $destination -Destination $saved -Force
         }
         $snapshot = Join-Path (Join-Path $stage 'rollback') $file.Path""")
+    script = script.replace("    # Keep the update backup once.", "    # Keep the update backup once.")
+    script = script.replace("    # Keep the update backup once. Databases and original tables are never included in the patch.", "")
+    snapshot = """    $location = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'FiberRouteR1\\data-location.txt'
+    $dataRoot = if (Test-Path -LiteralPath $location -PathType Leaf) { (Get-Content -LiteralPath $location -Raw).Trim() } else { $Target }
+    if (!(Test-Path -LiteralPath $dataRoot -PathType Container)) { throw ('业务数据目录不存在：' + $dataRoot) }
+    foreach ($name in @('resources.db','resources.db-wal','resources.db-shm','personal.db','personal.db-wal','personal.db-shm')) {
+        $existingDb = Join-Path $dataRoot $name
+        if (Test-Path -LiteralPath $existingDb -PathType Leaf) {
+            $dataBackup = Join-Path (Join-Path $backup '业务数据') $name
+            New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($dataBackup)) -Force | Out-Null
+            Copy-Item -LiteralPath $existingDb -Destination $dataBackup -Force
+        }
+    }
+"""
+    script = script.replace("    # Keep the update backup once. Databases and original tables are never included in the patch.", "")
+    script = script.replace("    foreach ($file in $manifest.Files) {\n        $destination", snapshot + "    foreach ($file in $manifest.Files) {\n        $destination", 1)
     script = script.replace("    Write-Host ('SUCCESS:", """    # Remove backups older than the version replaced by this upgrade.
     if (Test-Path -LiteralPath $backupRoot) {
         Get-ChildItem -LiteralPath $backupRoot -Directory | Where-Object { $_.FullName -ne $backup } | Remove-Item -Recurse -Force

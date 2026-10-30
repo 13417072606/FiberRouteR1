@@ -21,8 +21,8 @@ if (!(Test-RunDirectory $Target)) { throw ('所选文件夹不是运行目录：
 if (Get-Process -Name FiberRouteR1,FiberRoute.Publisher,FiberRoute.Brand,FiberRoute.Updater,FiberRoute.Admin,FiberRoute.Online -ErrorAction SilentlyContinue) { throw '请关闭主程序、管理方工具和图标工具，再重新运行本补丁。' }
 $work = Join-Path ([IO.Path]::GetDirectoryName($Target)) 'R1.5.0补丁文件'
 New-Item -ItemType Directory -Path $work -Force | Out-Null
-$expectedSize = 17375146
-$expectedSha = '5f605a76005cf27f8b73275c10e97833b99e11d60ecd2b580dc5b02dd3d4b2a5'
+$expectedSize = 17375072
+$expectedSha = 'd198b923391abaed4c0b830e49594f5b9411af99873c0c2cb873d32c2182bb7c'
 function Test-Patch($path) {
     return ((Test-Path -LiteralPath $path -PathType Leaf) -and (Get-Item -LiteralPath $path).Length -eq $expectedSize -and (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -eq $expectedSha)
 }
@@ -58,7 +58,18 @@ try {
             if (@($file.PreviousSha256) -notcontains $current.ToLowerInvariant() -and $current -ne $file.Sha256) { throw ('现有文件与已发布的 R1.3 至 R1.4.7 不符，请勿混用补丁：' + $file.Path) }
         }
     }
-    # Keep the update backup once. Databases and original tables are never included in the patch.
+
+    $location = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'FiberRouteR1\data-location.txt'
+    $dataRoot = if (Test-Path -LiteralPath $location -PathType Leaf) { (Get-Content -LiteralPath $location -Raw).Trim() } else { $Target }
+    if (!(Test-Path -LiteralPath $dataRoot -PathType Container)) { throw ('业务数据目录不存在：' + $dataRoot) }
+    foreach ($name in @('resources.db','resources.db-wal','resources.db-shm','personal.db','personal.db-wal','personal.db-shm')) {
+        $existingDb = Join-Path $dataRoot $name
+        if (Test-Path -LiteralPath $existingDb -PathType Leaf) {
+            $dataBackup = Join-Path (Join-Path $backup '业务数据') $name
+            New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($dataBackup)) -Force | Out-Null
+            Copy-Item -LiteralPath $existingDb -Destination $dataBackup -Force
+        }
+    }
     foreach ($file in $manifest.Files) {
         $destination = Join-Path $Target $file.Path
         $existed = Test-Path -LiteralPath $destination -PathType Leaf
