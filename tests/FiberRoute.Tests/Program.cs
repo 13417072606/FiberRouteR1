@@ -32,6 +32,12 @@ if(args.Length==4&&args[0]=="--r145-full"){R145Checks.Full(args[1],args[2],args[
 int checks=0;
 void Check(bool ok,string label){checks++;if(!ok)throw new Exception("FAIL "+label);Console.WriteLine("PASS "+label);}
 string root=Path.Combine(Path.GetTempPath(),"fiber-tests-"+Guid.NewGuid());Directory.CreateDirectory(root);
+if(args.Length==1&&args[0]=="--online-only")
+{
+    try{await OnlineDeliveryChecks.Run(root,Check);Console.WriteLine($"ONLINE PASS: {checks} checks");}
+    finally{Directory.Delete(root,true);}
+    return;
+}
 if(args.Length==2&&args[0]=="--validate-package")
 {
     try{FiberRoute.Updater.PackageValidator.Extract(args[1],Path.Combine(root,"package"));Console.WriteLine("PASS complete delivery ZIP accepted by program updater");}

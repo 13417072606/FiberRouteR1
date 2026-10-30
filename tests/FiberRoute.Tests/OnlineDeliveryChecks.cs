@@ -12,17 +12,28 @@ static class OnlineDeliveryChecks
         using(var zip=ZipFile.OpenRead("downloads/R1.4.4/FiberRouteR1-R1.4.4-patch.zip"))File.WriteAllBytes(Path.Combine(runtime,"程序","FiberRouteR1.dll"),Read(zip.GetEntry("程序/FiberRouteR1.dll")!));
         File.WriteAllText(Path.Combine(runtime,"程序","FiberRouteR1.exe"),"entry-fixture");
         File.Copy(typeof(object).Assembly.Location,Path.Combine(runtime,"程序","System.Private.CoreLib.dll"));
-        File.WriteAllText(Path.Combine(runtime,"资源","update-service.json"),"old customer configuration");File.WriteAllText(Path.Combine(runtime,"资源","update-service.json.before-online-setup"),"old public config backup");
+        File.WriteAllText(Path.Combine(runtime,"资源","update-service.json"),"old customer configuration");File.WriteAllText(Path.Combine(runtime,"资源","update-service.json.before-online-setup"),"old public config backup");File.WriteAllText(Path.Combine(runtime,"资源","机房设施ID基线.db"),"private facility fixture");
         File.WriteAllText(Path.Combine(runtime,"程序","FiberRoute.Online.dll"),"auxiliary tool should not enter software package");
-        using(var noise=File.Create(Path.Combine(runtime,"程序","noise.bin")))for(int i=0;i<26;i++)noise.Write(RandomNumberGenerator.GetBytes(1024*1024));
+        using(var noise=File.Create(Path.Combine(runtime,"程序","noise.dll")))for(int i=0;i<26;i++)noise.Write(RandomNumberGenerator.GetBytes(1024*1024));
         Publishing.Initialize(workspace,"https://updates.example.test/");string key=Hash(Path.Combine(workspace,"private-key.pem"));
         string csv=Path.Combine(folder,"resources.csv");Csv.Write(csv,new object?[][]{["ID","始端设施","终端设施","长度","空闲数量","中继纤芯数量"],["a","GJ01","GF01",1,2,4]});var store=new Store(Path.Combine(runtime,"数据"));await store.ImportAsync(csv,"自动",Store.Fields.ToDictionary(f=>f,f=>f),1,null,default);
         var before=new[]{store.Database,store.Personal}.ToDictionary(p=>p,Hash);string signingFile=Path.Combine(runtime,"程序","private-key.pem");File.WriteAllText(signingFile,"sensitive fixture");bool privateBlocked=false;try{OnlineDelivery.Prepare(workspace,runtime,store.Root,"2026-10-28.blocked");}catch(InvalidDataException ex)when(ex.Message.Contains("私钥")){privateBlocked=true;}finally{File.Delete(signingFile);}check(privateBlocked&&!File.Exists(Path.Combine(workspace,"site","manifest.json")),"online preparation rejects real signing-key paths before publishing a software channel");
         string prepared=OnlineDelivery.Prepare(workspace,runtime,store.Root,"2026-10-28.210000");
         check(prepared.Contains("已生成 Cloudflare 上传 ZIP")&&before.All(p=>Hash(p.Key)==p.Value)&&Hash(Path.Combine(workspace,"private-key.pem"))==key,"online preparation reuses the signing key and preserves both administrator databases");
-        string corePackage=Path.Combine(folder,"core-program.zip");Publishing.BuildProgramPackage(runtime,corePackage,"1.4.4");using(var coreZip=ZipFile.OpenRead(corePackage))check(coreZip.GetEntry("程序/System.Private.CoreLib.dll")!=null,"core publisher accepts the required System.Private.CoreLib runtime assembly");
+        string corePackage=Path.Combine(folder,"core-program.zip");Publishing.BuildProgramPackage(runtime,corePackage,"1.4.4");using(var coreZip=ZipFile.OpenRead(corePackage))check(coreZip.GetEntry("程序/System.Private.CoreLib.dll")!=null&&coreZip.GetEntry("资源/机房设施ID基线.db")==null,"core publisher keeps the required runtime assembly and excludes facility baselines");
         var config=Updates.LoadConfig(Path.Combine(workspace,"update-service.json"))!;var release=Updates.VerifyEnvelope(File.ReadAllBytes(Path.Combine(workspace,"site","manifest.json")),config.PublicKeyPem);
         check(release.Program?.Version=="1.4.4"&&release.Program.Parts?.Length==2&&release.Resources?.Version=="2026-10-28.210000","online preparation publishes both channels and automatically splits the real oversized software package");
+        Publishing.SaveConfiguration(workspace,"https://updates.example.test/");var restored=Updates.VerifyEnvelope(File.ReadAllBytes(Path.Combine(workspace,"site","manifest.json")),config.PublicKeyPem);
+        check(Hash(Path.Combine(workspace,"private-key.pem"))==key&&restored.Program?.Version==release.Program?.Version&&restored.Resources?.Version==release.Resources?.Version,"reconfiguring a recovered workspace retains the original signing key and both channels");
+        string another=Path.Combine(folder,"different-key");Publishing.Initialize(another,"https://updates.example.test/");string privateKey=Path.Combine(workspace,"private-key.pem"),savedKey=File.ReadAllText(privateKey);File.Copy(Path.Combine(another,"private-key.pem"),privateKey,true);
+        bool wrongKeyBlocked=false;try{Publishing.SaveConfiguration(workspace,"https://updates.example.test/");}catch(InvalidDataException){wrongKeyBlocked=true;}finally{File.WriteAllText(privateKey,savedKey);}
+        check(wrongKeyBlocked&&Hash(privateKey)==key,"publisher refuses a replacement signing key for an existing client configuration");
+        string adminUpload=PublishingDelivery.BuildCloudflareUpload(workspace,Path.Combine(workspace,"admin-upload.zip"));
+        using(var upload=ZipFile.OpenRead(adminUpload))
+        {
+            var entries=upload.Entries.Select(e=>e.FullName).ToArray();var active=PublishingDelivery.ActiveFiles(workspace);
+            check(entries.Order().SequenceEqual(active.Order())&&entries.Contains("manifest.json")&&!entries.Any(n=>n.Contains("private-key")||n.Contains("release-payload")||n.Contains("personal.db")),"administrator Cloudflare upload contains only signed active files and no private workspace material");
+        }
         using(var upload=ZipFile.OpenRead(Path.Combine(workspace,"待上传-2026-10-28.210000.zip")))
         {
             var names=upload.Entries.Select(e=>e.FullName).ToArray();check(names.Contains("manifest.json")&&names.Contains("health.json")&&names.Any(n=>n.StartsWith("program/"))&&names.Any(n=>n.StartsWith("data/"))&&!names.Any(n=>n.StartsWith("site/")||n.Contains("private")||n.Contains("personal.db")),"Cloudflare upload ZIP preserves the root manifest and channel directories without keys, raw personal data or an extra site folder");
@@ -30,7 +41,7 @@ static class OnlineDeliveryChecks
         using(var software=ZipFile.OpenRead(Path.Combine(workspace,"packages","软件-1.4.4.zip")))
         {
             var names=software.Entries.Select(e=>e.FullName).ToArray();var shipped=JsonSerializer.Deserialize<UpdateConfig>(Read(software.GetEntry("资源/update-service.json")!));
-            check(shipped==config&&names.Contains("程序/System.Private.CoreLib.dll")&&!names.Any(n=>n.Contains("before-online-setup")||n.Contains("FiberRoute.Online.")),"software package contains the matching public configuration and omits stale configuration backups and auxiliary tooling");
+            check(shipped==config&&names.Contains("程序/System.Private.CoreLib.dll")&&!names.Any(n=>n.Contains("before-online-setup")||n.Contains("FiberRoute.Online.")||n.EndsWith("机房设施ID基线.db")),"software package contains the matching public configuration and omits facility baselines, stale backups and auxiliary tooling");
         }
         check(Updates.LoadConfig(Path.Combine(runtime,"资源","update-service.json"))==config&&File.ReadAllText(Path.Combine(runtime,"资源","update-service.json.before-online-setup"))=="old customer configuration","local client configuration is installed with the preceding configuration retained");
         using var http=new HttpClient(new Files(Path.Combine(workspace,"site")));string verified=await OnlineDelivery.Verify(workspace,transport:http);

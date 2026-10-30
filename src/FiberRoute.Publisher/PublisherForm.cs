@@ -69,14 +69,25 @@ public sealed class PublisherForm:Form
     {
         var page=Card(tabs.TabPages[2],"生成签名发布清单","选择上一步生成的更新包。软件和数据独立发布，发布一个渠道会保留另一个渠道。");
         log.Dock=DockStyle.Fill;log.BorderStyle=BorderStyle.None;log.BackColor=Color.FromArgb(246,249,253);page.Controls.Add(log);
-        ActionRow(page,ActionButton("生成发布清单",async ct=>{string kind=channel.SelectedIndex==0?"data":"software",directory=work.Text,release=version.Text.Trim(),file=package.Text,note=notes.Text;state.Text="正在校验更新包并生成清单…";var prepared=await Task.Run(()=>{var item=Publishing.Release(directory,kind,release,file,note);return (Item:item,Files:PublishingDelivery.ActiveFiles(directory));},ct);var result=prepared.Item;log.Text=$"软件版本：{result.Program?.Version??"尚未发布"}\r\n数据版本：{result.Resources?.Version??"尚未发布"}\r\n\r\n本次待发布文件：\r\n"+string.Join("\r\n",prepared.Files)+"\r\n\r\n下一步：Cloudflare上传site内全部内容（文件夹结构不变）；单位服务器可使用第4步复制。";state.Text="签名清单已生成，尚未上传服务器。";}),ActionButton("打开待发布目录",ct=>{OpenFolder(Path.Combine(work.Text,"site"));return Task.CompletedTask;},false));
+        ActionRow(page,ActionButton("生成发布清单",async ct=>
+        {
+            string kind=channel.SelectedIndex==0?"data":"software",directory=work.Text,release=version.Text.Trim(),file=package.Text,note=notes.Text;
+            state.Text="正在校验更新包并生成清单…";
+            var result=await Task.Run(()=>Publishing.Release(directory,kind,release,file,note),ct);
+            string[] files=[];string pending="";
+            try{files=PublishingDelivery.ActiveFiles(directory);}
+            catch(FileNotFoundException e){pending="\r\n尚缺旧渠道文件："+e.Message+"\r\n请继续发布本轮另一渠道；两者齐全后才能生成上传ZIP。";}
+            log.Text=$"软件版本：{result.Program?.Version??"尚未发布"}\r\n数据版本：{result.Resources?.Version??"尚未发布"}\r\n\r\n当前可发布文件：\r\n"+string.Join("\r\n",files)+pending+"\r\n\r\n两渠道齐全后，在第4步生成Cloudflare上传ZIP。";
+            state.Text=pending.Length>0?"清单已生成；请补齐另一渠道文件。":"签名清单和两渠道文件已齐全，尚未上传。";
+        }),ActionButton("打开待发布目录",ct=>{OpenFolder(Path.Combine(work.Text,"site"));return Task.CompletedTask;},false));
         var fields=Fields(page);Field(fields,"更新包ZIP",package,()=>{using var pick=new OpenFileDialog{Filter="更新包ZIP|*.zip"};if(pick.ShowDialog(this)!=DialogResult.OK)return;package.Text=pick.FileName;using var zip=System.IO.Compression.ZipFile.OpenRead(package.Text);var entry=zip.GetEntry("manifest.json")??zip.GetEntry("更新清单.json")??throw new InvalidDataException("不是受支持的更新包");channel.SelectedIndex=entry.FullName=="manifest.json"?0:1;using var stream=entry.Open();using var data=JsonDocument.Parse(stream);version.Text=data.RootElement.GetProperty("Version").GetString();});
     }
     void BuildPublish()
     {
         var page=Card(tabs.TabPages[3],"发布到单位服务器并验证","通过单位内网共享或在服务器本机运行本工具，将包写入已建立的更新目录。HTTPS读取面向客户，发布目录写入权限由单位管理。");
-        Message(page,"发布顺序：大于24MiB的版本包自动生成分片，签名清单同时记录逐片与整体校验。先校验并复制版本包，最后替换manifest.json。每个文件写入后会再次核对SHA256。\nCloudflare用户跳过复制按钮，在现有Pages项目创建生产部署并上传site内全部内容。随后验证外网清单，并在一台客户电脑测试更新。\n\n没有服务器网址时，请先让网管确认现有网站域名、HTTPS证书和更新目录位置。",125);
+        Message(page,"发布顺序：大于24MiB的版本包自动生成分片，签名清单同时记录逐片与整体校验。先校验并复制版本包，最后替换manifest.json。每个文件写入后会再次核对SHA256。\nCloudflare用户先生成上传ZIP，在现有Pages项目创建生产部署并上传该ZIP。随后验证外网清单，并在一台客户电脑测试更新。\n\n没有服务器网址时，请先让网管确认现有网站域名、HTTPS证书和更新目录位置。",125);
         var publishRow=ActionRow(page,ActionButton("发布到服务器目录",async ct=>{if(string.IsNullOrWhiteSpace(destination.Text))throw new InvalidDataException("请在第2步选择服务器发布目录");string workspace=work.Text,target=destination.Text;var progress=new Progress<PublishingDelivery.TransferProgress>(p=>state.Text=$"发布中：{p.Name} · {p.Bytes*100/Math.Max(1,p.Total)}%");await Task.Run(()=>PublishingDelivery.PublishDirectory(workspace,target,progress,ct),ct);state.Text="服务器目录写入完成；请继续验证外网清单。";}),ActionButton("验证外网清单",async ct=>{await PublishingDelivery.VerifyRemote(work.Text,ct);state.Text="外网签名清单与本次发布一致。请在客户机测试更新。";},false),ActionButton("打开服务器目录",ct=>{if(string.IsNullOrWhiteSpace(destination.Text))throw new InvalidDataException("请先设置服务器发布目录");OpenFolder(destination.Text);return Task.CompletedTask;},false));
+        ActionRow(page,ActionButton("生成 Cloudflare 上传ZIP",async ct=>{string workspace=Path.GetFullPath(work.Text),target=Path.Combine(workspace,"待上传-"+DateTime.Now.ToString("yyyyMMdd-HHmmss")+".zip");ct.ThrowIfCancellationRequested();await Task.Run(()=>PublishingDelivery.BuildCloudflareUpload(workspace,target),ct);state.Text="只含当前发布文件的上传包已生成："+target;},false),ActionButton("打开管理工作目录",ct=>{OpenFolder(work.Text);return Task.CompletedTask;},false));
         stop.Click+=(_,_)=>job?.Cancel();publishRow.Controls.Add(stop);
     }
     async Task Run(Func<CancellationToken,Task> action)

@@ -25,8 +25,16 @@ public static class Publishing
     public static void SaveConfiguration(string directory,string baseUrl)
     {
         var uri=new Uri(baseUrl.EndsWith('/')?baseUrl:baseUrl+"/");if(uri.Scheme!="https"||uri.UserInfo.Length>0||uri.Query.Length>0||uri.Fragment.Length>0||uri.AbsolutePath.TrimEnd('/').EndsWith(".json",StringComparison.OrdinalIgnoreCase))throw new ArgumentException("请填写真实HTTPS更新目录地址，例如https://单位域名/fiber-updates/，不要填写清单文件地址");
-        string key=Path.Combine(directory,"private-key.pem");if(!File.Exists(key)){Initialize(directory,baseUrl);return;}using var rsa=RSA.Create();rsa.ImportFromPem(File.ReadAllText(key));var config=new UpdateConfig(new Uri(uri,"manifest.json").AbsoluteUri,rsa.ExportSubjectPublicKeyInfoPem());
-        string payloadFile=Path.Combine(directory,"release-payload.json");var current=File.Exists(payloadFile)?JsonSerializer.Deserialize<ReleaseManifest>(File.ReadAllText(payloadFile))??new(null,null):new ReleaseManifest(null,null);
+        string key=Path.Combine(directory,"private-key.pem"),payloadFile=Path.Combine(directory,"release-payload.json"),oldManifest=Path.Combine(directory,"site","manifest.json"),oldConfig=Path.Combine(directory,"update-service.json");
+        if(!File.Exists(key))
+        {
+            if(File.Exists(payloadFile)||File.Exists(oldManifest)||File.Exists(oldConfig))throw new InvalidDataException("现有发布工作区缺少原签名私钥；不会生成第二套密钥覆盖旧客户端配置");
+            Initialize(directory,baseUrl);return;
+        }
+        using var rsa=RSA.Create();rsa.ImportFromPem(File.ReadAllText(key));var config=new UpdateConfig(new Uri(uri,"manifest.json").AbsoluteUri,rsa.ExportSubjectPublicKeyInfoPem());
+        var previousConfig=Updates.LoadConfig(oldConfig);
+        if(previousConfig!=null){using var previousKey=RSA.Create();previousKey.ImportFromPem(previousConfig.PublicKeyPem);if(!previousKey.ExportSubjectPublicKeyInfo().SequenceEqual(rsa.ExportSubjectPublicKeyInfo()))throw new InvalidDataException("工作区私钥与原客户公钥不匹配，已停止；请找回原密钥");}
+        var current=File.Exists(oldManifest)?Updates.VerifyEnvelope(File.ReadAllBytes(oldManifest),config.PublicKeyPem):File.Exists(payloadFile)?JsonSerializer.Deserialize<ReleaseManifest>(File.ReadAllText(payloadFile))??new(null,null):new ReleaseManifest(null,null);
         ReleaseItem? Rebase(ReleaseItem? item,bool program)
         {
             if(item==null)return null;string relative=(program?"program/":"data/")+item.Version+"/"+(program?"program-":"resources-")+item.Version+".zip";
@@ -39,8 +47,18 @@ public static class Publishing
     {
         ValidVersion(version);string assembly=Path.Combine(root,"程序","FiberRouteR1.dll");if(!File.Exists(assembly))throw new FileNotFoundException("请选择包含“程序”文件夹的新版本完整运行目录");if(AssemblyName.GetAssemblyName(assembly).Version?.ToString(3)!=version)throw new InvalidDataException("发布版本必须与新版本DLL一致，例如1.4.0");
         var files=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
-        foreach(string directory in new[]{"程序","资源","第三方许可","服务器部署"}){string path=Path.Combine(root,directory);if(!Directory.Exists(path))continue;foreach(string file in Directory.GetFiles(path,"*",SearchOption.AllDirectories)){string relative=Path.GetRelativePath(root,file).Replace('\\','/');if(relative.EndsWith(".pdb",StringComparison.OrdinalIgnoreCase)||relative.Contains(".partial",StringComparison.OrdinalIgnoreCase))continue;if(SigningMaterial(file))throw new InvalidDataException("软件目录中发现私钥文件，拒绝发布");files.Add(relative,file);}}
-        foreach(string name in new[]{"光路调度路由查询.exe","光路调度智能分析.exe","管理方发布工具.exe","更换品牌图标.exe","管理方发布工具.cmd","管理方在线更新发布指南.md","使用说明.txt"})if(File.Exists(Path.Combine(root,name)))files.Add(name,Path.Combine(root,name));
+        // Software updates contain only executable files. The resource folder can contain real
+        // facility/station databases, which must never be published as part of a program update.
+        string program=Path.Combine(root,"程序");
+        if(Directory.Exists(program))foreach(string file in Directory.GetFiles(program,"*",SearchOption.AllDirectories))
+        {
+            string relative=Path.GetRelativePath(root,file).Replace('\\','/'),name=Path.GetFileName(file);
+            if(relative.EndsWith(".pdb",StringComparison.OrdinalIgnoreCase)||relative.Contains(".partial",StringComparison.OrdinalIgnoreCase)||name.StartsWith("FiberRoute.Publisher.",StringComparison.OrdinalIgnoreCase)||name.StartsWith("FiberRoute.Admin.",StringComparison.OrdinalIgnoreCase)||name.StartsWith("FiberRoute.Online.",StringComparison.OrdinalIgnoreCase))continue;
+            if(SigningMaterial(file))throw new InvalidDataException("软件目录中发现私钥文件，拒绝发布");
+            if(!new[]{".dll",".exe",".ico"}.Contains(Path.GetExtension(name),StringComparer.OrdinalIgnoreCase)&&!name.EndsWith(".deps.json",StringComparison.OrdinalIgnoreCase)&&!name.EndsWith(".runtimeconfig.json",StringComparison.OrdinalIgnoreCase))continue;
+            files.Add(relative,file);
+        }
+        string launcher=Path.Combine(root,"光路调度路由查询.exe");if(File.Exists(launcher))files.Add("光路调度路由查询.exe",launcher);
         var manifest=new{Version=version,Files=files.Select(pair=>new{Path=pair.Key,Bytes=new FileInfo(pair.Value).Length,Sha256=Hash(pair.Value)}).ToArray()};Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(destination))!);string temp=destination+".partial";try{if(File.Exists(temp))File.Delete(temp);using(var archive=ZipFile.Open(temp,ZipArchiveMode.Create)){foreach(var file in files)archive.CreateEntryFromFile(file.Value,file.Key,CompressionLevel.Optimal);using var writer=new StreamWriter(archive.CreateEntry("更新清单.json").Open());writer.Write(JsonSerializer.Serialize(manifest));}File.Move(temp,destination,true);}finally{if(File.Exists(temp))File.Delete(temp);}
     }
     static void WriteSiteExtras(string site)

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.IO.Compression;
 namespace FiberRoute.Core;
 public static partial class PublishingDelivery
 {
@@ -19,6 +20,22 @@ public static partial class PublishingDelivery
             }
         }
         foreach(string name in new[]{"health.json","index.html","_headers"})if(File.Exists(Path.Combine(site,name)))result.Add(name);result.Add("manifest.json");return result.ToArray();
+    }
+    public static string BuildCloudflareUpload(string workspace,string destination)
+    {
+        string site=Path.Combine(Path.GetFullPath(workspace),"site"),target=Path.GetFullPath(destination),temporary=target+".partial";
+        if(target.StartsWith(site+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("上传包不能放在公开 site 目录内");
+        if(File.Exists(target))throw new IOException("同名上传包已存在，请使用新的文件名");
+        string[] active=ActiveFiles(workspace);
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        try
+        {
+            using(var zip=ZipFile.Open(temporary,ZipArchiveMode.Create))foreach(string relative in active)
+                zip.CreateEntryFromFile(Path.Combine(site,relative),relative.Replace('\\','/'),CompressionLevel.NoCompression);
+            File.Move(temporary,target);
+            return target;
+        }
+        finally{if(File.Exists(temporary))File.Delete(temporary);}
     }
     public static async Task PublishDirectory(string workspace,string destination,IProgress<TransferProgress>? progress=null,CancellationToken ct=default)
     {
