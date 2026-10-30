@@ -57,7 +57,7 @@ if sys.argv[1] == '--payload':
         if hashes:
             hashes = sorted(set(hashes + [old[name]['Sha256']]))
         manifest.append(dict(Path=name, Length=len(data), Sha256=sha(data), PreviousSha256=hashes))
-    files['补丁校验.json'] = json.dumps(dict(Version='1.5.0', Files=manifest), ensure_ascii=False, indent=2).encode()
+    files['在线升级辅助/补丁校验.json'] = json.dumps(dict(Version='1.5.0', Files=manifest), ensure_ascii=False, indent=2).encode()
     archive(patch, files)
 
     baseprefix = '光路调度路由查询R1.4.7/'
@@ -67,13 +67,14 @@ if sys.argv[1] == '--payload':
     for p in (root / 'artifacts/app-r150').iterdir():
         if p.is_file() and p.suffix != '.pdb':
             program['程序/' + p.name] = p.read_bytes()
-    program.update({name: data for name, data in files.items() if name != '补丁校验.json'})
+    program.update({name: data for name, data in files.items() if name != '在线升级辅助/补丁校验.json'})
 
 
     # Remove obsolete and redundant customer-facing files; keep runtime and legal notices.
     for name in list(program):
         if name.startswith(('在线升级辅助/', '服务器部署/', '数据/', '导出结果/')) or name.endswith(('更新说明.md', '验证报告.md', '文件校验SHA256.json')) or name in ('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','使用说明.txt','资源/update-service.example.json','资源/中继段导入模板.csv','资源/节点类型模板.csv','资源/调测中继段.csv'):
             program.pop(name)
+    program['在线升级辅助/补丁校验.json'] = files['在线升级辅助/补丁校验.json']
     # One-time migration baselines remain until applied on existing installations.
     program['程序/FiberRoute.Publisher.dll'] = (root/'artifacts/publisher-r150/FiberRoute.Publisher.dll').read_bytes()
     program['程序/FiberRoute.Publisher.deps.json'] = (root/'artifacts/publisher-r150/FiberRoute.Publisher.deps.json').read_bytes()
@@ -82,7 +83,10 @@ if sys.argv[1] == '--payload':
 
     prefix = '光路调度路由查询R1.5.0/'
     archive(full, {prefix + n: data for n, data in program.items()})
-    assert full.stat().st_size < 100 * 1024 * 1024, 'split full ZIP before publishing oversized Git blobs'
+    assert full.stat().st_size < 100 * 1024 * 1024
+    content=full.read_bytes(); partsize=15*1024*1024
+    for i,start in enumerate(range(0,len(content),partsize),1):
+        (out / f'{full.name}.{i:03d}').write_bytes(content[start:start+partsize])
 
 elif sys.argv[1] == '--bundle':
     script = (root / 'downloads/R1.4.7/Install-R1.4.7-patch.ps1').read_text(encoding='utf-8-sig').replace('R1.4.7', 'R1.5.0')
@@ -93,7 +97,9 @@ elif sys.argv[1] == '--bundle':
         allowed = sorted(z.namelist())
     script = re.sub(r'    \$allowed = @\([^\n]+\)', '    $allowed = @(' + ','.join("'" + n + "'" for n in allowed) + ')', script)
     script = script.replace('R1.3 至 R1.4.6 不符', 'R1.3 至 R1.4.7 不符')
-    script = script.replace("$backup = Join-Path $Target '补丁备份\\R1.5.0'", "$backup = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'FiberRouteR1\\补丁备份\\R1.5.0'")
+    script = script.replace("$backup = Join-Path $Target '补丁备份\\R1.5.0'", '')
+    script = script.replace("    $manifest = Get-Content -LiteralPath (Join-Path $stage '补丁校验.json')", "    $manifest = Get-Content -LiteralPath (Join-Path $stage '在线升级辅助\\补丁校验.json')")
+    script = re.sub(r"(?s)        \$saved = Join-Path \$backup \$file.Path\n        if \(\$existed\) \{.*?\n        \}\n        \$snapshot", '        $snapshot', script)
     installer.write_text(script, encoding='utf-8-sig')
     with zipfile.ZipFile(root / 'downloads/R1.4.7/FiberRouteR1-R1.4.7-install.zip') as z:
         command = z.read('R1.4.7补丁/安装补丁.cmd').replace(b'R1.4.7', b'R1.5.0')
