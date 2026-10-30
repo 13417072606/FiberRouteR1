@@ -51,11 +51,15 @@ if sys.argv[1] == '--payload':
 
 
     old = {f['Path']: f for f in previous['Files']}
+    with zipfile.ZipFile(root / 'downloads/R1.4.9/FiberRouteR1-R1.4.9-patch.zip') as prior_zip:
+        prior149 = {f['Path']: f['Sha256'] for f in json.loads(prior_zip.read('补丁校验.json'))['Files']}
     manifest = []
     for name, data in sorted(files.items()):
         hashes = old.get(name, {}).get('PreviousSha256', [])
         if hashes:
             hashes = sorted(set(hashes + [old[name]['Sha256']]))
+        if name in prior149:
+            hashes = sorted(set(hashes + [prior149[name]]))
         manifest.append(dict(Path=name, Length=len(data), Sha256=sha(data), PreviousSha256=hashes))
     files['在线升级辅助/补丁校验.json'] = json.dumps(dict(Version='1.5.0', Files=manifest), ensure_ascii=False, indent=2).encode()
     archive(patch, files)
