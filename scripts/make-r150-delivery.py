@@ -74,8 +74,8 @@ if sys.argv[1] == '--payload':
         hashes = sorted(set(hashes).union(legacy.get(name, set())))
         if name == '资源/机房设施ID基线.db':
             hashes = [] # New in later releases; absent in R1.4.6 is valid.
-        if name in ('光路调度路由查询.exe','管理方发布工具.exe','程序/FiberRouteR1.exe','程序/FiberRoute.Publisher.exe'):
-            hashes = [] # Brand customization changes launcher bytes; core DLLs remain strictly checked.
+        if name not in ('程序/FiberRouteR1.dll','程序/FiberRoute.Core.dll'):
+            hashes = [] # Only core binaries identify the installed release; launchers and helpers may be customized.
         manifest.append(dict(Path=name, Length=len(data), Sha256=sha(data), PreviousSha256=hashes))
     files['在线升级辅助/补丁校验.json'] = json.dumps(dict(Version='1.5.0', Files=manifest), ensure_ascii=False, indent=2).encode()
     archive(patch, files)
