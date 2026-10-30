@@ -69,11 +69,11 @@ public static class OnlineDelivery
                 {
                     ct.ThrowIfCancellationRequested();string relative=Path.GetRelativePath(runtime,file);
                     if(SigningKeyFile(file))throw new InvalidDataException("软件目录中发现私钥文件，拒绝发布："+Path.GetFileName(file));
-                    if(Path.GetFileName(file).StartsWith("FiberRoute.Online.",StringComparison.OrdinalIgnoreCase)||relative.Replace('\\','/')=="资源/update-service.json"||file.EndsWith(".before-online-setup",StringComparison.OrdinalIgnoreCase))continue;
+                    if(Path.GetFileName(file).StartsWith("FiberRoute.Online.",StringComparison.OrdinalIgnoreCase)||Path.GetFileName(file).StartsWith("FiberRoute.Publisher.",StringComparison.OrdinalIgnoreCase)||Path.GetFileName(file).StartsWith("FiberRoute.Admin.",StringComparison.OrdinalIgnoreCase)||relative.Replace('\\','/')=="资源/update-service.json"||file.EndsWith(".before-online-setup",StringComparison.OrdinalIgnoreCase))continue;
                     string destination=Path.Combine(stage,relative);Directory.CreateDirectory(Path.GetDirectoryName(destination)!);File.Copy(file,destination);
                 }
             }
-            foreach(string name in new[]{"光路调度路由查询.exe","光路调度智能分析.exe","管理方发布工具.exe","管理方发布工具.cmd","管理方在线更新发布指南.md","使用说明.txt"})if(File.Exists(Path.Combine(runtime,name)))File.Copy(Path.Combine(runtime,name),Path.Combine(stage,name));
+            foreach(string name in new[]{"光路调度路由查询.exe","光路调度智能分析.exe","管理方发布工具.cmd","管理方在线更新发布指南.md","使用说明.txt"})if(File.Exists(Path.Combine(runtime,name)))File.Copy(Path.Combine(runtime,name),Path.Combine(stage,name));
             Directory.CreateDirectory(Path.Combine(stage,"资源"));File.Copy(Path.Combine(workspace,"client-config","update-service.json"),Path.Combine(stage,"资源","update-service.json"));
             WriteSoftwarePackage(stage,software,version);
         }

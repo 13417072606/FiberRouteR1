@@ -43,9 +43,12 @@ if sys.argv[1] == '--payload':
                  'FiberRouteR1.exe', 'FiberRouteR1.runtimeconfig.json', 'app.ico']:
         files['程序/' + name] = (root / 'artifacts/app-r150' / name).read_bytes()
     for project, folder in [('FiberRoute.Publisher', 'publisher-r150'),
-                            ('FiberRoute.Brand', 'brand-r149'), ('FiberRoute.Admin', 'admin-r149'), ('FiberRoute.Updater', 'updater-r150')]:
+                            ('FiberRoute.Brand', 'brand-r149'), ('FiberRoute.Updater', 'updater-r150')]:
         for ext in ['.exe', '.dll', '.deps.json', '.runtimeconfig.json']:
             files['程序/' + project + ext] = (root / 'artifacts' / folder / (project + ext)).read_bytes()
+    for name in list(files):
+        if name == '管理方发布工具.exe' or name.startswith(('程序/FiberRoute.Publisher.', '程序/FiberRoute.Admin.')):
+            files.pop(name)
     files['资源/机房设施ID基线.db'] = (root / 'artifacts/room-id-r148.db').read_bytes()
 
 
@@ -61,7 +64,8 @@ if sys.argv[1] == '--payload':
     prior150 = {}
     if patch.exists():
         with zipfile.ZipFile(patch) as earlier:
-            prior150 = {f['Path']: f['Sha256'] for f in json.loads(earlier.read('在线升级辅助/补丁校验.json'))['Files']}
+            old_manifest = '在线升级辅助/文件校验SHA256.json' if '在线升级辅助/文件校验SHA256.json' in earlier.namelist() else '在线升级辅助/补丁校验.json'
+            prior150 = {f['Path']: f['Sha256'] for f in json.loads(earlier.read(old_manifest))['Files']}
     manifest = []
     for name, data in sorted(files.items()):
         hashes = old.get(name, {}).get('PreviousSha256', [])
@@ -77,7 +81,7 @@ if sys.argv[1] == '--payload':
         if name not in ('程序/FiberRouteR1.dll','程序/FiberRoute.Core.dll'):
             hashes = [] # Only core binaries identify the installed release; launchers and helpers may be customized.
         manifest.append(dict(Path=name, Length=len(data), Sha256=sha(data), PreviousSha256=hashes))
-    files['在线升级辅助/补丁校验.json'] = json.dumps(dict(Version='1.5.0', Files=manifest), ensure_ascii=False, indent=2).encode()
+    files['在线升级辅助/文件校验SHA256.json'] = json.dumps(dict(Version='1.5.0', Files=manifest), ensure_ascii=False, indent=2).encode()
     archive(patch, files)
 
     baseprefix = '光路调度路由查询R1.4.7/'
@@ -87,20 +91,21 @@ if sys.argv[1] == '--payload':
     for p in (root / 'artifacts/app-r150').iterdir():
         if p.is_file() and p.suffix != '.pdb':
             program['程序/' + p.name] = p.read_bytes()
-    program.update({name: data for name, data in files.items() if name != '在线升级辅助/补丁校验.json'})
+    program.update({name: data for name, data in files.items() if name != '在线升级辅助/文件校验SHA256.json'})
 
 
     # Remove obsolete and redundant customer-facing files; keep runtime and legal notices.
     for name in list(program):
         if name.startswith(('在线升级辅助/', '服务器部署/', '数据/', '导出结果/')) or name.endswith(('更新说明.md', '验证报告.md', '文件校验SHA256.json')) or name in ('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','使用说明.txt','资源/update-service.example.json','资源/中继段导入模板.csv','资源/节点类型模板.csv','资源/调测中继段.csv','更换品牌图标.exe'):
             program.pop(name)
-    program['在线升级辅助/补丁校验.json'] = files['在线升级辅助/补丁校验.json']
+    for name in list(program):
+        if name == '管理方发布工具.exe' or name.startswith(('程序/FiberRoute.Publisher.', '程序/FiberRoute.Admin.')):
+            program.pop(name)
+    program.pop('在线升级辅助/文件校验SHA256.json', None)
     # One-time migration baselines remain until applied on existing installations.
-    program['程序/FiberRoute.Publisher.dll'] = (root/'artifacts/publisher-r150/FiberRoute.Publisher.dll').read_bytes()
-    program['程序/FiberRoute.Publisher.deps.json'] = (root/'artifacts/publisher-r150/FiberRoute.Publisher.deps.json').read_bytes()
-    program['程序/FiberRoute.Publisher.runtimeconfig.json'] = (root/'artifacts/publisher-r150/FiberRoute.Publisher.runtimeconfig.json').read_bytes()
     assert not any(n.endswith(('personal.db', 'resources.db', 'private-key.pem')) for n in program)
 
+    program['在线升级辅助/文件校验SHA256.json'] = json.dumps(dict(Version='1.5.0',Files=[dict(Path=n,Length=len(d),Sha256=sha(d)) for n,d in sorted(program.items())]), ensure_ascii=False, indent=2).encode()
     prefix = '光路调度路由查询R1.5.0/'
     archive(full, {prefix + n: data for n, data in program.items()})
     assert full.stat().st_size < 100 * 1024 * 1024
@@ -154,9 +159,13 @@ $backup = Join-Path $backupRoot ('R' + $previousVersion)
     }
     $legacyBackup = Join-Path $Target '补丁备份'
     if (Test-Path -LiteralPath $legacyBackup -PathType Container) { Remove-Item -LiteralPath $legacyBackup -Recurse -Force }
-    foreach ($obsolete in @('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','验证报告.md','文件校验SHA256.json','R1.4.6更新说明.md','机房归属来源复核.xlsx','R1.4.7更新说明.md','R1.4.8更新说明.md','R1.4.9更新说明.md','在线升级辅助/Continue-Online-Update.ps1','在线升级辅助/使用说明.md','更换品牌图标.exe','服务器部署/Windows服务器部署说明.md','服务器部署/Setup-IIS-UpdateDirectory.ps1')) {
+    foreach ($obsolete in @('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','验证报告.md','文件校验SHA256.json','R1.4.6更新说明.md','机房归属来源复核.xlsx','R1.4.7更新说明.md','R1.4.8更新说明.md','R1.4.9更新说明.md','在线升级辅助/Continue-Online-Update.ps1','在线升级辅助/使用说明.md','更换品牌图标.exe','管理方发布工具.exe','服务器部署/Windows服务器部署说明.md','服务器部署/Setup-IIS-UpdateDirectory.ps1')) {
         $oldFile = Join-Path $Target $obsolete
         if (Test-Path -LiteralPath $oldFile -PathType Leaf) { Remove-Item -LiteralPath $oldFile -Force }
+    }
+    $programDir = Join-Path $Target '程序'
+    if (Test-Path -LiteralPath $programDir -PathType Container) {
+        Get-ChildItem -LiteralPath $programDir -File | Where-Object { $_.Name -like 'FiberRoute.Publisher.*' -or $_.Name -like 'FiberRoute.Admin.*' } | Remove-Item -Force
     }
     $oldExports = Join-Path $Target '导出结果'
     if (Test-Path -LiteralPath $oldExports -PathType Container) {

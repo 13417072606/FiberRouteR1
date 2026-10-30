@@ -28,13 +28,14 @@ public sealed partial class MainForm:Form
     string[] headers=[]; List<TypeChange> pendingTypes=[]; Button applyTypes=null!;
     readonly TextBox updateUrl=new(){Width=500},updateKey=new(){Multiline=true,Width=500,Height=90,ScrollBars=ScrollBars.Vertical};
     readonly Label updateStatus=new(){AutoSize=true,MaximumSize=new Size(1100,0)};
+    bool initialTablesPending=true;
     public MainForm(Store s)
     {
         SuspendLayout();
         store=s;Text="光路调度路由查询 R"+DisplayVersion;Width=1380;Height=950;MinimumSize=new Size(1080,700);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Microsoft YaHei UI",10);BackColor=Theme.Canvas;ForeColor=Theme.Ink;
         AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;
         tabs.Appearance=TabAppearance.FlatButtons;tabs.ItemSize=new Size(1,1);tabs.SizeMode=TabSizeMode.Fixed;
-        Controls.Add(tabs);Controls.Add(status);BuildRoutes();BuildResources();BuildTypes();BuildImport();Controls.Add(BuildHeader());InstallLayoutMemory();RefreshData();
+        Controls.Add(tabs);Controls.Add(status);BuildRoutes();BuildResources();BuildTypes();BuildImport();Controls.Add(BuildHeader());InstallLayoutMemory();RefreshData();tabs.SelectedIndexChanged+=(_,_)=>{if(tabs.SelectedIndex==1)LoadResources();else if(tabs.SelectedIndex==2){LoadTypes();LoadClusters();LoadRooms();}};
         EventHandler icons=(_,_)=>{if(Icon!=null)foreach(Form child in Application.OpenForms.Cast<Form>().ToArray())if(child!=this&&!child.IsDisposed&&!ReferenceEquals(child.Icon,Icon))child.Icon=Icon;};Application.Idle+=icons;FormClosed+=(_,_)=>Application.Idle-=icons;
         FormClosing+=(_,e)=>{if(busy){job?.Cancel();e.Cancel=true;MessageBox.Show("正在停止后台任务，完成后可关闭。");}};
         Shown+=(_,_)=>RestoreRouteSettings();
@@ -205,7 +206,7 @@ public sealed partial class MainForm:Form
         editType.Items.Clear();editType.Items.AddRange(types);
         var checkedTypes=avoidTypes.CheckedTypes.ToHashSet();avoidTypes.SetTypes(types,checkedTypes);
         buildingFilters=true;foreach(var c in new[]{resourceType,resourceEndType,nodeType}){var old=c.SelectedItem;c.Items.Clear();string all=c==nodeType?"全部":"全部类型";c.Items.Add(all);c.Items.AddRange(types);c.SelectedItem=old!=null&&c.Items.Contains(old)?old:all;}buildingFilters=false;
-        var g=store.Graph;resourceStats.Text=$"{g.Edges.Length:N0} 段 / {g.Nodes.Length:N0} 节点 / 已记录 {g.Edges.Sum(e=>e.Length??0):N2} 米 / 空闲逐段合计 {g.Edges.Sum(e=>(long)e.Free):N0} 芯（非路由数） / 版本 {g.Version}";LoadResources();LoadTypes();LoadClusters();LoadRooms();
+        var g=store.Graph;resourceStats.Text=$"{g.Edges.Length:N0} 段 / {g.Nodes.Length:N0} 节点 / 已记录 {g.Edges.Sum(e=>e.Length??0):N2} 米 / 空闲逐段合计 {g.Edges.Sum(e=>(long)e.Free):N0} 芯（非路由数） / 版本 {g.Version}";if(initialTablesPending)initialTablesPending=false;else{LoadResources();LoadTypes();LoadClusters();LoadRooms();}
     }
     void RestoreRouteSettings()
     {

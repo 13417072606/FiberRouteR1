@@ -34,6 +34,8 @@ try
     {
         using var apply=Process.Start(new ProcessStartInfo(brand){UseShellExecute=false,Arguments="--apply-existing",WorkingDirectory=root})??throw new IOException("品牌图标组件未启动");if(!apply.WaitForExit(60000)){try{apply.Kill();apply.WaitForExit(2000);}catch{}throw new TimeoutException("品牌图标应用超时");}if(apply.ExitCode!=0)throw new IOException("原品牌图标恢复失败，程序升级已取消，请查看品牌替换失败.txt");
     }
+    foreach(string obsolete in new[]{"管理方发布工具.exe","管理方发布工具.cmd"})try{File.Delete(Path.Combine(root,obsolete));}catch{}
+    foreach(string obsolete in Directory.Exists(Path.Combine(root,"程序"))?Directory.GetFiles(Path.Combine(root,"程序"),"FiberRoute.Publisher.*").Concat(Directory.GetFiles(Path.Combine(root,"程序"),"FiberRoute.Admin.*")):[])try{File.Delete(obsolete);}catch{}
     foreach(string old in Directory.Exists(backupRoot)?Directory.GetDirectories(backupRoot):[])if(!old.Equals(backup,StringComparison.OrdinalIgnoreCase))try{Directory.Delete(old,true);}catch{}
     Process.Start(new ProcessStartInfo(args[3]){UseShellExecute=true});File.Delete(zip);return 0;
 }
