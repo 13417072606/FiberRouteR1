@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Security.Cryptography;
 if(args.Length!=5){Console.Error.WriteLine("此程序由光路调度路由查询调用，请勿单独启动。");return 2;}
-string root=Path.GetFullPath(args[2]),zip=args[1],stage=Path.Combine(Path.GetTempPath(),"FiberRoute-update-"+Guid.NewGuid()),backupRoot=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"FiberRouteR1","补丁备份"),backup=Path.Combine(backupRoot,"R"+System.Reflection.AssemblyName.GetAssemblyName(Path.Combine(root,"程序","FiberRouteR1.dll")).Version!.ToString(3));
+string root=Path.GetFullPath(args[2]),zip=args[1],stage=Path.Combine(Path.GetTempPath(),"FiberRoute-update-"+Guid.NewGuid()),backupRoot=Path.Combine(root,"补丁备份"),backup=Path.Combine(backupRoot,"R"+System.Reflection.AssemblyName.GetAssemblyName(Path.Combine(root,"程序","FiberRouteR1.dll")).Version!.ToString(3));
 string rollback=Path.Combine(Path.GetTempPath(),"FiberRoute-rollback-"+Guid.NewGuid());
 var replaced=new List<(string Destination,string? Backup)>();
 string active=Path.Combine(AppContext.BaseDirectory,".active.pid");try{File.WriteAllText(active,Environment.ProcessId.ToString());}catch{}
@@ -37,6 +37,8 @@ try
     foreach(string obsolete in new[]{"管理方发布工具.exe","管理方发布工具.cmd"})try{File.Delete(Path.Combine(root,obsolete));}catch{}
     foreach(string obsolete in Directory.Exists(Path.Combine(root,"程序"))?Directory.GetFiles(Path.Combine(root,"程序"),"FiberRoute.Publisher.*").Concat(Directory.GetFiles(Path.Combine(root,"程序"),"FiberRoute.Admin.*")):[])try{File.Delete(obsolete);}catch{}
     foreach(string old in Directory.Exists(backupRoot)?Directory.GetDirectories(backupRoot):[])if(!old.Equals(backup,StringComparison.OrdinalIgnoreCase))try{Directory.Delete(old,true);}catch{}
+    string backgroundBackup=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"FiberRouteR1","补丁备份");
+    if(Directory.Exists(Path.Combine(backup,"业务数据"))&&Directory.Exists(backgroundBackup))try{Directory.Delete(backgroundBackup,true);}catch{}
     Process.Start(new ProcessStartInfo(args[3]){UseShellExecute=true});File.Delete(zip);return 0;
 }
 catch(Exception e)

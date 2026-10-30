@@ -2,7 +2,7 @@ name: Publish R1.5.0 download
 on:
   push:
     tags:
-      - r1.5.0-download-v6
+      - r1.5.0-download-v7
 permissions:
   contents: write
 jobs:
@@ -10,11 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Create download release
+      - name: Replace download with fixed upgrade only
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release upload r1.5.0-download \
-            downloads/R1.5.0/FiberRouteR1-R1.5.0-install.zip \
-            downloads/R1.5.0/FiberRouteR1-win-x64-R1.5.0.zip \
+            downloads/R1.5.0/FiberRouteR1-R1.5.0-upgrade-fixed.zip \
             --clobber
+          gh release delete-asset r1.5.0-download FiberRouteR1-R1.5.0-install.zip -y
+          gh release delete-asset r1.5.0-download FiberRouteR1-win-x64-R1.5.0.zip -y

@@ -21,8 +21,8 @@ if (!(Test-RunDirectory $Target)) { throw ('所选文件夹不是运行目录：
 if (Get-Process -Name FiberRouteR1,FiberRoute.Publisher,FiberRoute.Brand,FiberRoute.Updater,FiberRoute.Admin,FiberRoute.Online -ErrorAction SilentlyContinue) { throw '请关闭主程序、管理方工具和图标工具，再重新运行本补丁。' }
 $work = Join-Path ([IO.Path]::GetDirectoryName($Target)) 'R1.5.0补丁文件'
 New-Item -ItemType Directory -Path $work -Force | Out-Null
-$expectedSize = 17078576
-$expectedSha = '7222ca5cd58f5881f9d29f3839cfd16026df73975e12cbd18d7e46153ae036f4'
+$expectedSize = 17078619
+$expectedSha = '64320fe2f59e833b78af3619ee54db302d6421fd6d44d75325f98a2eaef49b20'
 function Test-Patch($path) {
     return ((Test-Path -LiteralPath $path -PathType Leaf) -and (Get-Item -LiteralPath $path).Length -eq $expectedSize -and (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -eq $expectedSha)
 }
@@ -33,12 +33,12 @@ if ($OfflineZip) {
 $stage = Join-Path $work ('校验中-' + [Guid]::NewGuid().ToString('N'))
 
 $previousVersion = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $Target '程序\FiberRouteR1.dll')).Version.ToString(3)
-$backupRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'FiberRouteR1\补丁备份'
+$backupRoot = Join-Path $Target '补丁备份'
 $backup = Join-Path $backupRoot ('R' + $previousVersion)
 $changes = New-Object 'System.Collections.Generic.List[object]'
 try {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $allowed = @('光路调度路由查询.exe','在线升级辅助/文件校验SHA256.json','程序/FiberRoute.Brand.deps.json','程序/FiberRoute.Brand.dll','程序/FiberRoute.Brand.exe','程序/FiberRoute.Brand.runtimeconfig.json','程序/FiberRoute.Core.dll','程序/FiberRoute.Updater.deps.json','程序/FiberRoute.Updater.dll','程序/FiberRoute.Updater.exe','程序/FiberRoute.Updater.runtimeconfig.json','程序/FiberRouteR1.deps.json','程序/FiberRouteR1.dll','程序/FiberRouteR1.exe','程序/FiberRouteR1.runtimeconfig.json','程序/app.ico','资源/机房设施ID基线.db','资源/集群站点基线-R1.4.5.db')
+    $allowed = @('光路调度路由查询.exe','在线升级辅助/补丁校验.json','程序/FiberRoute.Brand.deps.json','程序/FiberRoute.Brand.dll','程序/FiberRoute.Brand.exe','程序/FiberRoute.Brand.runtimeconfig.json','程序/FiberRoute.Core.dll','程序/FiberRoute.Updater.deps.json','程序/FiberRoute.Updater.dll','程序/FiberRoute.Updater.exe','程序/FiberRoute.Updater.runtimeconfig.json','程序/FiberRouteR1.deps.json','程序/FiberRouteR1.dll','程序/FiberRouteR1.exe','程序/FiberRouteR1.runtimeconfig.json','程序/app.ico','资源/机房设施ID基线.db','资源/集群站点基线-R1.4.5.db')
     $archive = [IO.Compression.ZipFile]::OpenRead($zip)
     try {
         $names = @($archive.Entries | ForEach-Object { $_.FullName })
@@ -46,7 +46,9 @@ try {
         foreach ($entry in $archive.Entries) { if ($allowed -cnotcontains $entry.FullName) { throw ('补丁含不允许的文件：' + $entry.FullName) } }
     } finally { $archive.Dispose() }
     Expand-Archive -LiteralPath $zip -DestinationPath $stage
-    $manifest = Get-Content -LiteralPath (Join-Path $stage '在线升级辅助\补丁校验.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    $manifestPath = Join-Path $stage '在线升级辅助\补丁校验.json'
+    if (!(Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw '升级包缺少在线升级辅助\补丁校验.json；请重新下载本版升级包并解压到新文件夹。' }
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     foreach ($file in $manifest.Files) {
         if ($allowed -cnotcontains $file.Path) { throw '补丁清单路径错误。' }
         $source = Join-Path $stage $file.Path
@@ -96,8 +98,8 @@ try {
     if (Test-Path -LiteralPath $backupRoot) {
         Get-ChildItem -LiteralPath $backupRoot -Directory | Where-Object { $_.FullName -ne $backup } | Remove-Item -Recurse -Force
     }
-    $legacyBackup = Join-Path $Target '补丁备份'
-    if (Test-Path -LiteralPath $legacyBackup -PathType Container) { Remove-Item -LiteralPath $legacyBackup -Recurse -Force }
+    $oldBackgroundBackup = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'FiberRouteR1\补丁备份'
+    if ((Test-Path -LiteralPath (Join-Path $backup '业务数据') -PathType Container) -and (Test-Path -LiteralPath $oldBackgroundBackup -PathType Container)) { Remove-Item -LiteralPath $oldBackgroundBackup -Recurse -Force }
     foreach ($obsolete in @('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','验证报告.md','文件校验SHA256.json','R1.4.6更新说明.md','机房归属来源复核.xlsx','R1.4.7更新说明.md','R1.4.8更新说明.md','R1.4.9更新说明.md','在线升级辅助/Continue-Online-Update.ps1','在线升级辅助/使用说明.md','更换品牌图标.exe','管理方发布工具.exe','服务器部署/Windows服务器部署说明.md','服务器部署/Setup-IIS-UpdateDirectory.ps1')) {
         $oldFile = Join-Path $Target $obsolete
         if (Test-Path -LiteralPath $oldFile -PathType Leaf) { Remove-Item -LiteralPath $oldFile -Force }

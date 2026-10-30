@@ -13,7 +13,7 @@ sha = lambda b: hashlib.sha256(b).hexdigest()
 patch = out / 'FiberRouteR1-R1.5.0-patch.zip'
 full = out / 'FiberRouteR1-win-x64-R1.5.0.zip'
 installer = out / 'Install-R1.5.0-patch.ps1'
-bundle = out / 'FiberRouteR1-R1.5.0-install.zip'
+bundle = out / 'FiberRouteR1-R1.5.0-upgrade-fixed.zip'
 
 def archive(path, files):
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as z:
@@ -64,7 +64,7 @@ if sys.argv[1] == '--payload':
     prior150 = {}
     if patch.exists():
         with zipfile.ZipFile(patch) as earlier:
-            old_manifest = '在线升级辅助/文件校验SHA256.json' if '在线升级辅助/文件校验SHA256.json' in earlier.namelist() else '在线升级辅助/补丁校验.json'
+            old_manifest = '在线升级辅助/补丁校验.json' if '在线升级辅助/补丁校验.json' in earlier.namelist() else '在线升级辅助/文件校验SHA256.json'
             prior150 = {f['Path']: f['Sha256'] for f in json.loads(earlier.read(old_manifest))['Files']}
     manifest = []
     for name, data in sorted(files.items()):
@@ -81,37 +81,8 @@ if sys.argv[1] == '--payload':
         if name not in ('程序/FiberRouteR1.dll','程序/FiberRoute.Core.dll'):
             hashes = [] # Only core binaries identify the installed release; launchers and helpers may be customized.
         manifest.append(dict(Path=name, Length=len(data), Sha256=sha(data), PreviousSha256=hashes))
-    files['在线升级辅助/文件校验SHA256.json'] = json.dumps(dict(Version='1.5.0', Files=manifest), ensure_ascii=False, indent=2).encode()
+    files['在线升级辅助/补丁校验.json'] = json.dumps(dict(Version='1.5.0', Files=manifest), ensure_ascii=False, indent=2).encode()
     archive(patch, files)
-
-    baseprefix = '光路调度路由查询R1.4.7/'
-    with zipfile.ZipFile(root / 'downloads/R1.4.7/FiberRouteR1-win-x64-R1.4.7.zip') as z:
-        program = {n[len(baseprefix):]: z.read(n) for n in z.namelist() if not n.endswith('/')}
-    # Retain the established runtime and license files, overlay current binaries.
-    for p in (root / 'artifacts/app-r150').iterdir():
-        if p.is_file() and p.suffix != '.pdb':
-            program['程序/' + p.name] = p.read_bytes()
-    program.update({name: data for name, data in files.items() if name != '在线升级辅助/文件校验SHA256.json'})
-
-
-    # Remove obsolete and redundant customer-facing files; keep runtime and legal notices.
-    for name in list(program):
-        if name.startswith(('在线升级辅助/', '服务器部署/', '数据/', '导出结果/')) or name.endswith(('更新说明.md', '验证报告.md', '文件校验SHA256.json')) or name in ('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','使用说明.txt','资源/update-service.example.json','资源/中继段导入模板.csv','资源/节点类型模板.csv','资源/调测中继段.csv','更换品牌图标.exe'):
-            program.pop(name)
-    for name in list(program):
-        if name == '管理方发布工具.exe' or name.startswith(('程序/FiberRoute.Publisher.', '程序/FiberRoute.Admin.')):
-            program.pop(name)
-    program.pop('在线升级辅助/文件校验SHA256.json', None)
-    # One-time migration baselines remain until applied on existing installations.
-    assert not any(n.endswith(('personal.db', 'resources.db', 'private-key.pem')) for n in program)
-
-    program['在线升级辅助/文件校验SHA256.json'] = json.dumps(dict(Version='1.5.0',Files=[dict(Path=n,Length=len(d),Sha256=sha(d)) for n,d in sorted(program.items())]), ensure_ascii=False, indent=2).encode()
-    prefix = '光路调度路由查询R1.5.0/'
-    archive(full, {prefix + n: data for n, data in program.items()})
-    assert full.stat().st_size < 100 * 1024 * 1024
-    content=full.read_bytes(); partsize=15*1024*1024
-    for i,start in enumerate(range(0,len(content),partsize),1):
-        (out / f'{full.name}.{i:03d}').write_bytes(content[start:start+partsize])
 
 elif sys.argv[1] == '--bundle':
     script = (root / 'downloads/R1.4.7/Install-R1.4.7-patch.ps1').read_text(encoding='utf-8-sig').replace('R1.4.7', 'R1.5.0')
@@ -123,11 +94,11 @@ elif sys.argv[1] == '--bundle':
     script = re.sub(r'    \$allowed = @\([^\n]+\)', '    $allowed = @(' + ','.join("'" + n + "'" for n in allowed) + ')', script)
     script = script.replace('R1.3 至 R1.4.6 不符', '已发布版本不符')
     script = script.replace("$backup = Join-Path $Target '补丁备份\\R1.5.0'", '')
-    script = script.replace("    $manifest = Get-Content -LiteralPath (Join-Path $stage '补丁校验.json')", "    $manifest = Get-Content -LiteralPath (Join-Path $stage '在线升级辅助\\补丁校验.json')")
+    script = script.replace("    $manifest = Get-Content -LiteralPath (Join-Path $stage '补丁校验.json')", "    $manifestPath = Join-Path $stage '在线升级辅助\\补丁校验.json'\n    if (!(Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw '升级包缺少在线升级辅助\\补丁校验.json；请重新下载本版升级包并解压到新文件夹。' }\n    $manifest = Get-Content -LiteralPath $manifestPath")
     script = re.sub(r"(?s)        \$saved = Join-Path \$backup \$file.Path\n        if \(\$existed\) \{.*?\n        \}\n        \$snapshot", '        $snapshot', script)
     # Keep only the immediately preceding program version; installation rollback stays temporary.
     backup_setup = """$previousVersion = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $Target '程序\\FiberRouteR1.dll')).Version.ToString(3)
-$backupRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'FiberRouteR1\\补丁备份'
+$backupRoot = Join-Path $Target '补丁备份'
 $backup = Join-Path $backupRoot ('R' + $previousVersion)
 """
     script = script.replace('$changes = New-Object', backup_setup + '$changes = New-Object')
@@ -157,8 +128,8 @@ $backup = Join-Path $backupRoot ('R' + $previousVersion)
     if (Test-Path -LiteralPath $backupRoot) {
         Get-ChildItem -LiteralPath $backupRoot -Directory | Where-Object { $_.FullName -ne $backup } | Remove-Item -Recurse -Force
     }
-    $legacyBackup = Join-Path $Target '补丁备份'
-    if (Test-Path -LiteralPath $legacyBackup -PathType Container) { Remove-Item -LiteralPath $legacyBackup -Recurse -Force }
+    $oldBackgroundBackup = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'FiberRouteR1\\补丁备份'
+    if ((Test-Path -LiteralPath (Join-Path $backup '业务数据') -PathType Container) -and (Test-Path -LiteralPath $oldBackgroundBackup -PathType Container)) { Remove-Item -LiteralPath $oldBackgroundBackup -Recurse -Force }
     foreach ($obsolete in @('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','验证报告.md','文件校验SHA256.json','R1.4.6更新说明.md','机房归属来源复核.xlsx','R1.4.7更新说明.md','R1.4.8更新说明.md','R1.4.9更新说明.md','在线升级辅助/Continue-Online-Update.ps1','在线升级辅助/使用说明.md','更换品牌图标.exe','管理方发布工具.exe','服务器部署/Windows服务器部署说明.md','服务器部署/Setup-IIS-UpdateDirectory.ps1')) {
         $oldFile = Join-Path $Target $obsolete
         if (Test-Path -LiteralPath $oldFile -PathType Leaf) { Remove-Item -LiteralPath $oldFile -Force }
