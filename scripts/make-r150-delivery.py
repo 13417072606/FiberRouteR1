@@ -116,6 +116,8 @@ $backup = Join-Path $backupRoot ('R' + $previousVersion)
     if (Test-Path -LiteralPath $backupRoot) {
         Get-ChildItem -LiteralPath $backupRoot -Directory | Where-Object { $_.FullName -ne $backup } | Remove-Item -Recurse -Force
     }
+    $legacyBackup = Join-Path $Target '补丁备份'
+    if (Test-Path -LiteralPath $legacyBackup -PathType Container) { Remove-Item -LiteralPath $legacyBackup -Recurse -Force }
     foreach ($obsolete in @('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','验证报告.md','文件校验SHA256.json','R1.4.7更新说明.md','R1.4.8更新说明.md','R1.4.9更新说明.md','在线升级辅助/Continue-Online-Update.ps1','在线升级辅助/使用说明.md','服务器部署/Windows服务器部署说明.md','服务器部署/Setup-IIS-UpdateDirectory.ps1')) {
         $oldFile = Join-Path $Target $obsolete
         if (Test-Path -LiteralPath $oldFile -PathType Leaf) { Remove-Item -LiteralPath $oldFile -Force }
