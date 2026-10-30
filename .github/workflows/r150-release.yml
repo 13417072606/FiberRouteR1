@@ -2,7 +2,7 @@ name: Publish R1.5.0 download
 on:
   push:
     tags:
-      - r1.5.0-download
+      - r1.5.0-download-v2
 permissions:
   contents: write
 jobs:
@@ -14,9 +14,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create r1.5.0-download \
+          gh release upload r1.5.0-download \
             downloads/R1.5.0/FiberRouteR1-R1.5.0-install.zip \
             downloads/R1.5.0/FiberRouteR1-win-x64-R1.5.0.zip \
-            --title 'R1.5.0 交付下载' \
-            --notes 'R1.4.6 可直接安装 R1.5.0 升级包。请先关闭客户端，解压 ZIP 后运行安装补丁.cmd。' \
-            --latest=false
+            --clobber

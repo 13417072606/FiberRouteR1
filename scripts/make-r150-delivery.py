@@ -74,6 +74,8 @@ if sys.argv[1] == '--payload':
         hashes = sorted(set(hashes).union(legacy.get(name, set())))
         if name == '资源/机房设施ID基线.db':
             hashes = [] # New in later releases; absent in R1.4.6 is valid.
+        if name in ('光路调度路由查询.exe','管理方发布工具.exe','程序/FiberRouteR1.exe','程序/FiberRoute.Publisher.exe'):
+            hashes = [] # Brand customization changes launcher bytes; core DLLs remain strictly checked.
         manifest.append(dict(Path=name, Length=len(data), Sha256=sha(data), PreviousSha256=hashes))
     files['在线升级辅助/补丁校验.json'] = json.dumps(dict(Version='1.5.0', Files=manifest), ensure_ascii=False, indent=2).encode()
     archive(patch, files)
@@ -114,7 +116,7 @@ elif sys.argv[1] == '--bundle':
     with zipfile.ZipFile(patch) as z:
         allowed = sorted(z.namelist())
     script = re.sub(r'    \$allowed = @\([^\n]+\)', '    $allowed = @(' + ','.join("'" + n + "'" for n in allowed) + ')', script)
-    script = script.replace('R1.3 至 R1.4.6 不符', 'R1.3 至 R1.4.7 不符')
+    script = script.replace('R1.3 至 R1.4.6 不符', '已发布版本不符')
     script = script.replace("$backup = Join-Path $Target '补丁备份\\R1.5.0'", '')
     script = script.replace("    $manifest = Get-Content -LiteralPath (Join-Path $stage '补丁校验.json')", "    $manifest = Get-Content -LiteralPath (Join-Path $stage '在线升级辅助\\补丁校验.json')")
     script = re.sub(r"(?s)        \$saved = Join-Path \$backup \$file.Path\n        if \(\$existed\) \{.*?\n        \}\n        \$snapshot", '        $snapshot', script)

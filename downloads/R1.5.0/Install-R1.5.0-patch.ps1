@@ -21,8 +21,8 @@ if (!(Test-RunDirectory $Target)) { throw ('所选文件夹不是运行目录：
 if (Get-Process -Name FiberRouteR1,FiberRoute.Publisher,FiberRoute.Brand,FiberRoute.Updater,FiberRoute.Admin,FiberRoute.Online -ErrorAction SilentlyContinue) { throw '请关闭主程序、管理方工具和图标工具，再重新运行本补丁。' }
 $work = Join-Path ([IO.Path]::GetDirectoryName($Target)) 'R1.5.0补丁文件'
 New-Item -ItemType Directory -Path $work -Force | Out-Null
-$expectedSize = 17375758
-$expectedSha = '44ffcee4efeb3f39f930a79d87eb18846b00ca59434e098a93d274a34f165784'
+$expectedSize = 17375506
+$expectedSha = '2540a0a8bc944255dcf56e10152c68f803e1a3ebaa5bcf650018cb4a7e00b6ac'
 function Test-Patch($path) {
     return ((Test-Path -LiteralPath $path -PathType Leaf) -and (Get-Item -LiteralPath $path).Length -eq $expectedSize -and (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -eq $expectedSha)
 }
@@ -55,7 +55,7 @@ try {
             $destination = Join-Path $Target $file.Path
             if (!(Test-Path -LiteralPath $destination -PathType Leaf)) { throw ('现有程序缺少文件：' + $file.Path) }
             $current = (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash
-            if (@($file.PreviousSha256) -notcontains $current.ToLowerInvariant() -and $current -ne $file.Sha256) { throw ('现有文件与已发布的 R1.3 至 R1.4.7 不符，请勿混用补丁：' + $file.Path) }
+            if (@($file.PreviousSha256) -notcontains $current.ToLowerInvariant() -and $current -ne $file.Sha256) { throw ('现有文件与已发布的 已发布版本不符，请勿混用补丁：' + $file.Path) }
         }
     }
 
