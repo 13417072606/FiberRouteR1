@@ -100,6 +100,27 @@ elif sys.argv[1] == '--bundle':
     script = script.replace("$backup = Join-Path $Target '补丁备份\\R1.5.0'", '')
     script = script.replace("    $manifest = Get-Content -LiteralPath (Join-Path $stage '补丁校验.json')", "    $manifest = Get-Content -LiteralPath (Join-Path $stage '在线升级辅助\\补丁校验.json')")
     script = re.sub(r"(?s)        \$saved = Join-Path \$backup \$file.Path\n        if \(\$existed\) \{.*?\n        \}\n        \$snapshot", '        $snapshot', script)
+    # Keep only the immediately preceding program version; installation rollback stays temporary.
+    backup_setup = """$previousVersion = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $Target '程序\\FiberRouteR1.dll')).Version.ToString(3)
+$backupRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'FiberRouteR1\\补丁备份'
+$backup = Join-Path $backupRoot ('R' + $previousVersion)
+"""
+    script = script.replace('$changes = New-Object', backup_setup + '$changes = New-Object')
+    script = script.replace("        $snapshot = Join-Path (Join-Path $stage 'rollback') $file.Path", """        if ($existed -and $file.Path -notmatch '(?i)(^|[/\\\\])(app\\.ico|.*\\.ico|品牌原图\\.png)$') {
+            $saved = Join-Path $backup $file.Path
+            New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($saved)) -Force | Out-Null
+            Copy-Item -LiteralPath $destination -Destination $saved -Force
+        }
+        $snapshot = Join-Path (Join-Path $stage 'rollback') $file.Path""")
+    script = script.replace("    Write-Host ('SUCCESS:", """    # Remove backups older than the version replaced by this upgrade.
+    if (Test-Path -LiteralPath $backupRoot) {
+        Get-ChildItem -LiteralPath $backupRoot -Directory | Where-Object { $_.FullName -ne $backup } | Remove-Item -Recurse -Force
+    }
+    foreach ($obsolete in @('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','验证报告.md','文件校验SHA256.json','R1.4.7更新说明.md','R1.4.8更新说明.md','R1.4.9更新说明.md','在线升级辅助/Continue-Online-Update.ps1','在线升级辅助/使用说明.md','服务器部署/Windows服务器部署说明.md','服务器部署/Setup-IIS-UpdateDirectory.ps1')) {
+        $oldFile = Join-Path $Target $obsolete
+        if (Test-Path -LiteralPath $oldFile -PathType Leaf) { Remove-Item -LiteralPath $oldFile -Force }
+    }
+    Write-Host ('SUCCESS:""")
     installer.write_text(script, encoding='utf-8-sig')
     with zipfile.ZipFile(root / 'downloads/R1.4.7/FiberRouteR1-R1.4.7-install.zip') as z:
         command = z.read('R1.4.7补丁/安装补丁.cmd').replace(b'R1.4.7', b'R1.5.0')

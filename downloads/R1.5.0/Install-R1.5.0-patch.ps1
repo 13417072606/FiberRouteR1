@@ -32,6 +32,9 @@ if ($OfflineZip) {
 } else { throw '请解压完整的 R1.5.0 安装包并双击安装补丁.cmd。' }
 $stage = Join-Path $work ('校验中-' + [Guid]::NewGuid().ToString('N'))
 
+$previousVersion = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $Target '程序\FiberRouteR1.dll')).Version.ToString(3)
+$backupRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'FiberRouteR1\补丁备份'
+$backup = Join-Path $backupRoot ('R' + $previousVersion)
 $changes = New-Object 'System.Collections.Generic.List[object]'
 try {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -61,6 +64,11 @@ try {
         $existed = Test-Path -LiteralPath $destination -PathType Leaf
         if ((Test-Path -LiteralPath $destination) -and !$existed) { throw ('目标文件被同名目录占用：' + $file.Path) }
         if ($existed -and (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -eq $file.Sha256) { continue }
+        if ($existed -and $file.Path -notmatch '(?i)(^|[/\\])(app\.ico|.*\.ico|品牌原图\.png)$') {
+            $saved = Join-Path $backup $file.Path
+            New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($saved)) -Force | Out-Null
+            Copy-Item -LiteralPath $destination -Destination $saved -Force
+        }
         $snapshot = Join-Path (Join-Path $stage 'rollback') $file.Path
         if ($existed) { New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($snapshot)) -Force | Out-Null; Copy-Item -LiteralPath $destination -Destination $snapshot }
         $changes.Add(@{ Destination=$destination; Existed=$existed; Saved=$snapshot })
@@ -72,6 +80,14 @@ try {
     if ((Test-Path -LiteralPath $original -PathType Leaf) -and $env:OS -eq 'Windows_NT') {
         $brand = Start-Process -FilePath (Join-Path $Target '程序\FiberRoute.Brand.exe') -ArgumentList '--apply-existing' -Wait -PassThru
         if ($brand.ExitCode -ne 0) { throw '已有品牌原图应用失败，安装回退。请查看运行目录的品牌替换失败.txt。' }
+    }
+    # Remove backups older than the version replaced by this upgrade.
+    if (Test-Path -LiteralPath $backupRoot) {
+        Get-ChildItem -LiteralPath $backupRoot -Directory | Where-Object { $_.FullName -ne $backup } | Remove-Item -Recurse -Force
+    }
+    foreach ($obsolete in @('光路调度智能分析.exe','管理方发布工具.cmd','管理方在线更新发布指南.md','验证报告.md','文件校验SHA256.json','R1.4.7更新说明.md','R1.4.8更新说明.md','R1.4.9更新说明.md','在线升级辅助/Continue-Online-Update.ps1','在线升级辅助/使用说明.md','服务器部署/Windows服务器部署说明.md','服务器部署/Setup-IIS-UpdateDirectory.ps1')) {
+        $oldFile = Join-Path $Target $obsolete
+        if (Test-Path -LiteralPath $oldFile -PathType Leaf) { Remove-Item -LiteralPath $oldFile -Force }
     }
     Write-Host ('SUCCESS: R1.5.0 patch verified and installed. Existing databases preserved: ' + $Target) -ForegroundColor Green
     Write-Host '请从“光路调度路由查询.exe”启动，窗口标题应为 R1.5.0。数据库、人工确认和数据目录保持。'
