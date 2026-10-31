@@ -1,0 +1,29 @@
+name: Publish smaller R1.5.1 software remainder
+
+on:
+  push:
+    tags:
+      - r1.5.1-download-smallfix-v1
+
+permissions:
+  contents: write
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch published software source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/r151-release-original
+          gh release download r1.5.1-download \
+            --pattern 'FiberRouteR1-R1.5.1-program-source.zip' \
+            --dir artifacts/r151-release-original
+      - name: Verify and split remaining parts
+        run: python3 scripts/split-r151-remainder.py
+      - name: Upload smaller remaining parts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload r1.5.1-download downloads/R1.5.1/small-remainder/* --clobber
