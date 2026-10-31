@@ -1,0 +1,39 @@
+name: Publish R1.5.1 downloads
+
+on:
+  push:
+    tags:
+      - r1.5.1-download
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build Windows client and administrator tool
+        run: |
+          dotnet publish src/FiberRoute.App/FiberRoute.App.csproj -c Release -r win-x64 --self-contained true -o artifacts/app-r151 -p:RestoreLockedMode=true -p:DebugType=None -p:DebugSymbols=false
+          dotnet publish src/FiberRoute.Publisher/FiberRoute.Publisher.csproj -c Release -r win-x64 --self-contained true -o artifacts/publisher-r151-standalone -p:RestoreLockedMode=true -p:DebugType=None -p:DebugSymbols=false
+          dotnet publish src/FiberRoute.Updater/FiberRoute.Updater.csproj -c Release -r win-x64 --self-contained false -o artifacts/updater-r150 -p:DebugType=None -p:DebugSymbols=false
+          python3 scripts/make-r151-delivery.py
+      - name: Verify release packages
+        run: |
+          dotnet run --project tests/FiberRoute.Tests/FiberRoute.Tests.csproj -c Release -- --online-only
+          python3 -m zipfile -e downloads/R1.5.1/FiberRouteR1-R1.5.1-program-source.zip "$RUNNER_TEMP/r151-source"
+          dotnet run --project src/FiberRoute.Admin/FiberRoute.Admin.csproj -c Release -- pack-program "$RUNNER_TEMP/r151-source/R1.5.1软件发布源" 1.5.1 "$RUNNER_TEMP/r151-online.zip"
+          dotnet run --project tests/FiberRoute.Tests/FiberRoute.Tests.csproj -c Release -- --validate-package "$RUNNER_TEMP/r151-online.zip"
+      - name: Publish verified release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            downloads/R1.5.1/FiberRouteR1-R1.5.1-program-source.zip \
+            downloads/R1.5.1/FiberRouteR1-Publisher-R1.5.1.zip \
+            --title "R1.5.1 异地客户端更新提醒" \
+            --notes "管理方使用发布源生成并签名软件更新，再将 Cloudflare 上传包部署到现有 Pages 项目。客户启用包只含公开地址和公钥；R1.5.1 客户端每天首次打开时检查一次，发现更新后保留右上角提醒。"
