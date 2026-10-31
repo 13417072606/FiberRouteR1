@@ -1,0 +1,31 @@
+name: Publish R1.5.1 small downloads
+
+on:
+  push:
+    tags:
+      - r1.5.1-download-split-v1
+
+permissions:
+  contents: write
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the published release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/r151-release-original
+          gh release download r1.5.1-download \
+            --pattern 'FiberRouteR1-Publisher-R1.5.1.zip' \
+            --pattern 'FiberRouteR1-R1.5.1-program-source.zip' \
+            --dir artifacts/r151-release-original
+      - name: Verify and split
+        run: python3 scripts/split-r151-release.py
+      - name: Upload small resumable assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload r1.5.1-download downloads/R1.5.1/split/*
