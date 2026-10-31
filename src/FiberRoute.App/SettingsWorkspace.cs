@@ -30,7 +30,10 @@ public sealed partial class MainForm
             var version=TextLabel(Current(),10);version.Dock=DockStyle.Top;version.Height=24;version.ForeColor=Theme.Muted;version.AutoEllipsis=true;
             var state=TextLabel("检查状态：尚未检查",9.5f);state.Dock=DockStyle.Fill;state.ForeColor=Theme.Muted;state.AutoEllipsis=true;info.Controls.Add(state);info.Controls.Add(version);info.Controls.Add(title);top.Controls.Add(info,1,0);
             var note=TextLabel(program?"发现新版后，可直接下载并安装\n保留现有数据库与人工记录":"先下载并预览中继段、节点类型、集群及机房归属\n人工冲突保留本机值，确认后才应用",10);note.TextAlign=ContentAlignment.MiddleCenter;note.ForeColor=Theme.Muted;note.Dock=DockStyle.Bottom;note.Height=52;
-            ReleaseItem? available=null;var check=new UiButton{Text=program?"检测软件更新":"检测数据更新",Primary=true,Height=46,Font=new Font(Font.FontFamily,12,FontStyle.Bold),Margin=Padding.Empty};
+            ReleaseItem? available=program?discoveredUpdates?.Program:discoveredUpdates?.Resources;
+            if(available!=null&&(program?!Updates.IsNewProgram(available.Version,ProgramVersion):available.Version==store.Setting("remoteResourceVersion"))||available!=null&&!Updates.Compatible(available,ProgramVersion))available=null;
+            var check=new UiButton{Text=available==null?(program?"检测软件更新":"检测数据更新"):(program?"下载并升级":"下载并预览更新"),Primary=true,Height=46,Font=new Font(Font.FontFamily,12,FontStyle.Bold),Margin=Padding.Empty};
+            if(available!=null)state.Text=$"发现版本：{available.Version} · {available.Bytes/1024d/1024d:0.##} MB";
             check.Click+=async(_,_)=>
             {
                 if(busy)return;check.Enabled=false;
@@ -41,10 +44,10 @@ public sealed partial class MainForm
                     {
                         ReleaseManifest? manifest=null;state.Text="正在检测…";bool ok=await Work("正在检测"+(program?"软件":"数据")+"更新…",async ct=>manifest=await Updates.Check(config,ct));if(!ok){state.Text=status.Text;return;}
                         available=program?manifest?.Program:manifest?.Resources;
-                        if(available==null){state.Text="当前渠道暂无"+(program?"软件":"数据")+"更新";return;}
-                        if(program&&!Updates.IsNewProgram(available.Version,ProgramVersion)||!program&&available.Version==store.Setting("remoteResourceVersion")){state.Text="已是最新版本";available=null;return;}
+                        if(available==null){store.SetSetting(program?PendingProgram:PendingData,"");RefreshUpdateBadge();state.Text="当前渠道暂无"+(program?"软件":"数据")+"更新";return;}
+                        if(program&&!Updates.IsNewProgram(available.Version,ProgramVersion)||!program&&available.Version==store.Setting("remoteResourceVersion")){store.SetSetting(program?PendingProgram:PendingData,"");RefreshUpdateBadge();state.Text="已是最新版本";available=null;return;}
                         if(!Updates.Compatible(available,ProgramVersion)){state.Text="请先升级软件至 R"+available.MinimumProgram;available=null;return;}
-                        hint.SetToolTip(state,available.Notes);state.Text=$"可用版本：{available.Version}\n大小：{available.Bytes/1024d/1024d:0.##} MB\n{available.Notes}";service.Text="检测成功。软件与数据分别更新，按对应按钮继续。";check.Text=program?"下载并升级":"下载并预览更新";return;
+                        store.SetSetting(program?PendingProgram:PendingData,available.Version);RefreshUpdateBadge();hint.SetToolTip(state,available.Notes);state.Text=$"可用版本：{available.Version}\n大小：{available.Bytes/1024d/1024d:0.##} MB\n{available.Notes}";service.Text="检测成功。软件与数据分别更新，按对应按钮继续。";check.Text=program?"下载并升级":"下载并预览更新";return;
                     }
                     var release=available;string? package=null;PreparedDataUpdate? prepared=null;string? helper=null;bool launched=false;
                     try
@@ -60,7 +63,7 @@ public sealed partial class MainForm
                         if(prepared==null)throw new InvalidDataException("没有可应用的数据预览");
                         if(ConfirmDataUpdate(dialog,prepared))
                         {
-                            bool applied=await Work("应用数据更新，保留人工记录…",ct=>Task.Run(()=>store.ApplyDataPackage(prepared,ct),ct));if(applied){RefreshData();version.Text=Current();state.Text=prepared.HasChanges?"数据更新完成；人工记录保留":"数据无变化，已忽略重复更新";available=null;check.Text="检测数据更新";}
+                            bool applied=await Work("应用数据更新，保留人工记录…",ct=>Task.Run(()=>store.ApplyDataPackage(prepared,ct),ct));if(applied){RefreshData();version.Text=Current();state.Text=prepared.HasChanges?"数据更新完成；人工记录保留":"数据无变化，已忽略重复更新";available=null;check.Text="检测数据更新";store.SetSetting(PendingData,"");if(discoveredUpdates?.Resources?.Version==prepared.Manifest.Version)discoveredUpdates=discoveredUpdates with{Resources=null};RefreshUpdateBadge();}
                         }
                     }
                     finally{prepared?.Dispose();if(package!=null&&File.Exists(package))File.Delete(package);if(helper!=null&&!launched)try{Directory.Delete(helper,true);}catch(IOException){}catch(UnauthorizedAccessException){}}
