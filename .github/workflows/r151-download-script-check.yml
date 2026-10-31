@@ -1,0 +1,27 @@
+name: Check R1.5.1 Windows download script
+
+on:
+  push:
+    tags:
+      - r1.5.1-download-script-v1
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run in Windows PowerShell 5.1 and verify package
+        shell: powershell
+        run: |
+          .\scripts\Download-R151-Software.ps1 -Destination "$env:RUNNER_TEMP\r151-source" -NoOpen
+          $zip = Join-Path $env:RUNNER_TEMP 'r151-source\FiberRouteR1-R1.5.1-program-source.zip'
+          $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
+          if ($hash -ne '1FFBD345C855C544E23BBDEC477FB0BCFAECBFBABA6722EA951C96950CAD8F92') { throw 'Final ZIP hash mismatch' }
+      - name: Publish tested helper script
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: gh release upload r1.5.1-download scripts/Download-R151-Software.ps1 --clobber
