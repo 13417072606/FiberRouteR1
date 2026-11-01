@@ -1,0 +1,39 @@
+name: Diagnose R1.5.1 release asset transfer
+
+on:
+  push:
+    tags:
+      - r1.5.1-diagnose-download-v1
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare Windows download methods
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $name = 'FiberRouteR1-R1.5.1-program-source.zip.part004.slice004'
+          $url = 'https://github.com/13417072606/FiberRouteR1/releases/download/r1.5.1-download/' + $name
+          $expected = 'D80C3A4EB608BDFCA0324E50CB5A8097C24AD0F8F86E8FEB8CBEEA2D54473E6'
+          $iwr = Join-Path $env:RUNNER_TEMP 'iwr.bin'
+          $curl = Join-Path $env:RUNNER_TEMP 'curl.bin'
+          $gh = Join-Path $env:RUNNER_TEMP 'gh'
+          New-Item -ItemType Directory -Path $gh | Out-Null
+          try { Invoke-WebRequest -Uri $url -OutFile $iwr -UseBasicParsing -TimeoutSec 120 } catch { Write-Host "IWR error: $($_.Exception.Message)" }
+          curl.exe -fLsS --connect-timeout 20 --max-time 120 -o $curl $url
+          gh release download r1.5.1-download --pattern $name --dir $gh
+          foreach ($path in @($iwr, $curl, (Join-Path $gh $name))) {
+            if (Test-Path -LiteralPath $path) {
+              $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+              $length = (Get-Item -LiteralPath $path).Length
+              $stream = [IO.File]::OpenRead($path)
+              try { $head = New-Object byte[] 16; $count = $stream.Read($head, 0, 16) } finally { $stream.Dispose() }
+              Write-Host "$path length=$length hash=$hash expected=$expected firstbytes=$([Convert]::ToBase64String($head, 0, $count))"
+            }
+          }
