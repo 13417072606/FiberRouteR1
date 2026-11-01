@@ -22,11 +22,11 @@ public sealed partial class MainForm
     void BuildRouteWorkspace()
     {
         var tab=Tab("路由配置");start=new(()=>store.Graph);end=new(()=>store.Graph);avoid=new(()=>store.Graph);avoidNodes.DisplayMember="Name";
-        order.Items.AddRange(["满足需求","距离最短","跳纤最少","余量最多"]);order.SelectedIndex=0;count.Items.AddRange(["1","3","5","8","10","20","50"]);count.SelectedItem="8";
+        order.Items.AddRange(["满足需求","距离最短","跳纤最少","余量最多"]);order.SelectedIndex=0;
         var leftBody=Stack();leftBody.Padding=new Padding(3);leftBody.Controls.Add(Title("查询条件",15));leftBody.Controls.AddRange([L("起点设施"),start]);
         var exchange=new Panel{Height=43,BackColor=Color.White};var swap=ActionButton("",()=>{var a=start.Selected;start.SelectNode(end.Selected);end.SelectNode(a);},"swap");swap.Size=new(46,34);exchange.Controls.Add(swap);exchange.Resize+=(_,_)=>swap.Location=new Point((exchange.ClientSize.Width-swap.Width)/2,4);leftBody.Controls.Add(exchange);
-        leftBody.Controls.AddRange([L("终点设施"),end,QueryField("需求芯数",demand),QueryField("最大跳纤",jumps),QueryField("返回方案上限",count)]);
-        var countHelp=new Label{Text="最多列出多少条候选路由；无路径或搜索受限时仍可能返回 0 条。",AutoSize=false,Height=38,Dock=DockStyle.Top,ForeColor=Theme.Muted,Font=new Font(Font.FontFamily,8.5f)};leftBody.Controls.Add(countHelp);
+        leftBody.Controls.AddRange([L("终点设施"),end,QueryField("需求芯数",demand),QueryField("最大跳纤",jumps),QueryField("最多候选路由",count)]);
+        var countHelp=new Label{Text="最多展示多少条候选路由（1–50）；搜索受限时仍可能返回 0 条。",AutoSize=false,Height=38,Dock=DockStyle.Top,ForeColor=Theme.Muted,Font=new Font(Font.FontFamily,8.5f)};leftBody.Controls.Add(countHelp);
         var extras=Stack();extras.Dock=DockStyle.None;extras.Padding=new Padding(6);extras.AutoScroll=false;extras.Visible=false;extras.BackColor=Color.FromArgb(247,250,252);avoidTypes.BackColor=extras.BackColor;
         extras.Layout+=(_,_)=>{int height=extras.Controls.Cast<Control>().Select(c=>c.Bottom+c.Margin.Bottom).DefaultIfEmpty(0).Max()+extras.Padding.Bottom;if(extras.Height!=height)extras.Height=height;};
         extras.Controls.AddRange([L("规避节点类型"),avoidTypes,L("规避具体节点"),avoid,B("添加规避节点",()=>{if(avoid.Selected is Node n&&!avoidNodes.Items.Cast<Node>().Any(x=>x.Id==n.Id))avoidNodes.Items.Add(n);}),avoidNodes,B("移除选中节点",()=>{if(avoidNodes.SelectedIndex>=0)avoidNodes.Items.RemoveAt(avoidNodes.SelectedIndex);})]);

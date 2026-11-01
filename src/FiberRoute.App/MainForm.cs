@@ -14,7 +14,7 @@ public sealed partial class MainForm:Form
     readonly DataGridView routeGrid=Grid(),segments=Grid(),resourceGrid=Grid(),typeGrid=Grid(),importGrid=Grid(),typePreview=Grid();
     readonly PathDiagram pathView=new(){Dock=DockStyle.Fill};
     readonly NumericUpDown demand=Num(1,99999,1),jumps=Num(0,100,8),minFree=Num(0,99999,0);
-    readonly ComboBox count=new UiComboBox(){DropDownStyle=ComboBoxStyle.DropDownList,Width=110};
+    readonly TextBox count=new(){Text="8",Width=110,TextAlign=HorizontalAlignment.Left};
     readonly ComboBox order=new UiComboBox(){DropDownStyle=ComboBoxStyle.DropDownList,Width=180};
     readonly TypeChecklist avoidTypes=new();
     readonly ListBox avoidNodes=new(){Width=280,Height=80};
@@ -63,8 +63,8 @@ public sealed partial class MainForm:Form
     async Task SearchRoutes()
     {
         if(start.Selected is not Node a||end.Selected is not Node b)throw new InvalidOperationException("请从搜索结果中选择完整起终点");
-        var opts=new RouteOptions(a.Id,b.Id,(int)demand.Value,(int)jumps.Value,int.Parse(count.SelectedItem?.ToString()??"8"),(RouteOrder)order.SelectedIndex,avoidTypes.CheckedTypes.ToHashSet(),avoidNodes.Items.Cast<Node>().Select(x=>x.Id).ToHashSet(),RequireCapacity:requireCapacity.Checked);
-        store.SetSetting("route",JsonSerializer.Serialize(new{a=a.Name,b=b.Name,demand=(int)demand.Value,jumps=(int)jumps.Value,count=int.Parse(count.SelectedItem?.ToString()??"8"),order=order.SelectedIndex,capacityOnly=requireCapacity.Checked,types=opts.AvoidTypes,nodes=avoidNodes.Items.Cast<Node>().Select(x=>x.Name).ToArray()}));
+        var opts=new RouteOptions(a.Id,b.Id,(int)demand.Value,(int)jumps.Value,RouteCount(),(RouteOrder)order.SelectedIndex,avoidTypes.CheckedTypes.ToHashSet(),avoidNodes.Items.Cast<Node>().Select(x=>x.Id).ToHashSet(),RequireCapacity:requireCapacity.Checked);
+        store.SetSetting("route",JsonSerializer.Serialize(new{a=a.Name,b=b.Name,demand=(int)demand.Value,jumps=(int)jumps.Value,count=RouteCount(),order=order.SelectedIndex,capacityOnly=requireCapacity.Checked,types=opts.AvoidTypes,nodes=avoidNodes.Items.Cast<Node>().Select(x=>x.Name).ToArray()}));
         await Work("正在计算…",async ct=>{
             var g=store.Graph;var result=await Task.Run(()=>Routing.Find(g,opts,ct));routeGraph=g;routeOptions=opts;routes=result.Routes;
             routeGrid.DataSource=routes.Select((r,i)=>new{方案=i+1,容量状态=r.CapacityStatus(opts.Demand),已记录米=Math.Round(r.Length,2),未知长度段=r.Unknown,零长度段=r.Zero,跳纤=r.Jumps,路由最小空闲芯数=r.Bottleneck,需求后余量=r.Edges.Length==0?"内部关系未核验":(r.Bottleneck-opts.Demand).ToString()}).ToList();
@@ -80,6 +80,11 @@ public sealed partial class MainForm:Form
         schemeChoice.BackColor=r.Edges.Length>0&&!r.HasCapacity(o.Demand)?Color.FromArgb(255,240,224):Theme.Tint;
         segments.DataSource=r.Edges.Select((i,j)=>{var e=g.Edges[i];var step=r.Steps.ElementAtOrDefault(j);return new{序号=j+1,起端设施=g.Nodes[step?.From??e.A].Name,终端设施=g.Nodes[step?.To??e.B].Name,长度米=e.Length?.ToString("0.##",CultureInfo.InvariantCulture)??"未知",空闲_总芯=$"{e.Free} / {e.Total}",需求后余量=e.Free-o.Demand};}).ToList();
         foreach(DataGridViewColumn c in segments.Columns)c.HeaderText=c.Name=="长度米"?"长度（米）":c.Name.Replace("_"," / ");
+    }
+    int RouteCount()
+    {
+        if(!int.TryParse(count.Text.Trim(),out int value)||value<1||value>50)throw new ArgumentException("最多候选路由请输入 1 至 50 的整数");
+        return value;
     }
     void ClearRoutes(){routeSequence.Clear();copyRoute.Enabled=false;routes=[];routeGraph=null;routeOptions=null;routeGrid.DataSource=null;segments.DataSource=null;pathView.Clear();schemeChoice.Items.Clear();schemeChoice.BackColor=Theme.Tint;routeSummary.Text="候选路由 · 选择起终点后查询";}
     void ExportRoutes(bool currentOnly=false)
@@ -211,7 +216,7 @@ public sealed partial class MainForm:Form
     }
     void RestoreRouteSettings()
     {
-        try{if(store.Setting("route") is not string s)return;var r=JsonDocument.Parse(s).RootElement;showingRoute=true;requireCapacity.Checked=!r.TryGetProperty("capacityOnly",out var cap)||cap.GetBoolean();showingRoute=false;demand.Value=Math.Clamp(r.GetProperty("demand").GetInt32(),1,99999);jumps.Value=Math.Clamp(r.GetProperty("jumps").GetInt32(),0,100);var savedCount=Math.Clamp(r.GetProperty("count").GetInt32(),1,50);count.SelectedItem=count.Items.Cast<string>().FirstOrDefault(x=>int.Parse(x)>=savedCount)??"50";order.SelectedIndex=Math.Clamp(r.GetProperty("order").GetInt32(),0,3);start.SelectNode(store.Graph.Nodes.FirstOrDefault(n=>n.Name==r.GetProperty("a").GetString()));end.SelectNode(store.Graph.Nodes.FirstOrDefault(n=>n.Name==r.GetProperty("b").GetString()));var ts=r.GetProperty("types").EnumerateArray().Select(x=>x.GetString()??"").ToHashSet();avoidTypes.SetCheckedTypes(ts);foreach(var name in r.GetProperty("nodes").EnumerateArray()){var node=store.Graph.Nodes.FirstOrDefault(n=>n.Name==name.GetString());if(node!=null)avoidNodes.Items.Add(node);}}catch{/* Older or damaged personal query preferences are optional. */}finally{showingRoute=false;}
+        try{if(store.Setting("route") is not string s)return;var r=JsonDocument.Parse(s).RootElement;showingRoute=true;requireCapacity.Checked=!r.TryGetProperty("capacityOnly",out var cap)||cap.GetBoolean();showingRoute=false;demand.Value=Math.Clamp(r.GetProperty("demand").GetInt32(),1,99999);jumps.Value=Math.Clamp(r.GetProperty("jumps").GetInt32(),0,100);var savedCount=Math.Clamp(r.GetProperty("count").GetInt32(),1,50);count.Text=savedCount.ToString();order.SelectedIndex=Math.Clamp(r.GetProperty("order").GetInt32(),0,3);start.SelectNode(store.Graph.Nodes.FirstOrDefault(n=>n.Name==r.GetProperty("a").GetString()));end.SelectNode(store.Graph.Nodes.FirstOrDefault(n=>n.Name==r.GetProperty("b").GetString()));var ts=r.GetProperty("types").EnumerateArray().Select(x=>x.GetString()??"").ToHashSet();avoidTypes.SetCheckedTypes(ts);foreach(var name in r.GetProperty("nodes").EnumerateArray()){var node=store.Graph.Nodes.FirstOrDefault(n=>n.Name==name.GetString());if(node!=null)avoidNodes.Items.Add(node);}}catch{/* Older or damaged personal query preferences are optional. */}finally{showingRoute=false;}
     }
     static string? Save(string name) {string dir=Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);using var d=new SaveFileDialog(){FileName=name,Filter="CSV文件|*.csv",InitialDirectory=dir};return d.ShowDialog()==DialogResult.OK?d.FileName:null;}
 
