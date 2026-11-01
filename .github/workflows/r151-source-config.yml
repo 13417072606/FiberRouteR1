@@ -3,7 +3,7 @@ name: Publish R1.5.1 source and client packer
 on:
   push:
     tags:
-      - r1.5.1-source-config-v1
+      - r1.5.1-source-config-v*
 
 permissions:
   contents: write
@@ -41,7 +41,8 @@ jobs:
           $zip = [IO.Compression.ZipFile]::OpenRead($output)
           try {
             $names = @($zip.Entries | ForEach-Object FullName)
-            if (-not ($names | Where-Object { $_.EndsWith('/update-service.json') })) { throw 'Public config missing from client package' }
+            Write-Host ('Config entries: ' + (($names | Where-Object { $_ -like '*update-service.json' }) -join ', '))
+            if (-not ($names | Where-Object { $_ -like '*update-service.json' })) { throw 'Public config missing from client package' }
             if ($names | Where-Object { $_ -match '(?i)private-key|\.db$|\.pem$|\.xlsx$' }) { throw 'Private data found in client package' }
           }
           finally { $zip.Dispose() }
