@@ -3,7 +3,7 @@ namespace FiberRoute.App;
 public sealed class NodePicker:UserControl
 {
     sealed record Choice(Node Node,string Label);
-    readonly TextBox input=new(){BorderStyle=BorderStyle.None,AutoSize=false,Dock=DockStyle.None,PlaceholderText="输入机房或设施名称搜索"};
+    readonly TextBox input=new(){BorderStyle=BorderStyle.None,AutoSize=false,Dock=DockStyle.None,PlaceholderText="输入名称关键词，可用空格组合"};
     readonly ListBox list=new(){BorderStyle=BorderStyle.None,DrawMode=DrawMode.OwnerDrawFixed,ItemHeight=40};
     readonly ToolStripDropDown dropdown=new(){Padding=Padding.Empty,AutoClose=false};
     readonly Func<Graph> graph;readonly System.Windows.Forms.Timer timer=new(){Interval=220};Node? selected;bool selecting;
@@ -26,10 +26,15 @@ public sealed class NodePicker:UserControl
     }
     void Find()
     {
-        if(!Visible||!IsHandleCreated)return;var g=graph();string term=input.Text.Trim();var choices=new List<Choice>();
-        foreach(var pair in g.Rooms.Where(x=>x.Key.Contains(term,StringComparison.OrdinalIgnoreCase)).Take(15))choices.Add(new(g.Nodes[pair.Value[0]],pair.Key+$"  ·  {pair.Value.Length}个设施"));
-        foreach(var pair in g.ClusterNames.Where(x=>!g.Rooms.ContainsKey(x.Value)&&x.Value.Contains(term,StringComparison.OrdinalIgnoreCase)).Take(15))choices.Add(new(g.Nodes[pair.Key],pair.Value+$"  ·  {g.ClusterMembers[pair.Key].Length}个设施"));
-        choices.AddRange(g.Nodes.Where(n=>n.Name.Contains(term,StringComparison.OrdinalIgnoreCase)).Take(35).Select(n=>new Choice(n,n.Name)));list.Items.Clear();list.Items.AddRange(choices.Take(40).Cast<object>().ToArray());
+        if(!Visible||!IsHandleCreated)return;
+        var g=graph();string[] terms=input.Text.Split((char[]?)null,StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+        bool Matches(string name)=>terms.All(term=>name.Contains(term,StringComparison.OrdinalIgnoreCase));
+        int Rank(string name)=>terms.Length==0?0:Math.Max(0,name.IndexOf(terms[0],StringComparison.OrdinalIgnoreCase));
+        var choices=new List<Choice>();
+        foreach(var pair in g.Rooms.Where(x=>Matches(x.Key)).OrderBy(x=>Rank(x.Key)).Take(15))choices.Add(new(g.Nodes[pair.Value[0]],pair.Key+$"  ·  {pair.Value.Length}个设施"));
+        foreach(var pair in g.ClusterNames.Where(x=>!g.Rooms.ContainsKey(x.Value)&&Matches(x.Value)).OrderBy(x=>Rank(x.Value)).Take(15))choices.Add(new(g.Nodes[pair.Key],pair.Value+$"  ·  {g.ClusterMembers[pair.Key].Length}个设施"));
+        choices.AddRange(g.Nodes.Where(n=>Matches(n.Name)).OrderBy(n=>Rank(n.Name)).Take(35).Select(n=>new Choice(n,n.Name)));
+        list.Items.Clear();list.Items.AddRange(choices.Take(40).Cast<object>().ToArray());
         if(list.Items.Count==0){dropdown.Close();return;}var host=(ToolStripControlHost)dropdown.Items[0];host.Size=new Size(Math.Max(Width,480),Math.Min(280,list.Items.Count*list.ItemHeight+4));list.Size=host.Size;if(!dropdown.Visible)dropdown.Show(this,new Point(0,Height));input.Focus();
     }
     void Choose(){if(list.SelectedItem is Choice item){SetSelection(item.Node,item.Label);dropdown.Close();input.SelectionStart=input.TextLength;}}
