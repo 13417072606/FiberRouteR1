@@ -1,0 +1,37 @@
+﻿param(
+    [Parameter(Mandatory=$true)][string]$SoftwareSource,
+    [string]$Workspace = 'F:\管线资源发布区',
+    [string]$Output = ''
+)
+$ErrorActionPreference = 'Stop'
+$source = (Resolve-Path -LiteralPath $SoftwareSource).Path
+$config = Join-Path $Workspace 'client-config\update-service.json'
+if (-not (Test-Path -LiteralPath $config)) { throw "找不到公开更新配置：$config" }
+$value = Get-Content -LiteralPath $config -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($value.ManifestUrl -ne 'https://guangludiaodu.pages.dev/manifest.json' -or
+    $value.PublicKeyPem -notmatch '-----BEGIN PUBLIC KEY-----') {
+    throw '更新地址或公钥不符合当前发布渠道，请先在管理方发布工具第 2 步核对配置。'
+}
+if (-not (Test-Path -LiteralPath (Join-Path $source '光路调度路由查询.exe')) -or
+    -not (Test-Path -LiteralPath (Join-Path $source '程序\FiberRouteR1.dll'))) {
+    throw '请选择解压后的 R1.5.1软件发布源 文件夹，内应有启动器和程序文件夹。'
+}
+if (-not $Output) { $Output = Join-Path (Split-Path -Parent $source) 'R1.5.1客户端-已配置.zip' }
+if (Test-Path -LiteralPath $Output) { throw "输出文件已存在，请先核对：$Output" }
+$stage = Join-Path $env:TEMP ('FiberRoute-client-' + [guid]::NewGuid().ToString('N'))
+try {
+    New-Item -ItemType Directory -Path $stage -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $source '光路调度路由查询.exe') -Destination $stage
+    Copy-Item -LiteralPath (Join-Path $source '程序') -Destination $stage -Recurse
+    $resources = Join-Path $stage '资源'
+    New-Item -ItemType Directory -Path $resources | Out-Null
+    Copy-Item -LiteralPath $config -Destination (Join-Path $resources 'update-service.json')
+    $unexpected = Get-ChildItem -LiteralPath $stage -File -Recurse | Where-Object {
+        $_.Extension -in @('.db','.pem','.xlsx','.csv','.pdb') -or $_.Name -match 'private-key|发布工具'
+    }
+    if ($unexpected) { throw '客户端包中发现业务数据或管理方文件，已停止打包。' }
+    Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $Output -CompressionLevel Optimal
+    Write-Host "已生成：$Output"
+    Write-Host ('SHA256：' + (Get-FileHash -LiteralPath $Output -Algorithm SHA256).Hash)
+}
+finally { if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force } }

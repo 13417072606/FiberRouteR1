@@ -1,0 +1,68 @@
+name: Publish R1.5.1 source and client packer
+
+on:
+  push:
+    tags:
+      - r1.5.1-source-config-v1
+
+permissions:
+  contents: write
+
+jobs:
+  deliver:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Download tested program source
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'program-source'
+          New-Item -ItemType Directory -Path $target | Out-Null
+          gh release download r1.5.1-download --pattern 'FiberRouteR1-R1.5.1-program-source.zip' --dir $target
+          Expand-Archive -LiteralPath (Join-Path $target 'FiberRouteR1-R1.5.1-program-source.zip') -DestinationPath $target
+      - name: Build and verify configured client package
+        shell: powershell
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'program-source'
+          $dll = Get-ChildItem -LiteralPath $root -Filter 'FiberRouteR1.dll' -Recurse -File | Select-Object -First 1
+          if (-not $dll) { throw 'Program DLL missing' }
+          $source = Split-Path -Parent (Split-Path -Parent $dll.FullName)
+          $workspace = Join-Path $env:RUNNER_TEMP 'publisher-workspace'
+          dotnet run --project src/FiberRoute.Admin/FiberRoute.Admin.csproj -c Release -- init $workspace 'https://guangludiaodu.pages.dev/'
+          if ($LASTEXITCODE -ne 0) { throw 'Test workspace initialization failed' }
+          $output = Join-Path $env:RUNNER_TEMP 'configured-client.zip'
+          .\scripts\Make-R151-Configured-Client.ps1 -SoftwareSource $source -Workspace $workspace -Output $output
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead($output)
+          try {
+            $names = @($zip.Entries | ForEach-Object FullName)
+            if (-not ($names | Where-Object { $_.EndsWith('/update-service.json') })) { throw 'Public config missing from client package' }
+            if ($names | Where-Object { $_ -match '(?i)private-key|\.db$|\.pem$|\.xlsx$' }) { throw 'Private data found in client package' }
+          }
+          finally { $zip.Dispose() }
+      - name: Create source-only ZIP
+        shell: powershell
+        run: |
+          python scripts/make-r151-source.py
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $path = 'downloads/R1.5.1/FiberRouteR1-R1.5.1-source.zip'
+          $zip = [IO.Compression.ZipFile]::OpenRead($path)
+          try {
+            $names = @($zip.Entries | ForEach-Object FullName)
+            if (-not ($names | Where-Object { $_.EndsWith('/src/FiberRoute.App/AutomaticUpdates.cs') })) { throw 'Daily updater source missing' }
+            if ($names | Where-Object { $_ -match '(?i)\.db$|\.pem$|\.exe$|\.dll$' }) { throw 'Binary or private data in source ZIP' }
+          }
+          finally { $zip.Dispose() }
+      - name: Upload source and packer
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload r1.5.1-download \
+            downloads/R1.5.1/FiberRouteR1-R1.5.1-source.zip \
+            scripts/Make-R151-Configured-Client.ps1 --clobber
