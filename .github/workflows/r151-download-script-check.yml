@@ -3,7 +3,7 @@ name: Check R1.5.1 Windows download script
 on:
   push:
     tags:
-      - r1.5.1-download-script-v1
+      - r1.5.1-download-script-v*
 
 permissions:
   contents: write
@@ -13,6 +13,19 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check pinned hashes against published assets
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $release = gh api repos/13417072606/FiberRouteR1/releases/tags/r1.5.1-download | ConvertFrom-Json
+          $script = (Get-Content -LiteralPath 'scripts/Download-R151-Software.ps1' -Raw).ToUpperInvariant()
+          foreach ($asset in $release.assets) {
+            if ($asset.name.StartsWith('FiberRouteR1-R1.5.1-program-source.zip')) {
+              $hash = $asset.digest.Substring(7).ToUpperInvariant()
+              if (-not $script.Contains($hash)) { throw "Pinned hash missing or incorrect: $($asset.name)" }
+            }
+          }
       - name: Run in Windows PowerShell 5.1 and verify package
         shell: powershell
         run: |
