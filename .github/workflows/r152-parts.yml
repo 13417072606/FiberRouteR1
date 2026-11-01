@@ -1,0 +1,39 @@
+name: Publish R1.5.2 resilient download parts
+on:
+  push:
+    tags:
+      - r1.5.2-parts-v*
+permissions:
+  contents: write
+jobs:
+  parts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Split verified release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/r152-parts"
+          gh release download r1.5.2-download --pattern 'FiberRouteR1-R1.5.2-program-source.zip' --dir "$RUNNER_TEMP/r152-parts"
+          python3 - "$RUNNER_TEMP/r152-parts" <<'PY'
+          from pathlib import Path
+          from hashlib import sha256
+          import json,sys
+          folder=Path(sys.argv[1]); source=folder/'FiberRouteR1-R1.5.2-program-source.zip'
+          digest='feb66e329c372055d95d607b0bfa59a0291cf2d59ab1798f0b906da8bea77c5a'
+          assert sha256(source.read_bytes()).hexdigest()==digest
+          parts=[]
+          with source.open('rb') as stream:
+              for i in range(100):
+                  data=stream.read(8*1024*1024)
+                  if not data:break
+                  name=source.name+f'.{i+1:03d}'
+                  (folder/name).write_bytes(data)
+                  parts.append({'name':name,'sha256':sha256(data).hexdigest().upper(),'bytes':len(data)})
+          assert sum(p['bytes'] for p in parts)==source.stat().st_size
+          (folder/'R1.5.2-parts.json').write_text(json.dumps({'sha256':digest.upper(),'parts':parts},indent=2))
+          source.unlink()
+          print('Verified parts:',len(parts))
+          PY
+          gh release upload r1.5.2-download "$RUNNER_TEMP"/r152-parts/* scripts/Download-R152.ps1 --clobber
