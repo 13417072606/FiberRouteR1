@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$Destination = (Join-Path $env:USERPROFILE 'Downloads\FiberRouteR1-R1.5.1-软件源'),
     [switch]$NoOpen
 )
