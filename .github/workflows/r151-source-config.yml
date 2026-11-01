@@ -43,6 +43,9 @@ jobs:
             $names = @($zip.Entries | ForEach-Object FullName)
             Write-Host ('Config entries: ' + (($names | Where-Object { $_ -like '*update-service.json' }) -join ', '))
             if (-not ($names | Where-Object { $_ -like '*update-service.json' })) { throw 'Public config missing from client package' }
+            $roots = @($names | ForEach-Object { ($_.Replace([char]92,'/').Split('/'))[0] } | Sort-Object -Unique)
+            if ($roots.Count -ne 1) { throw 'Client package must have exactly one top-level folder' }
+            if (-not ($names | Where-Object { $_.Replace([char]92,'/') -match '^[^/]+/[^/]+\.exe$' })) { throw 'Client launcher missing' }
             if ($names | Where-Object { $_ -match '(?i)private-key|\.db$|\.pem$|\.xlsx$' }) { throw 'Private data found in client package' }
           }
           finally { $zip.Dispose() }

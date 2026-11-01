@@ -16,21 +16,23 @@ if (-not (Test-Path -LiteralPath (Join-Path $source '光路调度路由查询.ex
     -not (Test-Path -LiteralPath (Join-Path $source '程序\FiberRouteR1.dll'))) {
     throw '请选择解压后的 R1.5.1软件发布源 文件夹，内应有启动器和程序文件夹。'
 }
-if (-not $Output) { $Output = Join-Path (Split-Path -Parent $source) 'R1.5.1客户端-已配置.zip' }
+$deliveryName = '光路调度路由分析R1.5.1'
+if (-not $Output) { $Output = Join-Path (Split-Path -Parent $source) ($deliveryName + '.zip') }
 if (Test-Path -LiteralPath $Output) { throw "输出文件已存在，请先核对：$Output" }
 $stage = Join-Path $env:TEMP ('FiberRoute-client-' + [guid]::NewGuid().ToString('N'))
 try {
-    New-Item -ItemType Directory -Path $stage -Force | Out-Null
-    Copy-Item -LiteralPath (Join-Path $source '光路调度路由查询.exe') -Destination $stage
-    Copy-Item -LiteralPath (Join-Path $source '程序') -Destination $stage -Recurse
-    $resources = Join-Path $stage '资源'
+    $clientRoot = Join-Path $stage $deliveryName
+    New-Item -ItemType Directory -Path $clientRoot -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $source '光路调度路由查询.exe') -Destination $clientRoot
+    Copy-Item -LiteralPath (Join-Path $source '程序') -Destination $clientRoot -Recurse
+    $resources = Join-Path $clientRoot '资源'
     New-Item -ItemType Directory -Path $resources | Out-Null
     Copy-Item -LiteralPath $config -Destination (Join-Path $resources 'update-service.json')
     $unexpected = Get-ChildItem -LiteralPath $stage -File -Recurse | Where-Object {
         $_.Extension -in @('.db','.pem','.xlsx','.csv','.pdb') -or $_.Name -match 'private-key|发布工具'
     }
     if ($unexpected) { throw '客户端包中发现业务数据或管理方文件，已停止打包。' }
-    Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $Output -CompressionLevel Optimal
+    Compress-Archive -Path $clientRoot -DestinationPath $Output -CompressionLevel Optimal
     Write-Host "已生成：$Output"
     Write-Host ('SHA256：' + (Get-FileHash -LiteralPath $Output -Algorithm SHA256).Hash)
 }
