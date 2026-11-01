@@ -8,7 +8,8 @@ public sealed partial class MainForm
     const string LastAutoCheckDay="online-auto-check-day";
     const string PendingProgram="online-pending-program";
     const string PendingData="online-pending-data";
-    readonly Label updateBadge=new(){Text="● 更新",AutoSize=true,Visible=false,ForeColor=Color.FromArgb(204,45,45),BackColor=Color.White,Font=new Font("Microsoft YaHei UI",9,FontStyle.Bold),Cursor=Cursors.Hand};
+    readonly UiButton updateBadge=new(){Text="更新",Width=76,Height=40,Visible=false,ForeColor=Color.FromArgb(12,49,84),BackColor=Color.White,Font=new Font("Microsoft YaHei UI",9,FontStyle.Bold),Cursor=Cursors.Hand};
+    readonly Label updateDot=new(){Text="●",AutoSize=true,ForeColor=Color.FromArgb(224,55,55),BackColor=Color.White,Visible=false,Font=new Font("Microsoft YaHei UI",10,FontStyle.Bold)};
     readonly ToolTip updateBadgeHint=new();
     readonly CancellationTokenSource updateMonitorLifetime=new();
     System.Windows.Forms.Timer? updateIdleTimer;
@@ -33,6 +34,7 @@ public sealed partial class MainForm
         if(program is {Length:>0}&&!Updates.IsNewProgram(program,ProgramVersion)){store.SetSetting(PendingProgram,"");program=null;}
         if(data is {Length:>0}&&data==store.Setting("remoteResourceVersion")){store.SetSetting(PendingData,"");data=null;}
         updateBadge.Visible=UpdateReminderPolicy.HasPending(program,data,ProgramVersion,store.Setting("remoteResourceVersion"));
+        updateDot.Visible=updateBadge.Visible;
         updateBadgeHint.SetToolTip(updateBadge,"待更新："+(program is {Length:>0}?"软件 R"+program+" ":"")+(data is {Length:>0}?"数据 "+data:"")+"。点击查看。");
     }
 
