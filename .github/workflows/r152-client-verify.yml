@@ -1,0 +1,44 @@
+name: Verify R1.5.2 configured client
+on:
+  push:
+    tags:
+      - r1.5.2-client-verify-v*
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Download tested R1.5.2 program
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'program-source'
+          New-Item -ItemType Directory -Path $target | Out-Null
+          gh release download r1.5.2-download --pattern 'FiberRouteR1-R1.5.2-program-source.zip' --dir $target
+          Expand-Archive -LiteralPath (Join-Path $target 'FiberRouteR1-R1.5.2-program-source.zip') -DestinationPath $target
+      - name: Verify packer and public configuration
+        shell: powershell
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'program-source'
+          $dll = Get-ChildItem -LiteralPath $root -Filter 'FiberRouteR1.dll' -Recurse -File | Select-Object -First 1
+          if (-not $dll) { throw 'Program DLL missing' }
+          $source = Split-Path -Parent (Split-Path -Parent $dll.FullName)
+          $workspace = Join-Path $env:RUNNER_TEMP 'publisher-workspace'
+          dotnet run --project src/FiberRoute.Admin/FiberRoute.Admin.csproj -c Release -- init $workspace 'https://guangludiaodu.pages.dev/'
+          if ($LASTEXITCODE -ne 0) { throw 'Test workspace initialization failed' }
+          $output = Join-Path $env:RUNNER_TEMP 'configured-client.zip'
+          .\scripts\Make-R152-Configured-Client.ps1 -SoftwareSource $source -Workspace $workspace -Output $output
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead($output)
+          try {
+            $names = @($zip.Entries | ForEach-Object { $_.FullName.Replace([char]92,'/') })
+            $roots = @($names | ForEach-Object { $_.Split('/')[0] } | Sort-Object -Unique)
+            if ($roots.Count -ne 1) { throw 'Unexpected top-level folder count' }
+            if (-not ($names | Where-Object { $_ -like '*/update-service.json' })) { throw 'Public config missing' }
+            if (-not ($names | Where-Object { $_ -match '^[^/]+/[^/]+\.exe$' })) { throw 'Client launcher missing' }
+            if ($names | Where-Object { $_ -match '(?i)private-key|\.db$|\.pem$|\.xlsx$' }) { throw 'Private data found' }
+          } finally { $zip.Dispose() }
