@@ -5,6 +5,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 root = Path(__file__).resolve().parents[1]
 out = root / 'downloads/R1.5.1/FiberRouteR1-R1.5.1-source.zip'
+out.parent.mkdir(parents=True, exist_ok=True)
 paths = check_output(['git', 'ls-files', '-z'], cwd=root).split(b'\0')
 include = ('src/', 'tests/', 'scripts/', 'assets/')
 root_files = {'FiberRouteR1.sln', 'Directory.Build.props', 'Directory.Build.targets', 'global.json', 'README.md'}
