@@ -7,6 +7,7 @@ namespace FiberRoute.Core;
 public sealed record RoomAssignment(string Name,string Room,string Source,string Status,string Reason,bool Enabled,bool IsCabinet);
 public sealed record RoomSeed(string Name,string Room,string Source);
 public sealed record RoomFacility(string Id,string Name,string Room,string Source,string Kind,int Rank,int Row);
+public sealed record RoomCatalogPreview(int Rows,int UniqueRooms,int CurrentRooms,int MatchedRooms,int UnmatchedRooms);
 
 public sealed partial class Store
 {
@@ -17,7 +18,7 @@ public sealed partial class Store
         {
             Run(c,"CREATE TABLE room_facilities_next(id TEXT NOT NULL,name TEXT NOT NULL,room TEXT NOT NULL,source TEXT NOT NULL,kind TEXT NOT NULL,rank INTEGER NOT NULL,rownum INTEGER NOT NULL,PRIMARY KEY(kind,id)) WITHOUT ROWID; INSERT OR REPLACE INTO room_facilities_next SELECT id,name,room,source,kind,rank,rownum FROM room_facilities ORDER BY rowid; DROP TABLE room_facilities; ALTER TABLE room_facilities_next RENAME TO room_facilities");
         }
-        Run(c,"CREATE TABLE IF NOT EXISTS room_facilities(id TEXT NOT NULL,name TEXT NOT NULL,room TEXT NOT NULL,source TEXT NOT NULL,kind TEXT NOT NULL,rank INTEGER NOT NULL,rownum INTEGER NOT NULL,PRIMARY KEY(kind,id)) WITHOUT ROWID; CREATE INDEX IF NOT EXISTS room_facilities_id ON room_facilities(id); CREATE TABLE IF NOT EXISTS room_kind_imports(kind TEXT PRIMARY KEY) WITHOUT ROWID");
+        Run(c,"CREATE TABLE IF NOT EXISTS room_facilities(id TEXT NOT NULL,name TEXT NOT NULL,room TEXT NOT NULL,source TEXT NOT NULL,kind TEXT NOT NULL,rank INTEGER NOT NULL,rownum INTEGER NOT NULL,PRIMARY KEY(kind,id)) WITHOUT ROWID; CREATE INDEX IF NOT EXISTS room_facilities_id ON room_facilities(id); CREATE TABLE IF NOT EXISTS room_kind_imports(kind TEXT PRIMARY KEY) WITHOUT ROWID; CREATE TABLE IF NOT EXISTS room_catalog(name TEXT PRIMARY KEY,category TEXT NOT NULL,source TEXT NOT NULL,rownum INTEGER NOT NULL) WITHOUT ROWID; CREATE TABLE IF NOT EXISTS room_catalog_state(active INTEGER NOT NULL)");
     }
     // Room affiliation is an explicit field, never a station name, upstream room or name prefix.
     static bool HasRoom(string room)=>room.Trim() is not ("" or "--" or "无" or "未知" or "未填写");
@@ -112,6 +113,53 @@ public sealed partial class Store
         }
         ApplyFacilityEvidence(inputs,ct);Reload();
     }
+    static Dictionary<string,(string Category,string Source,int Row)> ReadRoomCatalog(IEnumerable<(string Path,string? Sheet)> files,CancellationToken ct)
+    {
+        var rooms=new Dictionary<string,(string,string,int)>(StringComparer.Ordinal);
+        foreach(var (path,sheet) in files)
+        {
+            using var rows=ReadTypeRows(path,sheet).GetEnumerator();
+            if(!rows.MoveNext())throw new InvalidDataException("机房管理表为空："+Path.GetFileName(path));
+            var headers=rows.Current.Select(x=>x.Trim()).ToArray();
+            int nameColumn=Array.FindIndex(headers,x=>x=="机房名称");
+            int typeColumn=Array.FindIndex(headers,x=>x=="省内机房类型");
+            if(nameColumn<0)throw new InvalidDataException("机房管理表缺少“机房名称”列："+Path.GetFileName(path));
+            int line=1;
+            while(rows.MoveNext())
+            {
+                ct.ThrowIfCancellationRequested();line++;var row=rows.Current;
+                string name=nameColumn<row.Length?row[nameColumn].Trim():"";
+                if(name.Length==0)continue;
+                string category=typeColumn>=0&&typeColumn<row.Length?row[typeColumn].Trim():"";
+                rooms.TryAdd(name,(category,Path.GetFileName(path),line));
+            }
+        }
+        if(rooms.Count==0)throw new InvalidDataException("机房管理表没有有效的机房名称，原有归属保持不变");
+        return rooms;
+    }
+    public RoomCatalogPreview PreviewRoomCatalog(IEnumerable<(string Path,string? Sheet)> files,CancellationToken ct=default)
+    {
+        var input=files.ToArray();var catalog=ReadRoomCatalog(input,ct);
+        using var c=Open(Personal);using var q=c.CreateCommand();q.CommandText="SELECT DISTINCT room FROM room_facilities WHERE room<>''";
+        using var reader=q.ExecuteReader();int current=0,matched=0;
+        while(reader.Read()){ct.ThrowIfCancellationRequested();current++;if(catalog.ContainsKey(reader.GetString(0).Trim()))matched++;}
+        return new(input.Length,catalog.Count,current,matched,current-matched);
+    }
+    public void ApplyRoomCatalog(IEnumerable<(string Path,string? Sheet)> files,CancellationToken ct=default)
+    {
+        var catalog=ReadRoomCatalog(files,ct);
+        using var c=Open(Personal);EnsureRoomFacilities(c);using var tx=c.BeginTransaction();
+        using(var clear=c.CreateCommand()){clear.Transaction=tx;clear.CommandText="DELETE FROM room_catalog; DELETE FROM room_catalog_state";clear.ExecuteNonQuery();}
+        using var put=c.CreateCommand();put.Transaction=tx;put.CommandText="INSERT INTO room_catalog VALUES($n,$c,$s,$r)";
+        foreach(string key in new[]{"$n","$c","$s","$r"})put.Parameters.AddWithValue(key,"");
+        foreach(var (name,info) in catalog)
+        {
+            ct.ThrowIfCancellationRequested();put.Parameters[0].Value=name;put.Parameters[1].Value=info.Category;
+            put.Parameters[2].Value=info.Source;put.Parameters[3].Value=info.Row;put.ExecuteNonQuery();
+        }
+        using(var active=c.CreateCommand()){active.Transaction=tx;active.CommandText="INSERT INTO room_catalog_state VALUES(1)";active.ExecuteNonQuery();}
+        ct.ThrowIfCancellationRequested();tx.Commit();Reload();
+    }
     public void ApplyRoomBaseline(string path,CancellationToken ct=default)
     {
         if(!File.Exists(path))return;if(new FileInfo(path).Length>20_000_000)throw new InvalidDataException("机房归属基线超过允许大小");
@@ -153,19 +201,25 @@ public sealed partial class Store
         var conflicts=new Dictionary<string,List<string>>(StringComparer.Ordinal);
         using var c=Open(Personal);
         var facilities=new List<RoomFacility>();using(var q=c.CreateCommand()){q.CommandText="SELECT id,name,room,source,kind,rank,rownum FROM room_facilities";using var r=q.ExecuteReader();while(r.Read())facilities.Add(new(r.GetString(0),r.GetString(1),r.GetString(2),r.GetString(3),r.GetString(4),r.GetInt32(5),r.GetInt32(6)));}
+        HashSet<string>? catalog=null;
+        using(var state=c.CreateCommand()){state.CommandText="SELECT active FROM room_catalog_state LIMIT 1";if(state.ExecuteScalar() is long active&&active==1){catalog=new(StringComparer.Ordinal);using var q=c.CreateCommand();q.CommandText="SELECT name FROM room_catalog";using var r=q.ExecuteReader();while(r.Read())catalog.Add(r.GetString(0));}}
+        var idWinners=new List<RoomFacility>();
         foreach(var group in facilities.GroupBy(x=>x.Id.Length>0?"ID:"+x.Id:"NAME:"+x.Name,StringComparer.Ordinal))
         {
             int rank=group.Max(x=>x.Rank);var winners=group.Where(x=>x.Rank==rank).ToArray();
-            if(winners.Length>1)foreach(var x in winners.Where(x=>x.Name.Length>0)){
+            if(winners.Where(x=>catalog==null||catalog.Contains(x.Room)).Select(x=>(x.Name,x.Room)).Distinct().Skip(1).Any())foreach(var x in winners.Where(x=>x.Name.Length>0)){
                 if(!conflicts.TryGetValue(x.Name,out var reasons))conflicts[x.Name]=reasons=[];
-                reasons.Add("同一设施 ID 在同优先级来源重复，需人工核对："+string.Join('；',winners.Select(w=>w.Kind+"/"+w.Source+"/第"+w.Row+"行")));
+                reasons.Add("同一设施 ID 在同优先级来源对应不同名称或机房："+string.Join('；',winners.Select(w=>w.Kind+"/"+w.Source+"/第"+w.Row+"行")));
             }
-            foreach(var x in winners.Where(x=>x.Name.Length>0&&UsableRoom(x.Room)))values.Add((x.Name,x.Room,x.Source+"（"+x.Kind+"；ID="+(x.Id.Length>0?x.Id:"缺失")+"）"));
+            idWinners.AddRange(winners);
         }
-        foreach(var group in facilities.Where(x=>x.Name.Length>0&&x.Id.Length>0).GroupBy(x=>x.Name,StringComparer.Ordinal).Where(x=>x.Select(v=>v.Id).Distinct(StringComparer.Ordinal).Skip(1).Any()))
+        foreach(var group in idWinners.Where(x=>x.Name.Length>0).GroupBy(x=>x.Name,StringComparer.Ordinal))
         {
-            if(!conflicts.TryGetValue(group.Key,out var reasons))conflicts[group.Key]=reasons=[];
-            reasons.Add("同名设施对应不同 ID，中继段端点仅有名称，需核对归属："+string.Join('；',group.Select(x=>x.Id).Distinct(StringComparer.Ordinal)));
+            int rank=group.Max(x=>x.Rank);var selected=group.Where(x=>x.Rank==rank).ToArray();
+            var rooms=selected.Select(x=>x.Room).Where(x=>UsableRoom(x)&&(catalog==null||catalog.Contains(x))).Distinct(StringComparer.Ordinal).ToArray();
+            if(rooms.Length>1){if(!conflicts.TryGetValue(group.Key,out var reasons))conflicts[group.Key]=reasons=[];reasons.Add("同名设施的同优先级来源对应不同所属机房："+string.Join('；',rooms));}
+            foreach(var x in selected.Where(x=>UsableRoom(x.Room)&&(catalog==null||catalog.Contains(x.Room))))
+                values.Add((x.Name,x.Room,x.Source+"（"+x.Kind+"；ID="+(x.Id.Length>0?x.Id:"缺失")+"）"));
         }
         var choices=new Dictionary<string,(string Room,bool Enabled)>();using(var q=c.CreateCommand()){q.CommandText="SELECT name,room,enabled FROM room_choices";using var r=q.ExecuteReader();while(r.Read())choices[r.GetString(0)]=(r.GetString(1),r.GetInt32(2)==1);}
         var reviews=new Dictionary<string,string>(StringComparer.Ordinal);using(var q=c.CreateCommand()){q.CommandText="SELECT name,signature FROM room_reviews";using var r=q.ExecuteReader();while(r.Read())reviews[r.GetString(0)]=r.GetString(1);}

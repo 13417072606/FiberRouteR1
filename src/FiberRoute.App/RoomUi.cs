@@ -14,9 +14,9 @@ public sealed partial class MainForm
         var left=new Surface{Dock=DockStyle.Fill,Padding=new Padding(12)};var right=Card("归属详情与来源",roomDetails);
         var actionButtons=Flow();actionButtons.Dock=DockStyle.Bottom;actionButtons.BackColor=Color.White;actionButtons.Controls.AddRange([B("查看来源",ShowRoomEvidence),B("查看成员",ShowRoomMembers)]);right.Controls.Add(actionButtons);
         roomRouteFilter.Items.AddRange(["全部归并状态","已纳入","部分纳入","已暂停"]);roomRouteFilter.SelectedIndex=0;
-        var actions=Flow();actions.BackColor=Color.White;roomSearch.Width=220;var frame=InputFrame(roomSearch);frame.Width=230;actions.Controls.AddRange([frame,roomArea,roomRouteFilter,B("重置",()=>{buildingFilters=true;roomSearch.Clear();roomArea.SelectedIndex=roomRouteFilter.SelectedIndex=0;buildingFilters=false;roomState="全部";roomPage.Value=1;LoadRooms();}),B("导入所属机房表",ImportRoomTables),B("导出筛选清单",()=>{var p=Save("机房归属.csv");if(p!=null)Csv.Write(p,new[]{new object?[]{"设施名称","所属机房","确认状态","参与机房整体路由","来源","原因"}}.Concat(visibleRooms.SelectMany(g=>g).Select(x=>new object?[]{x.Name,x.Room,x.Status,x.Enabled,x.Source,x.Reason})));})]);
+        var actions=Flow();actions.BackColor=Color.White;roomSearch.Width=220;var frame=InputFrame(roomSearch);frame.Width=230;actions.Controls.AddRange([frame,roomArea,roomRouteFilter,B("重置",()=>{buildingFilters=true;roomSearch.Clear();roomArea.SelectedIndex=roomRouteFilter.SelectedIndex=0;buildingFilters=false;roomState="全部";roomPage.Value=1;LoadRooms();}),B("导入所属机房表",ImportRoomTables),B("导入机房管理表",ImportRoomCatalog),B("导出筛选清单",()=>{var p=Save("机房归属.csv");if(p!=null)Csv.Write(p,new[]{new object?[]{"设施名称","所属机房","确认状态","参与机房整体路由","来源","原因"}}.Concat(visibleRooms.SelectMany(g=>g).Select(x=>new object?[]{x.Name,x.Room,x.Status,x.Enabled,x.Source,x.Reason})));})]);
         roomStatusChips=StatusChips(()=>roomState,value=>{roomState=value;roomPage.Value=1;LoadRooms();});left.Controls.Add(roomGrid);ConfigurePager(roomPager,"rooms",()=>{roomPage.Value=roomPager.Page;LoadRooms();});left.Controls.Add(roomPager);left.Controls.Add(actions);left.Controls.Add(roomStatusChips);tab.Controls.Add(Columns(76,left,24,right,"split-v5-room-affiliation"));
-        tab.Controls.Add(new Label{Text="以真实所属机房为核心，异常归属复核前暂停归并；保留实际设施和中继段。",Dock=DockStyle.Top,Height=38,ForeColor=Theme.Muted,Padding=new Padding(6)});
+        tab.Controls.Add(new Label{Text="导入机房管理表后，按“机房名称”精确匹配所属机房；未匹配项不参与归并，实际设施和中继段保留。",Dock=DockStyle.Top,Height=38,ForeColor=Theme.Muted,Padding=new Padding(6)});
         Sortable(roomGrid,()=>{roomPage.Value=1;LoadRooms();});roomGrid.SelectionChanged+=(_,_)=>LoadRoomDetails();roomGrid.CellDoubleClick+=(_,e)=>{if(e.RowIndex>=0)ShowRoomMembers();};roomGrid.CellContentClick+=(_,e)=>{if(e.RowIndex>=0&&e.ColumnIndex>=0&&roomGrid.Columns[e.ColumnIndex].Name=="操作")ShowRoomMembers();};
         var timer=new System.Windows.Forms.Timer{Interval=300};roomSearch.TextChanged+=(_,_)=>{timer.Stop();timer.Start();};timer.Tick+=(_,_)=>{timer.Stop();if(!buildingFilters){roomPage.Value=1;LoadRooms();}};FormClosed+=(_,_)=>timer.Dispose();foreach(var box in new[]{roomArea,roomRouteFilter})box.SelectedIndexChanged+=(_,_)=>{if(!buildingFilters){roomPage.Value=1;LoadRooms();}};
     }
@@ -72,5 +72,16 @@ public sealed partial class MainForm
         var files=selected.ToArray();List<RoomAssignment> values=[];long removed=0;if(!await Work("读取明确的所属机房字段…",async ct=>{values=await Task.Run(()=>store.PreviewRoomFiles(files,ct),ct);removed=await Task.Run(()=>store.CountRoomRemovals(files,ct),ct);}))return;
         if(MessageBox.Show($"本次文件含 {values.Count:N0} 条有效机房归属，其中 {values.Count(x=>x.Status=="需核对"):N0} 条需核对；将清除本次设施类别中新表未列出的 {removed:N0} 个旧 ID。相同 ID 内容不变则跳过，内容变化则更新；其他设施类别不受影响。继续？","导入机房归属",MessageBoxButtons.YesNo)!=DialogResult.Yes)return;
         if(await Work("更新机房归属…",ct=>Task.Run(()=>store.ApplyRoomFiles(files,ct),ct))){RefreshData();}
+    }
+    async Task ImportRoomCatalog()
+    {
+        if(busy)return;
+        using var dialog=new OpenFileDialog{Filter=TableInput.Filter,Multiselect=true,Title="选择完整的机房管理表（可同时选择多个分卷）"};
+        if(dialog.ShowDialog(this)!=DialogResult.OK)return;
+        var files=dialog.FileNames.Select(path=>(Path:path,Sheet:(string?)null)).ToArray();RoomCatalogPreview? preview=null;
+        if(!await Work("比对机房管理表与现有归属…",ct=>Task.Run(()=>preview=store.PreviewRoomCatalog(files,ct),ct)))return;
+        string message=$"已读取 {files.Length} 个文件、{preview!.UniqueRooms:N0} 个不同机房名称。\n当前来源表中有 {preview.CurrentRooms:N0} 个不同所属机房名称，其中 {preview.MatchedRooms:N0} 个能在机房管理表的“机房名称”列找到，{preview.UnmatchedRooms:N0} 个找不到。\n\n导入后，仅匹配到的名称参与机房归属与内部归并；未匹配项保留原始设施和中继段，后续补充完整机房管理表可重新匹配。\n\n请确认已选择全部机房管理分卷。继续？";
+        if(MessageBox.Show(this,message,"机房管理表匹配预览",MessageBoxButtons.YesNo,MessageBoxIcon.Information)!=DialogResult.Yes)return;
+        if(await Work("保存机房管理表…",ct=>Task.Run(()=>store.ApplyRoomCatalog(files,ct),ct)))RefreshData();
     }
 }

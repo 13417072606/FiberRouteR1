@@ -5,6 +5,7 @@ static class RoomChecks
 {
     public static async Task Run(string root,Action<bool,string> check)
     {
+        await CheckCatalogAndPriority(Path.Combine(root,"room-catalog"),check);
         var s=new Store(Path.Combine(root,"rooms"));string file=Path.Combine(root,"room-edges.csv");var mapping=Store.Fields.ToDictionary(x=>x,x=>x);
         Csv.Write(file,new object?[][]{["ID","始端设施","终端设施","长度","空闲数量","中继纤芯数量","始端类型","终端类型","始端机房","终端机房"],
             ["a","甲","A/ODF01",10,1,2,"分纤箱","机房","","A机房"],["b","A/ODB02/GF01","乙",20,1,2,"光终端盒","分纤箱","A机房",""],
@@ -30,5 +31,33 @@ static class RoomChecks
         bool bad=false;try{s.ConfirmRoom("A/ODF01","不存在机房",true);}catch(InvalidDataException){bad=true;}check(bad,"human room choice cannot invent an unavailable affiliation");
         using(var c=new SqliteConnection($"Data Source={s.Database};Pooling=false")){c.Open();using var q=c.CreateCommand();q.CommandText="DROP TABLE rooms";q.ExecuteNonQuery();}s.Reload();check(Find("甲","乙").Routes.Count==1,"R1.3 database migration reconstructs explicit resource room fields");
         using var cancel=new CancellationTokenSource();cancel.Cancel();string before=JsonSerializer.Serialize(s.RoomAssignments());bool cancelled=false;try{s.ApplyRoomFiles([(types,"",null)],cancel.Token);}catch(OperationCanceledException){cancelled=true;}check(cancelled&&before==JsonSerializer.Serialize(s.RoomAssignments()),"cancelled affiliation refresh preserves previous room rows");
+    }
+    static async Task CheckCatalogAndPriority(string root,Action<bool,string> check)
+    {
+        Directory.CreateDirectory(root);var s=new Store(root);
+        string edges=Path.Combine(root,"edges.csv");var mapping=Store.Fields.ToDictionary(x=>x,x=>x);
+        Csv.Write(edges,new object?[][]{["ID","始端设施","终端设施","长度","空闲数量","中继纤芯数量","始端类型","终端类型","始端机房","终端机房"],
+            ["1","甲","A/ODF01",10,2,4,"分纤箱","机房","","A机房"],
+            ["2","A/ODB02","乙",20,2,4,"光终端盒","分纤箱","A机房",""]});
+        await s.ImportAsync(edges,"自动",mapping,1,null,default);
+        string splitter=Path.Combine(root,"splitter.csv"),terminal=Path.Combine(root,"terminal.csv"),odf=Path.Combine(root,"odf.csv");
+        Csv.Write(splitter,new object?[][]{["ID","设施名称","机房名称"],["top","A/ODF01","A机房"]});
+        Csv.Write(terminal,new object?[][]{["ID","设施名称","机房名称"],["low","A/ODF01","B机房"]});
+        Csv.Write(odf,new object?[][]{["ID","设施名称","机房名称"],["odb","A/ODB02","A机房"]});
+        s.ApplyRoomFiles([(splitter,"光分纤箱",null),(terminal,"光终端盒",null),(odf,"ODF",null)]);
+        check(s.RoomAssignments().Single(x=>x.Name=="A/ODF01") is {Room:"A机房",Status:"已确认",Enabled:true},"higher-priority splitter room wins over terminal with a different ID");
+        string catalog=Path.Combine(root,"catalog.csv");
+        Csv.Write(catalog,new object?[][]{["机房名称","省内机房类型"],["A机房","虚拟机房"]});
+        var preview=s.PreviewRoomCatalog([(catalog,null)]);
+        check(preview.MatchedRooms==1&&preview.UnmatchedRooms==1,"room catalog preview counts exact name matches");
+        s.ApplyRoomCatalog([(catalog,null)]);
+        check(s.RoomAssignments().Count==2&&s.Graph.Edges.Length==2,"catalog match retains even source-classified virtual rooms and all real segments");
+        string package=Path.Combine(root,"catalog-update.zip");s.BuildDataPackage(package,"catalog-test");
+        var client=new Store(Path.Combine(root,"client"));await client.ImportAsync(edges,"自动",mapping,1,null,default);
+        using(var prepared=client.PrepareDataPackage(package)){client.ApplyDataPackage(prepared);}
+        check(client.RoomAssignments().Count==2,"data update carries the room catalog to another client");
+        Csv.Write(catalog,new object?[][]{["机房名称","省内机房类型"],["B机房","接入级机房"]});
+        s.ApplyRoomCatalog([(catalog,null)]);
+        check(s.RoomAssignments().Count==0&&s.Graph.Edges.Length==2,"unmatched affiliations are excluded without deleting facilities or edges");
     }
 }

@@ -19,7 +19,7 @@ public sealed class PreparedDataUpdate : IDisposable
 
 public sealed partial class Store
 {
-    static readonly string[] CatalogTables=["types","type_meta","clusters","room_members","room_facilities","facility_evidence","evidence_sources","facility_stations","station_sources","cluster_inputs"];
+    static readonly string[] CatalogTables=["types","type_meta","clusters","room_members","room_facilities","room_catalog","room_catalog_state","facility_evidence","evidence_sources","facility_stations","station_sources","cluster_inputs"];
     static string FileSha(string path){using var file=File.OpenRead(path);return Convert.ToHexString(SHA256.HashData(file));}
     static void BackupDatabase(string source,string target)
     {
@@ -133,6 +133,16 @@ public sealed partial class Store
             using var mark=c.CreateCommand();mark.Transaction=tx;mark.CommandText="INSERT OR IGNORE INTO main.room_kind_imports VALUES($kind)";mark.Parameters.AddWithValue("$kind",kind);mark.ExecuteNonQuery();
         }
         Execute("INSERT INTO main.room_facilities(id,name,room,source,kind,rank,rownum) SELECT id,name,CASE WHEN instr(room,'挂墙')>0 THEN '' ELSE room END,source,kind,rank,rownum FROM incoming.room_facilities WHERE true ON CONFLICT(kind,id) DO UPDATE SET name=excluded.name,room=excluded.room,source=excluded.source,rank=excluded.rank,rownum=excluded.rownum WHERE name<>excluded.name OR room<>excluded.room OR rank<>excluded.rank");
+        using(var state=c.CreateCommand())
+        {
+            state.Transaction=tx;state.CommandText="SELECT active FROM incoming.room_catalog_state LIMIT 1";
+            if(state.ExecuteScalar() is long active&&active==1)
+            {
+                Execute("DELETE FROM main.room_catalog WHERE name NOT IN (SELECT name FROM incoming.room_catalog)");
+                Execute("INSERT INTO main.room_catalog(name,category,source,rownum) SELECT name,category,source,rownum FROM incoming.room_catalog WHERE true ON CONFLICT(name) DO UPDATE SET category=excluded.category,source=excluded.source,rownum=excluded.rownum WHERE category<>excluded.category OR source<>excluded.source OR rownum<>excluded.rownum");
+                Execute("INSERT INTO main.room_catalog_state(active) SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM main.room_catalog_state WHERE active=1)");
+            }
+        }
         prepared.RoomOperations=Total()-categoryStart;categoryStart=Total();
         string evidenceScope=Scope("evidence",prepared.Manifest.EvidenceSources);
         Execute($"DELETE FROM main.facility_evidence WHERE source IN({evidenceScope}) AND NOT EXISTS(SELECT 1 FROM incoming.facility_evidence i WHERE i.name=facility_evidence.name AND i.source=facility_evidence.source AND i.rownum=facility_evidence.rownum); DELETE FROM main.evidence_sources WHERE source IN({evidenceScope}) AND NOT EXISTS(SELECT 1 FROM incoming.evidence_sources i WHERE i.source=evidence_sources.source)");
