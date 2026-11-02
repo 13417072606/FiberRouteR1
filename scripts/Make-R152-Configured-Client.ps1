@@ -30,7 +30,11 @@ try {
     New-Item -ItemType Directory -Path $resources -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $client '数据') -Force | Out-Null
     Copy-Item -LiteralPath $config -Destination (Join-Path $resources 'update-service.json')
-    $unexpected = Get-ChildItem -LiteralPath $stage -File -Recurse | Where-Object { $_.Extension -in @('.db','.pem','.xlsx','.csv','.pdb') -or $_.Name -match 'private-key|发布工具' }
+    $unexpected = Get-ChildItem -LiteralPath $stage -File -Recurse | Where-Object {
+        $relative = $_.FullName.Substring($client.Length + 1).Replace([char]92,'/')
+        $allowedCsv = @('资源/中继段导入模板.csv','资源/节点类型模板.csv','资源/调测中继段.csv')
+        $_.Extension -in @('.db','.pem','.xlsx','.pdb') -or ($_.Extension -eq '.csv' -and $relative -notin $allowedCsv) -or $_.Name -match 'private-key|发布工具'
+    }
     if ($unexpected) { throw ('客户端包中发现业务数据或管理方文件：' + (($unexpected | ForEach-Object FullName) -join ', ')) }
     Compress-Archive -Path $client -DestinationPath $Output -CompressionLevel Optimal
     Write-Host "已生成：$Output"
