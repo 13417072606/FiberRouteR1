@@ -1,0 +1,70 @@
+name: Publish and verify R1.5.2 complete client parts
+on:
+  push:
+    tags:
+      - r1.5.2-full-parts-v*
+permissions:
+  contents: write
+jobs:
+  parts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Split verified complete client
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/r152-full"
+          gh release download r1.5.2-download --pattern 'FiberRouteR1-R1.5.2-full-client.zip' --dir "$RUNNER_TEMP/r152-full"
+          python3 - "$RUNNER_TEMP/r152-full" <<'PY'
+          from pathlib import Path
+          from hashlib import sha256
+          import json,sys
+          folder=Path(sys.argv[1]); source=folder/'FiberRouteR1-R1.5.2-full-client.zip'
+          digest='ab9ad39736a2acec8c72cd39c083c222d595efa733003cd5f877a32a44cab6e9'
+          assert sha256(source.read_bytes()).hexdigest()==digest
+          parts=[]
+          with source.open('rb') as stream:
+              for i in range(100):
+                  data=stream.read(8*1024*1024)
+                  if not data:break
+                  name=source.name+f'.{i+1:03d}'
+                  (folder/name).write_bytes(data)
+                  parts.append({'name':name,'sha256':sha256(data).hexdigest().upper(),'bytes':len(data)})
+          assert sum(p['bytes'] for p in parts)==source.stat().st_size
+          (folder/'R1.5.2-full-parts.json').write_text(json.dumps({'sha256':digest.upper(),'parts':parts},indent=2))
+          source.unlink()
+          PY
+          gh release upload r1.5.2-download "$RUNNER_TEMP"/r152-full/* scripts/Download-R152-Full.ps1 --clobber
+  configured-client:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Verify complete client can be configured
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'r152-full'
+          New-Item -ItemType Directory -Path $target | Out-Null
+          gh release download r1.5.2-download --pattern 'FiberRouteR1-R1.5.2-full-client.zip' --dir $target
+          Expand-Archive -LiteralPath (Join-Path $target 'FiberRouteR1-R1.5.2-full-client.zip') -DestinationPath $target
+          $dll = Get-ChildItem -LiteralPath $target -Filter 'FiberRouteR1.dll' -Recurse -File | Select-Object -First 1
+          $source = Split-Path -Parent (Split-Path -Parent $dll.FullName)
+          $workspace = Join-Path $env:RUNNER_TEMP 'publisher-workspace'
+          dotnet run --project src/FiberRoute.Admin/FiberRoute.Admin.csproj -c Release -- init $workspace 'https://guangludiaodu.pages.dev/'
+          if ($LASTEXITCODE -ne 0) { throw 'Test workspace initialization failed' }
+          $output = Join-Path $env:RUNNER_TEMP 'configured-client.zip'
+          .\scripts\Make-R152-Configured-Client.ps1 -SoftwareSource $source -Workspace $workspace -Output $output
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead($output)
+          try {
+            $names = @($zip.Entries | ForEach-Object { $_.FullName.Replace([char]92,'/') })
+            foreach ($suffix in @('/程序/FiberRouteR1.dll','/资源/update-service.json','/资源/中继段导入模板.csv','/数据/','/第三方许可/ExcelDataReader-MIT.txt')) {
+              if (-not ($names | Where-Object { $_.EndsWith($suffix) })) { throw ('Client package missing ' + $suffix) }
+            }
+            if ($names | Where-Object { $_ -match '(?i)private-key|\.db$|\.pem$|\.xlsx$' }) { throw 'Private data found' }
+          } finally { $zip.Dispose() }
