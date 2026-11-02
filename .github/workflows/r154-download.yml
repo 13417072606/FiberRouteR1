@@ -1,0 +1,68 @@
+name: Publish R1.5.4 client, publisher and program source
+on:
+  push:
+    tags:
+      - r1.5.4-download
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build clean-icon native launcher
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends gcc-mingw-w64-x86-64-posix binutils-mingw-w64-x86-64
+          FIBER_MINGW_ROOT=/usr bash scripts/build-native-launchers.sh
+      - name: Build Windows client and publisher
+        run: |
+          dotnet publish src/FiberRoute.App/FiberRoute.App.csproj -c Release -r win-x64 --self-contained true -o artifacts/app-r154 -p:RestoreLockedMode=true -p:DebugType=None -p:DebugSymbols=false
+          dotnet publish src/FiberRoute.Updater/FiberRoute.Updater.csproj -c Release -r win-x64 --self-contained false -o artifacts/updater-r154 -p:DebugType=None -p:DebugSymbols=false
+          dotnet publish src/FiberRoute.Publisher/FiberRoute.Publisher.csproj -c Release -r win-x64 --self-contained true -o artifacts/publisher-r154 -p:DebugType=None -p:DebugSymbols=false
+          dotnet run --project tests/FiberRoute.Tests/FiberRoute.Tests.csproj -c Release -- --online-only
+          dotnet run --project tests/FiberRoute.Tests/FiberRoute.Tests.csproj -c Release -- --room-catalog-only
+      - name: Build and validate deliveries
+        run: |
+          python3 scripts/make-r154-delivery.py
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          from pathlib import Path
+          import hashlib,json
+          p=Path('downloads/R1.5.4/FiberRouteR1-R1.5.4-full-client.zip')
+          with ZipFile(p) as z:
+              root='光路调度路由分析R1.5.4/'
+              names=z.namelist();assert z.testzip() is None
+              for name in ('光路调度路由查询.exe','程序/FiberRouteR1.dll','程序/FiberRoute.Updater.exe','程序/app.ico','程序/补丁校验.json','资源/中继段导入模板.csv','资源/节点类型模板.csv','数据/'):
+                  assert root+name in names,name
+              assert any(n.startswith(root+'第三方许可/') for n in names)
+              assert not any(n.endswith(('使用说明.txt','文件校验SHA256.json')) or '/在线升级辅助/' in n for n in names)
+              entries=json.loads(z.read(root+'程序/补丁校验.json'))
+              for name,digest in entries.items():
+                  assert hashlib.sha256(z.read(root+name)).hexdigest().upper()==digest,name
+          PY
+          python3 -m zipfile -e downloads/R1.5.4/FiberRouteR1-R1.5.4-program-source.zip "$RUNNER_TEMP/r154-source"
+          dotnet run --project src/FiberRoute.Admin/FiberRoute.Admin.csproj -c Release -- pack-program "$RUNNER_TEMP/r154-source/光路调度路由分析R1.5.4" 1.5.4 "$RUNNER_TEMP/r154-online.zip"
+          dotnet run --project tests/FiberRoute.Tests/FiberRoute.Tests.csproj -c Release -- --validate-package "$RUNNER_TEMP/r154-online.zip"
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          with ZipFile('downloads/R1.5.4/FiberRouteR1-Publisher-R1.5.4.zip') as z:
+              assert z.testzip() is None
+              names=z.namelist()
+              assert '管理方发布工具R1.5.4/FiberRoute.Publisher.exe' in names
+              assert not any(n.endswith(('.db','.pem','.xlsx')) for n in names)
+          PY
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            downloads/R1.5.4/FiberRouteR1-R1.5.4-full-client.zip \
+            downloads/R1.5.4/FiberRouteR1-R1.5.4-program-source.zip \
+            downloads/R1.5.4/FiberRouteR1-Publisher-R1.5.4.zip \
+            scripts/Make-R154-Configured-Client.ps1 \
+            --title "R1.5.4 机房管理表匹配与来源优先级" \
+            --notes "客户端可在机房归属导入完整机房管理表，按机房名称精确匹配；同名设施按来源优先级选择所属机房。未匹配项暂停机房内部归并，保留实际设施和中继段。管理方发布工具同步更新，机房管理清单可随数据更新包传给客户。不含管理员密钥或业务数据库。"

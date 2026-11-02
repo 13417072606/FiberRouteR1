@@ -242,7 +242,7 @@ public sealed partial class Store
         using var c=Open(Personal);using var tx=c.BeginTransaction();using var q=c.CreateCommand();q.Transaction=tx;q.CommandText="INSERT OR REPLACE INTO room_choices VALUES($n,$r,$e)";q.Parameters.AddWithValue("$n",name);q.Parameters.AddWithValue("$r",room);q.Parameters.AddWithValue("$e",enabled?1:0);q.ExecuteNonQuery();
         using var review=c.CreateCommand();review.Transaction=tx;review.CommandText="INSERT OR REPLACE INTO room_reviews VALUES($n,$s)";review.Parameters.AddWithValue("$n",name);
         string? previous=null;using(var old=c.CreateCommand()){old.Transaction=tx;old.CommandText="SELECT signature FROM room_reviews WHERE name=$n";old.Parameters.AddWithValue("$n",name);previous=old.ExecuteScalar() as string;}
-        review.Parameters.AddWithValue("$s",match.Reason.Contains("ID",StringComparison.Ordinal)?match.Reason:previous??"");review.ExecuteNonQuery();tx.Commit();Reload();
+        review.Parameters.AddWithValue("$s",match.Status=="需核对"?match.Reason:previous??"");review.ExecuteNonQuery();tx.Commit();Reload();
     }
     IEnumerable<ClusterRecord> RoutingGroups(Graph g)
     {

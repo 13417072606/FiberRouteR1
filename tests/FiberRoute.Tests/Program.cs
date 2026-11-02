@@ -38,6 +38,12 @@ if(args.Length==1&&args[0]=="--online-only")
     finally{Directory.Delete(root,true);}
     return;
 }
+if(args.Length==1&&args[0]=="--room-catalog-only")
+{
+    try{await RoomChecks.CheckCatalogAndPriority(Path.Combine(root,"room-catalog"),Check);Console.WriteLine($"ROOM CATALOG PASS: {checks} checks");}
+    finally{Directory.Delete(root,true);}
+    return;
+}
 if(args.Length==2&&args[0]=="--validate-package")
 {
     try{FiberRoute.Updater.PackageValidator.Extract(args[1],Path.Combine(root,"package"));Console.WriteLine("PASS complete delivery ZIP accepted by program updater");}
