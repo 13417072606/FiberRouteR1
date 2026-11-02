@@ -51,7 +51,10 @@ foreach ($item in $items) {
         if ((Get-FileHash -LiteralPath $tempZip -Algorithm SHA256).Hash -ne $item.Digest) { throw "Package SHA256 mismatch: $($item.Stem)" }
         Move-Item -LiteralPath $tempZip -Destination $zipPath -Force
     }
-    Expand-Archive -LiteralPath $zipPath -DestinationPath $Destination -Force
-    Write-Host "Verified and extracted: $zipPath"
+    $extractTo = Join-Path $Destination $item.Kind
+    New-Item -ItemType Directory -Path $extractTo -Force | Out-Null
+    Expand-Archive -LiteralPath $zipPath -DestinationPath $extractTo -Force
+    Write-Host "Verified: $zipPath"
+    Write-Host "Extracted to: $extractTo"
 }
 Write-Host "Output directory: $Destination"
