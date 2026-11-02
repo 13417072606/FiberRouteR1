@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Parameter(Mandatory=$true)][string]$SoftwareSource,
     [string]$Workspace = 'F:\管线资源发布区',
     [string]$Output = ''

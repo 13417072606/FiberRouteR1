@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('Both','Client','Publisher')][string]$Package = 'Both',
+    [ValidateSet('All','Client','Publisher','Source')][string]$Package = 'All',
     [string]$Destination = (Join-Path $env:USERPROFILE 'Downloads\R1.5.4')
 )
 $ErrorActionPreference = 'Stop'
@@ -7,6 +7,7 @@ $ErrorActionPreference = 'Stop'
 $baseUrl = 'https://github.com/13417072606/FiberRouteR1/releases/download/r1.5.4-download/'
 $items = @(
     @{ Kind='Client'; Stem='FiberRouteR1-R1.5.4-full-client.zip'; Digest='A41E9D02F973F126A31BB15DDB74679D87FBDE32AA90DBA2B0748C8058080405'; Manifest='R1.5.4-full-client-parts.json' },
+    @{ Kind='Source'; Stem='FiberRouteR1-R1.5.4-program-source.zip'; Digest='7DC91D5C4B4EEC51A927F390EF46A19A28771E0FECEE211804EB29035E336A61'; Manifest='R1.5.4-program-source-parts.json' },
     @{ Kind='Publisher'; Stem='FiberRouteR1-Publisher-R1.5.4.zip'; Digest='1F08876A267E7603C1F58D9E8E7CBE0517E63AAFBB26937E23084BD67C8A5437'; Manifest='R1.5.4-publisher-parts.json' }
 )
 New-Item -ItemType Directory -Path $Destination -Force | Out-Null
@@ -30,7 +31,7 @@ function Get-VerifiedPart([string]$name,[string]$hash) {
     }
 }
 foreach ($item in $items) {
-    if ($Package -ne 'Both' -and $Package -ne $item.Kind) { continue }
+    if ($Package -ne 'All' -and $Package -ne $item.Kind) { continue }
     $manifestPath = Join-Path $Destination $item.Manifest
     & curl.exe --location --fail --retry 3 --output $manifestPath ($baseUrl + $item.Manifest)
     if ($LASTEXITCODE -ne 0) { throw "Manifest download failed: $($item.Manifest)" }
