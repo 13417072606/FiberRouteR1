@@ -63,8 +63,10 @@ jobs:
           $zip = [IO.Compression.ZipFile]::OpenRead($output)
           try {
             $names = @($zip.Entries | ForEach-Object { $_.FullName.Replace([char]92,'/') })
-            foreach ($suffix in @('/程序/FiberRouteR1.dll','/资源/update-service.json','/资源/中继段导入模板.csv','/数据/','/第三方许可/ExcelDataReader-MIT.txt')) {
+            foreach ($suffix in @('/FiberRouteR1.dll','/update-service.json','/ExcelDataReader-MIT.txt')) {
               if (-not ($names | Where-Object { $_.EndsWith($suffix) })) { throw ('Client package missing ' + $suffix) }
             }
+            if (@($names | Where-Object { $_ -match '\.csv$' }).Count -ne 3) { throw 'Client templates missing' }
+            if (-not ($names | Where-Object { $_ -match '^[^/]+/[^/]+/$' })) { throw 'Client data folder missing' }
             if ($names | Where-Object { $_ -match '(?i)private-key|\.db$|\.pem$|\.xlsx$' }) { throw 'Private data found' }
           } finally { $zip.Dispose() }
