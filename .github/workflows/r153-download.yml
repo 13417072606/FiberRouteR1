@@ -1,0 +1,57 @@
+name: Publish R1.5.3 client and program source
+on:
+  push:
+    tags:
+      - r1.5.3-download
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build clean-icon native launcher
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends gcc-mingw-w64-x86-64-posix binutils-mingw-w64-x86-64
+          FIBER_MINGW_ROOT=/usr bash scripts/build-native-launchers.sh
+      - name: Build Windows client
+        run: |
+          dotnet publish src/FiberRoute.App/FiberRoute.App.csproj -c Release -r win-x64 --self-contained true -o artifacts/app-r153 -p:RestoreLockedMode=true -p:DebugType=None -p:DebugSymbols=false
+          dotnet publish src/FiberRoute.Updater/FiberRoute.Updater.csproj -c Release -r win-x64 --self-contained false -o artifacts/updater-r153 -p:DebugType=None -p:DebugSymbols=false
+          dotnet run --project tests/FiberRoute.Tests/FiberRoute.Tests.csproj -c Release -- --online-only
+      - name: Build and validate both deliveries
+        run: |
+          python3 scripts/make-r153-delivery.py
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          from pathlib import Path
+          import hashlib,json
+          p=Path('downloads/R1.5.3/FiberRouteR1-R1.5.3-full-client.zip')
+          with ZipFile(p) as z:
+              root='光路调度路由分析R1.5.3/'
+              names=z.namelist();assert z.testzip() is None
+              for name in ('光路调度路由查询.exe','程序/FiberRouteR1.dll','程序/FiberRoute.Updater.exe','程序/app.ico','程序/补丁校验.json','资源/中继段导入模板.csv','资源/节点类型模板.csv','数据/'):
+                  assert root+name in names,name
+              assert any(n.startswith(root+'第三方许可/') for n in names)
+              assert not any(n.endswith(('使用说明.txt','文件校验SHA256.json')) or '/在线升级辅助/' in n for n in names)
+              entries=json.loads(z.read(root+'程序/补丁校验.json'))
+              for name,digest in entries.items():
+                  assert hashlib.sha256(z.read(root+name)).hexdigest().upper()==digest,name
+          PY
+          python3 -m zipfile -e downloads/R1.5.3/FiberRouteR1-R1.5.3-program-source.zip "$RUNNER_TEMP/r153-source"
+          dotnet run --project src/FiberRoute.Admin/FiberRoute.Admin.csproj -c Release -- pack-program "$RUNNER_TEMP/r153-source/光路调度路由分析R1.5.3" 1.5.3 "$RUNNER_TEMP/r153-online.zip"
+          dotnet run --project tests/FiberRoute.Tests/FiberRoute.Tests.csproj -c Release -- --validate-package "$RUNNER_TEMP/r153-online.zip"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            downloads/R1.5.3/FiberRouteR1-R1.5.3-full-client.zip \
+            downloads/R1.5.3/FiberRouteR1-R1.5.3-program-source.zip \
+            scripts/Make-R153-Configured-Client.ps1 \
+            --title "R1.5.3 图标及交付结构修正" \
+            --notes "完整客户端校验文件位于程序/补丁校验.json；主程序与原生启动器图标均已替换。不含使用说明.txt、管理员密钥或业务数据库；更新配置由管理员沿用原工作区添加。"

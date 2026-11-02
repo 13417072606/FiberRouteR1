@@ -1,8 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 1024 1024">
-<defs><linearGradient id="orange" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffd116"/><stop offset=".5" stop-color="#ff6500"/><stop offset="1" stop-color="#ff3400"/></linearGradient><linearGradient id="fold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ed2500"/><stop offset="1" stop-color="#a31600"/></linearGradient></defs>
-<path d="M150 128H692C841 128 928 275 928 474V591C928 763 826 895 672 895H151C115 895 96 871 96 838V468C96 433 117 412 151 412H287L565 689V444L721 288H150C113 288 96 266 96 233V182C96 147 116 128 150 128Z" fill="url(#orange)"/>
-<path d="M150 128H692C745 128 778 196 778 289L597 470L150 128Z" fill="url(#fold)"/>
-<path d="M96 468C96 433 117 412 151 412H287L565 689V895H151C115 895 96 871 96 838Z" fill="url(#orange)"/>
-<path d="M151 412L634 895H565L96 468C96 433 117 412 151 412Z" fill="url(#fold)"/>
-<path d="M565 689L778 476V633L565 846Z" fill="url(#fold)"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+  <linearGradient id="ribbon" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffd11a"/><stop offset=".48" stop-color="#ff7900"/><stop offset="1" stop-color="#e52200"/></linearGradient>
+  <linearGradient id="fold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e72b00"/><stop offset="1" stop-color="#a91600"/></linearGradient>
+  <mask id="junction" maskUnits="userSpaceOnUse"><rect width="1024" height="1024" fill="white"/><path d="M191 330 L450 579 Q465 594 465 617 L465 805 Q465 838 497 838 L527 838 Q559 838 559 805 L559 617 Q559 594 574 579 L833 330 L833 451 L607 657 L607 805 Q607 886 527 886 L497 886 Q417 886 417 805 L417 657 L191 451 Z" fill="black"/></mask>
+</defs>
+<g mask="url(#junction)">
+  <rect x="92" y="92" width="840" height="840" rx="164" fill="url(#ribbon)"/>
+  <path d="M92 272 Q92 120 244 92 L736 92 Q835 92 893 184 L555 521 L92 183Z" fill="url(#fold)" opacity=".9"/>
+  <path d="M92 482 L459 821 Q483 848 512 848 L512 932 L256 932 Q92 932 92 768 Z" fill="url(#fold)" opacity=".62"/>
+  <path d="M932 476 L604 807 Q570 846 512 848 L512 932 L755 932 Q932 932 932 754 Z" fill="url(#fold)" opacity=".35"/>
+  <path d="M92 247 Q92 92 247 92 L737 92 Q884 92 932 239 L932 327 L780 210 L244 210 L92 334 Z" fill="url(#ribbon)"/>
+</g>
 </svg>
