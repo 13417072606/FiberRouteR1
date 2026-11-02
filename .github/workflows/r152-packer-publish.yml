@@ -1,0 +1,16 @@
+name: Publish verified R1.5.2 complete-client packer
+on:
+  push:
+    tags:
+      - r1.5.2-packer-publish-v*
+permissions:
+  contents: write
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload packer verified by Windows workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload r1.5.2-download scripts/Make-R152-Configured-Client.ps1 --clobber
