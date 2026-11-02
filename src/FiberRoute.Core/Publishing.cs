@@ -59,6 +59,13 @@ public static class Publishing
             files.Add(relative,file);
         }
         string launcher=Path.Combine(root,"光路调度路由查询.exe");if(File.Exists(launcher))files.Add("光路调度路由查询.exe",launcher);
+        string brand=Path.Combine(root,"资源","品牌原图.png");
+        if(File.Exists(brand))
+        {
+            if(new FileInfo(brand).Length>16_000_000)throw new InvalidDataException("品牌原图超过允许大小");
+            using var input=File.OpenRead(brand);byte[] signature=new byte[8];if(input.Read(signature)!=8||!signature.SequenceEqual(new byte[]{137,80,78,71,13,10,26,10}))throw new InvalidDataException("品牌原图不是PNG文件");
+            files.Add("资源/品牌原图.png",brand);
+        }
         var manifest=new{Version=version,Files=files.Select(pair=>new{Path=pair.Key,Bytes=new FileInfo(pair.Value).Length,Sha256=Hash(pair.Value)}).ToArray()};Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(destination))!);string temp=destination+".partial";try{if(File.Exists(temp))File.Delete(temp);using(var archive=ZipFile.Open(temp,ZipArchiveMode.Create)){foreach(var file in files)archive.CreateEntryFromFile(file.Value,file.Key,CompressionLevel.Optimal);using var writer=new StreamWriter(archive.CreateEntry("更新清单.json").Open());writer.Write(JsonSerializer.Serialize(manifest));}File.Move(temp,destination,true);}finally{if(File.Exists(temp))File.Delete(temp);}
     }
     static void WriteSiteExtras(string site)

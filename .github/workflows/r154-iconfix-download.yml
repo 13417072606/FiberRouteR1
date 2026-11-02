@@ -1,0 +1,69 @@
+name: Publish R1.5.4 original-style icon correction
+on:
+  push:
+    tags:
+      - r1.5.4-iconfix
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build clean-icon native launcher
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends gcc-mingw-w64-x86-64-posix binutils-mingw-w64-x86-64
+          FIBER_MINGW_ROOT=/usr bash scripts/build-native-launchers.sh
+      - name: Build Windows client and publisher
+        run: |
+          dotnet publish src/FiberRoute.App/FiberRoute.App.csproj -c Release -r win-x64 --self-contained true -o artifacts/app-r154-iconfix -p:RestoreLockedMode=true -p:DebugType=None -p:DebugSymbols=false
+          dotnet publish src/FiberRoute.Updater/FiberRoute.Updater.csproj -c Release -r win-x64 --self-contained false -o artifacts/updater-r154-iconfix -p:DebugType=None -p:DebugSymbols=false
+          dotnet publish src/FiberRoute.Publisher/FiberRoute.Publisher.csproj -c Release -r win-x64 --self-contained true -o artifacts/publisher-r154-iconfix -p:DebugType=None -p:DebugSymbols=false
+          dotnet run --project tests/FiberRoute.Tests/FiberRoute.Tests.csproj -c Release -- --online-only
+          dotnet run --project tests/FiberRoute.Tests/FiberRoute.Tests.csproj -c Release -- --room-catalog-only
+      - name: Build and validate deliveries
+        run: |
+          python3 scripts/make-r154-iconfix-delivery.py
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          from pathlib import Path
+          import hashlib,json
+          p=Path('downloads/R1.5.4-iconfix/FiberRouteR1-R1.5.4-full-client-iconfix.zip')
+          with ZipFile(p) as z:
+              root='光路调度路由分析R1.5.4/'
+              names=z.namelist();assert z.testzip() is None
+              for name in ('光路调度路由查询.exe','程序/FiberRouteR1.dll','程序/FiberRoute.Updater.exe','程序/app.ico','程序/补丁校验.json','资源/品牌原图.png','资源/中继段导入模板.csv','资源/节点类型模板.csv','数据/'):
+                  assert root+name in names,name
+              assert any(n.startswith(root+'第三方许可/') for n in names)
+              assert not any(n.endswith(('使用说明.txt','文件校验SHA256.json')) or '/在线升级辅助/' in n for n in names)
+              assert hashlib.sha256(z.read(root+'资源/品牌原图.png')).hexdigest()=='0c8b107d75834a019da79a9bc3b0d02b61ec70fa49c185c2ed9f7e13e2cf89d7'
+              entries=json.loads(z.read(root+'程序/补丁校验.json'))
+              for name,digest in entries.items():
+                  assert hashlib.sha256(z.read(root+name)).hexdigest().upper()==digest,name
+          PY
+          python3 -m zipfile -e downloads/R1.5.4-iconfix/FiberRouteR1-R1.5.4-program-source-iconfix.zip "$RUNNER_TEMP/r154-iconfix-source"
+          dotnet run --project src/FiberRoute.Admin/FiberRoute.Admin.csproj -c Release -- pack-program "$RUNNER_TEMP/r154-iconfix-source/光路调度路由分析R1.5.4" 1.5.4 "$RUNNER_TEMP/r154-iconfix-online.zip"
+          dotnet run --project tests/FiberRoute.Tests/FiberRoute.Tests.csproj -c Release -- --validate-package "$RUNNER_TEMP/r154-iconfix-online.zip"
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          with ZipFile('downloads/R1.5.4-iconfix/FiberRouteR1-Publisher-R1.5.4-iconfix.zip') as z:
+              assert z.testzip() is None
+              names=z.namelist()
+              assert '管理方发布工具R1.5.4/FiberRoute.Publisher.exe' in names
+              assert not any(n.endswith(('.db','.pem','.xlsx')) for n in names)
+          PY
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            downloads/R1.5.4-iconfix/FiberRouteR1-R1.5.4-full-client-iconfix.zip \
+            downloads/R1.5.4-iconfix/FiberRouteR1-R1.5.4-program-source-iconfix.zip \
+            downloads/R1.5.4-iconfix/FiberRouteR1-Publisher-R1.5.4-iconfix.zip \
+            scripts/Make-R154-Configured-Client.ps1 \
+            --title "R1.5.4 图标修正包" \
+            --notes "以用户本次提供的橙红色折带 Y 图作为参考替换主程序、启动器和管理方工具图标；客户端运行目录包含资源/品牌原图.png，软件更新包只携带该品牌图像而不携带业务资源。此图是参考图片生成的图像，不宣称与聊天附件逐像素相同。保留 R1.5.4 机房管理表匹配与来源优先级逻辑；不含管理员密钥或业务数据库。"

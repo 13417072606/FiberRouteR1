@@ -13,6 +13,7 @@ static class OnlineDeliveryChecks
         File.WriteAllText(Path.Combine(runtime,"程序","FiberRouteR1.exe"),"entry-fixture");
         File.Copy(typeof(object).Assembly.Location,Path.Combine(runtime,"程序","System.Private.CoreLib.dll"));
         File.WriteAllText(Path.Combine(runtime,"资源","update-service.json"),"old customer configuration");File.WriteAllText(Path.Combine(runtime,"资源","update-service.json.before-online-setup"),"old public config backup");File.WriteAllText(Path.Combine(runtime,"资源","机房设施ID基线.db"),"private facility fixture");
+        File.WriteAllBytes(Path.Combine(runtime,"资源","品牌原图.png"),Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII="));
         File.WriteAllText(Path.Combine(runtime,"程序","FiberRoute.Online.dll"),"auxiliary tool should not enter software package");
         using(var noise=File.Create(Path.Combine(runtime,"程序","noise.dll")))for(int i=0;i<26;i++)noise.Write(RandomNumberGenerator.GetBytes(1024*1024));
         Publishing.Initialize(workspace,"https://updates.example.test/");string key=Hash(Path.Combine(workspace,"private-key.pem"));
@@ -20,7 +21,7 @@ static class OnlineDeliveryChecks
         var before=new[]{store.Database,store.Personal}.ToDictionary(p=>p,Hash);string signingFile=Path.Combine(runtime,"程序","private-key.pem");File.WriteAllText(signingFile,"sensitive fixture");bool privateBlocked=false;try{OnlineDelivery.Prepare(workspace,runtime,store.Root,"2026-10-28.blocked");}catch(InvalidDataException ex)when(ex.Message.Contains("私钥")){privateBlocked=true;}finally{File.Delete(signingFile);}check(privateBlocked&&!File.Exists(Path.Combine(workspace,"site","manifest.json")),"online preparation rejects real signing-key paths before publishing a software channel");
         string prepared=OnlineDelivery.Prepare(workspace,runtime,store.Root,"2026-10-28.210000");
         check(prepared.Contains("已生成 Cloudflare 上传 ZIP")&&before.All(p=>Hash(p.Key)==p.Value)&&Hash(Path.Combine(workspace,"private-key.pem"))==key,"online preparation reuses the signing key and preserves both administrator databases");
-        string corePackage=Path.Combine(folder,"core-program.zip");Publishing.BuildProgramPackage(runtime,corePackage,"1.4.4");using(var coreZip=ZipFile.OpenRead(corePackage))check(coreZip.GetEntry("程序/System.Private.CoreLib.dll")!=null&&coreZip.GetEntry("资源/机房设施ID基线.db")==null,"core publisher keeps the required runtime assembly and excludes facility baselines");
+        string corePackage=Path.Combine(folder,"core-program.zip");Publishing.BuildProgramPackage(runtime,corePackage,"1.4.4");using(var coreZip=ZipFile.OpenRead(corePackage))check(coreZip.GetEntry("程序/System.Private.CoreLib.dll")!=null&&coreZip.GetEntry("资源/品牌原图.png")!=null&&coreZip.GetEntry("资源/机房设施ID基线.db")==null,"core publisher carries the brand PNG and runtime while excluding facility baselines");
         var config=Updates.LoadConfig(Path.Combine(workspace,"update-service.json"))!;var release=Updates.VerifyEnvelope(File.ReadAllBytes(Path.Combine(workspace,"site","manifest.json")),config.PublicKeyPem);
         string activation=PublishingDelivery.BuildClientActivationPackage(workspace,Path.Combine(folder,"client-activation.zip"));
         using(var clientZip=ZipFile.OpenRead(activation))
