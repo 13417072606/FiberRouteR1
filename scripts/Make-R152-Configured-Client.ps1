@@ -31,7 +31,7 @@ try {
     New-Item -ItemType Directory -Path (Join-Path $client '数据') -Force | Out-Null
     Copy-Item -LiteralPath $config -Destination (Join-Path $resources 'update-service.json')
     $unexpected = Get-ChildItem -LiteralPath $stage -File -Recurse | Where-Object { $_.Extension -in @('.db','.pem','.xlsx','.csv','.pdb') -or $_.Name -match 'private-key|发布工具' }
-    if ($unexpected) { throw '客户端包中发现业务数据或管理方文件，已停止打包。' }
+    if ($unexpected) { throw ('客户端包中发现业务数据或管理方文件：' + (($unexpected | ForEach-Object FullName) -join ', ')) }
     Compress-Archive -Path $client -DestinationPath $Output -CompressionLevel Optimal
     Write-Host "已生成：$Output"
     Write-Host ('SHA256：' + (Get-FileHash -LiteralPath $Output -Algorithm SHA256).Hash)
