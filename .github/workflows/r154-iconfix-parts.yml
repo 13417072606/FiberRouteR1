@@ -1,0 +1,81 @@
+name: Verify and publish R1.5.4 icon correction split downloads
+on:
+  push:
+    tags:
+      - r1.5.4-iconfix-parts-v*
+permissions:
+  contents: write
+jobs:
+  parts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Split and verify client and publisher
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/r154"
+          gh release download r1.5.4-iconfix --pattern 'FiberRouteR1-R1.5.4-full-client-iconfix.zip' --pattern 'FiberRouteR1-R1.5.4-program-source-iconfix.zip' --pattern 'FiberRouteR1-Publisher-R1.5.4-iconfix.zip' --dir "$RUNNER_TEMP/r154"
+          python3 - "$RUNNER_TEMP/r154" <<'PY'
+          from pathlib import Path
+          from hashlib import sha256
+          import json,sys
+          folder=Path(sys.argv[1])
+          files=[
+              ('FiberRouteR1-R1.5.4-full-client-iconfix.zip','A99761DC5CD2220DC901D5E8498C1C2B7E5356728ABFCCE73EAFFB5D4B036E2A','R1.5.4-iconfix-full-client-parts.json'),
+              ('FiberRouteR1-R1.5.4-program-source-iconfix.zip','6308143675B1479A580A7F9FFCF0A77AA3D69D21B104966FFB920DCE0761D8EF','R1.5.4-iconfix-program-source-parts.json'),
+              ('FiberRouteR1-Publisher-R1.5.4-iconfix.zip','86ACEFB0860E35E36E8AACEE070EE300A6C3AC329FD3D0AB75C7DA7C6EB12FAA','R1.5.4-iconfix-publisher-parts.json'),
+          ]
+          for name,digest,manifest in files:
+              source=folder/name
+              assert sha256(source.read_bytes()).hexdigest().upper()==digest
+              parts=[]
+              with source.open('rb') as stream:
+                  for i in range(100):
+                      data=stream.read(8*1024*1024)
+                      if not data:break
+                      part=name+f'.{i+1:03d}'
+                      (folder/part).write_bytes(data)
+                      parts.append({'name':part,'sha256':sha256(data).hexdigest().upper(),'bytes':len(data)})
+              assert sum(p['bytes'] for p in parts)==source.stat().st_size
+              (folder/manifest).write_text(json.dumps({'sha256':digest,'parts':parts},indent=2))
+              source.unlink()
+          PY
+          gh release upload r1.5.4-iconfix "$RUNNER_TEMP"/r154/* scripts/Download-R154-IconFix.ps1 scripts/Make-R154-Configured-Client.ps1 --clobber
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Verify configured client and downloader syntax
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'scripts/Download-R154-IconFix.ps1'),[ref]$null,[ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) { throw ($errors | Out-String) }
+          $target = Join-Path $env:RUNNER_TEMP 'r154'
+          New-Item -ItemType Directory -Path $target | Out-Null
+          gh release download r1.5.4-iconfix --pattern 'FiberRouteR1-R1.5.4-full-client-iconfix.zip' --dir $target
+          Expand-Archive -LiteralPath (Join-Path $target 'FiberRouteR1-R1.5.4-full-client-iconfix.zip') -DestinationPath $target
+          $dll = Get-ChildItem -LiteralPath $target -Filter 'FiberRouteR1.dll' -Recurse -File | Select-Object -First 1
+          $source = Split-Path -Parent (Split-Path -Parent $dll.FullName)
+          $workspace = Join-Path $env:RUNNER_TEMP 'publisher-workspace'
+          dotnet run --project src/FiberRoute.Admin/FiberRoute.Admin.csproj -c Release -- init $workspace 'https://guangludiaodu.pages.dev/'
+          if ($LASTEXITCODE -ne 0) { throw 'Test workspace initialization failed' }
+          $output = Join-Path $env:RUNNER_TEMP 'configured-client.zip'
+          .\scripts\Make-R154-Configured-Client.ps1 -SoftwareSource $source -Workspace $workspace -Output $output
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead($output)
+          try {
+            $names = @($zip.Entries | ForEach-Object { $_.FullName.Replace([char]92,'/') })
+            foreach ($suffix in @('/FiberRouteR1.dll','/update-service.json','/ExcelDataReader-MIT.txt','/app.ico')) {
+              if (-not ($names | Where-Object { $_.EndsWith($suffix) })) { throw ('Client package missing ' + $suffix) }
+            }
+            if (-not ($names | Where-Object { $_ -match '\.png$' })) { throw 'Brand PNG missing' }
+            if (@($names | Where-Object { $_ -match '\.csv$' }).Count -ne 3) { throw 'Client templates missing' }
+            if ($names | Where-Object { $_ -match '(?i)private-key|\.db$|\.pem$|\.xlsx$' }) { throw 'Forbidden file found' }
+          } finally { $zip.Dispose() }
