@@ -18,8 +18,17 @@ try {
     New-Item -ItemType Directory -Path $client -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $source '光路调度路由查询.exe') -Destination $client
     Copy-Item -LiteralPath (Join-Path $source '程序') -Destination $client -Recurse
+    foreach ($name in @('使用说明.txt','文件校验SHA256.json')) {
+        $from = Join-Path $source $name
+        if (Test-Path -LiteralPath $from) { Copy-Item -LiteralPath $from -Destination $client }
+    }
+    foreach ($name in @('资源','第三方许可','数据报告')) {
+        $from = Join-Path $source $name
+        if (Test-Path -LiteralPath $from) { Copy-Item -LiteralPath $from -Destination $client -Recurse }
+    }
     $resources = Join-Path $client '资源'
-    New-Item -ItemType Directory -Path $resources | Out-Null
+    New-Item -ItemType Directory -Path $resources -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $client '数据') -Force | Out-Null
     Copy-Item -LiteralPath $config -Destination (Join-Path $resources 'update-service.json')
     $unexpected = Get-ChildItem -LiteralPath $stage -File -Recurse | Where-Object { $_.Extension -in @('.db','.pem','.xlsx','.csv','.pdb') -or $_.Name -match 'private-key|发布工具' }
     if ($unexpected) { throw '客户端包中发现业务数据或管理方文件，已停止打包。' }
