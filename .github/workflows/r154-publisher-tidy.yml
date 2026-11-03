@@ -1,0 +1,30 @@
+name: Publish R1.5.4 organized publisher
+on:
+  push:
+    tags:
+      - r1.5.4-publisher-tidy
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build launcher and publisher
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends gcc-mingw-w64-x86-64-posix binutils-mingw-w64-x86-64
+          FIBER_MINGW_ROOT=/usr bash scripts/build-native-launchers.sh
+          dotnet publish src/FiberRoute.Publisher/FiberRoute.Publisher.csproj -c Release -r win-x64 --self-contained true -o artifacts/publisher-r154-tidy -p:DebugType=None -p:DebugSymbols=false
+          python3 scripts/make-r154-publisher-tidy.py
+      - name: Publish organized publisher
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            downloads/R1.5.4-publisher-tidy/FiberRouteR1-Publisher-R1.5.4-tidy.zip \
+            --title "R1.5.4 管理方发布工具目录整理" \
+            --notes "根目录为管理方发布工具.exe；依赖集中放在程序子目录。保留 R1.5.4 的功能和橙红色图标。此包不含业务数据库、更新配置或管理员密钥。"
