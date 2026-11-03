@@ -9,7 +9,7 @@ out=root/'downloads/R1.5.4-iconfix';out.mkdir(parents=True,exist_ok=True)
 app=root/'artifacts/app-r154-iconfix';updater=root/'artifacts/updater-r154-iconfix';publisher=root/'artifacts/publisher-r154-iconfix'
 launcher=root/'artifacts/native-r141/app.exe'
 assert launcher.is_file() and (app/'FiberRouteR1.dll').is_file()
-program={'光路调度路由查询.exe':launcher.read_bytes(),'资源/品牌原图.png':(root/'src/FiberRoute.App/Brand/brand.png').read_bytes()}
+program={'光路调度路由查询.exe':launcher.read_bytes(),'资源/品牌原图.png':(root/'src/FiberRoute.App/Brand/brand.png').read_bytes(),'资源/update-service.json':(root/'assets/update-service.json').read_bytes()}
 for path in app.rglob('*'):
     if path.is_file() and path.suffix.lower()!='.pdb' and path.name!='createdump.exe':
         program['程序/'+path.relative_to(app).as_posix()]=path.read_bytes()
@@ -17,6 +17,9 @@ for name in ('FiberRoute.Updater.exe','FiberRoute.Updater.dll','FiberRoute.Updat
     program['程序/'+name]=(updater/name).read_bytes()
 assert '程序/app.ico' in program
 assert sha256(program['资源/品牌原图.png']).hexdigest()=='0c8b107d75834a019da79a9bc3b0d02b61ec70fa49c185c2ed9f7e13e2cf89d7'
+config=json.loads(program['资源/update-service.json'])
+assert config['ManifestUrl']=='https://guangludiaodu.pages.dev/manifest.json'
+assert config['PublicKeyPem'].startswith('-----BEGIN PUBLIC KEY-----')
 full=dict(program)
 for path in (root/'assets').glob('*.csv'):
     full['资源/'+path.name]=path.read_bytes()
@@ -25,7 +28,7 @@ with ZipFile(root/'downloads/R1.4.6/FiberRouteR1-win-x64-R1.4.6.zip') as prior:
         marker='光路调度路由查询R1.4.6/第三方许可/'
         if name.startswith(marker) and not name.endswith('/'):
             full['第三方许可/'+name[len(marker):]]=prior.read(name)
-assert len([n for n in full if n.startswith('资源/')])==4
+assert len([n for n in full if n.startswith('资源/')])==5
 assert any(n.startswith('第三方许可/') for n in full)
 assert not any(n.endswith(('使用说明.txt','.db','.pem','.xlsx','.pdb')) for n in full)
 manifest={name:sha256(data).hexdigest().upper() for name,data in sorted(full.items())}

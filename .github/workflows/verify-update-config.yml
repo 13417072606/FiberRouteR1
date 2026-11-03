@@ -1,0 +1,26 @@
+name: Verify bundled public update configuration
+on:
+  push:
+    tags:
+      - verify-update-config-v*
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Validate public configuration
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          config=json.loads(Path('assets/update-service.json').read_text())
+          assert set(config)=={'ManifestUrl','PublicKeyPem'}
+          assert config['ManifestUrl']=='https://guangludiaodu.pages.dev/manifest.json'
+          assert config['PublicKeyPem'].startswith('-----BEGIN PUBLIC KEY-----')
+          PY
+      - name: Verify update package includes public config
+        run: |
+          dotnet run --project tests/FiberRoute.Tests/FiberRoute.Tests.csproj -c Release -- --online-only

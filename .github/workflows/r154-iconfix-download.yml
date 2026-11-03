@@ -36,7 +36,7 @@ jobs:
           with ZipFile(p) as z:
               root='光路调度路由分析R1.5.4/'
               names=z.namelist();assert z.testzip() is None
-              for name in ('光路调度路由查询.exe','程序/FiberRouteR1.dll','程序/FiberRoute.Updater.exe','程序/app.ico','程序/补丁校验.json','资源/品牌原图.png','资源/中继段导入模板.csv','资源/节点类型模板.csv','数据/'):
+              for name in ('光路调度路由查询.exe','程序/FiberRouteR1.dll','程序/FiberRoute.Updater.exe','程序/app.ico','程序/补丁校验.json','资源/品牌原图.png','资源/update-service.json','资源/中继段导入模板.csv','资源/节点类型模板.csv','数据/'):
                   assert root+name in names,name
               assert any(n.startswith(root+'第三方许可/') for n in names)
               assert not any(n.endswith(('使用说明.txt','文件校验SHA256.json')) or '/在线升级辅助/' in n for n in names)

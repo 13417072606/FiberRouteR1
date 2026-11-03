@@ -66,6 +66,12 @@ public static class Publishing
             using var input=File.OpenRead(brand);byte[] signature=new byte[8];if(input.Read(signature)!=8||!signature.SequenceEqual(new byte[]{137,80,78,71,13,10,26,10}))throw new InvalidDataException("品牌原图不是PNG文件");
             files.Add("资源/品牌原图.png",brand);
         }
+        string updateConfig=Path.Combine(root,"资源","update-service.json");
+        if(File.Exists(updateConfig))
+        {
+            _=Updates.LoadConfig(updateConfig)??throw new InvalidDataException("客户端更新服务配置无效");
+            files.Add("资源/update-service.json",updateConfig);
+        }
         var manifest=new{Version=version,Files=files.Select(pair=>new{Path=pair.Key,Bytes=new FileInfo(pair.Value).Length,Sha256=Hash(pair.Value)}).ToArray()};Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(destination))!);string temp=destination+".partial";try{if(File.Exists(temp))File.Delete(temp);using(var archive=ZipFile.Open(temp,ZipArchiveMode.Create)){foreach(var file in files)archive.CreateEntryFromFile(file.Value,file.Key,CompressionLevel.Optimal);using var writer=new StreamWriter(archive.CreateEntry("更新清单.json").Open());writer.Write(JsonSerializer.Serialize(manifest));}File.Move(temp,destination,true);}finally{if(File.Exists(temp))File.Delete(temp);}
     }
     static void WriteSiteExtras(string site)
