@@ -1,0 +1,49 @@
+name: Split R1.5.4 organized publisher
+on:
+  push:
+    tags:
+      - r1.5.4-publisher-tidy-parts-v*
+permissions:
+  contents: write
+jobs:
+  parts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Split, verify and upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/r154-publisher"
+          gh release download r1.5.4-publisher-tidy --pattern 'FiberRouteR1-Publisher-R1.5.4-tidy.zip' --dir "$RUNNER_TEMP/r154-publisher"
+          python3 - "$RUNNER_TEMP/r154-publisher" <<'PY'
+          from pathlib import Path
+          from hashlib import sha256
+          import json,sys
+          folder=Path(sys.argv[1]);name='FiberRouteR1-Publisher-R1.5.4-tidy.zip'
+          digest='0A6628D4DC5E449509ADB6AB3CA8758C6D727E28AC06F7139BA79B3038DB8E81'
+          source=folder/name
+          assert sha256(source.read_bytes()).hexdigest().upper()==digest
+          parts=[]
+          with source.open('rb') as stream:
+              for i in range(100):
+                  data=stream.read(8*1024*1024)
+                  if not data:break
+                  part=name+f'.{i+1:03d}'
+                  (folder/part).write_bytes(data)
+                  parts.append({'name':part,'sha256':sha256(data).hexdigest().upper(),'bytes':len(data)})
+          assert sum(p['bytes'] for p in parts)==source.stat().st_size
+          (folder/'R1.5.4-publisher-tidy-parts.json').write_text(json.dumps({'sha256':digest,'parts':parts},indent=2))
+          source.unlink()
+          PY
+          gh release upload r1.5.4-publisher-tidy "$RUNNER_TEMP"/r154-publisher/* scripts/Download-R154-Publisher-Tidy.ps1 --clobber
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse downloader
+        shell: powershell
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'scripts/Download-R154-Publisher-Tidy.ps1'),[ref]$null,[ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) { throw ($errors | Out-String) }
