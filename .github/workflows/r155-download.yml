@@ -31,12 +31,12 @@ jobs:
           from zipfile import ZipFile
           root=Path('downloads/R1.5.5')
           packages=[]
-          for kind,name in [('Client','光路调度路由分析R1.5.5.zip'),('Publisher','光路调度更新工具R1.5.5.zip')]:
+          for kind,name,launcher in [('Client','光路调度路由分析R1.5.5.zip','光路调度路由分析.exe'),('Publisher','光路调度更新工具R1.5.5.zip','光路调度更新工具.exe')]:
               path=root/name
               with ZipFile(path) as archive:
                   assert archive.testzip() is None
                   names=archive.namelist()
-                  assert f'{name[:-4]}/{name[:-4]}.exe' in names
+                  assert f'{name[:-4]}/{launcher}' in names
                   assert not any(x.endswith(('使用说明.txt','.db','.pem','.xlsx')) for x in names)
               packages.append({'kind':kind,'name':name,'size':path.stat().st_size,'sha256':hashlib.sha256(path.read_bytes()).hexdigest().upper()})
           (root/'R1.5.5-download.json').write_text(json.dumps({'version':'1.5.5','packages':packages},ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
