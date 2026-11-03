@@ -19,7 +19,7 @@ public sealed class PreparedDataUpdate : IDisposable
 
 public sealed partial class Store
 {
-    static readonly string[] CatalogTables=["types","type_meta","clusters","room_members","room_facilities","room_catalog","room_catalog_state","facility_evidence","evidence_sources","facility_stations","station_sources","cluster_inputs"];
+    static readonly string[] CatalogTables=["types","type_meta","clusters","room_members","room_facilities","room_catalog","room_catalog_state","managed_room_choices","facility_evidence","evidence_sources","facility_stations","station_sources","cluster_inputs"];
     static string FileSha(string path){using var file=File.OpenRead(path);return Convert.ToHexString(SHA256.HashData(file));}
     static void BackupDatabase(string source,string target)
     {
@@ -34,6 +34,12 @@ public sealed partial class Store
         try
         {
             string resources=Path.Combine(stage,"resources.db"),catalog=Path.Combine(stage,"catalog.db");BackupDatabase(Database,resources);BackupDatabase(Personal,catalog);ct.ThrowIfCancellationRequested();
+            var confirmed=RoomAssignments().Where(x=>x.Status=="已确认").ToDictionary(x=>x.Name,StringComparer.Ordinal);
+            using(var original=Open(Personal))using(var packaged=Open(catalog))
+            {
+                EnsureRoomFacilities(packaged);Run(packaged,"DELETE FROM managed_room_choices");using var choices=original.CreateCommand();choices.CommandText="SELECT c.name,c.room,c.enabled,s.signature FROM room_choices c LEFT JOIN room_choice_sources s ON s.name=c.name";using var rows=choices.ExecuteReader();
+                while(rows.Read()){ct.ThrowIfCancellationRequested();string name=rows.GetString(0),room=rows.GetString(1);if(!confirmed.TryGetValue(name,out var current)||current.Room!=room)continue;string? signature=RoomSourceSignature(original,name,room);if(signature==null||!rows.IsDBNull(3)&&rows.GetString(3)!=signature)continue;using var insert=packaged.CreateCommand();insert.CommandText="INSERT INTO managed_room_choices VALUES($n,$r,$e,$s)";insert.Parameters.AddWithValue("$n",name);insert.Parameters.AddWithValue("$r",room);insert.Parameters.AddWithValue("$e",rows.GetInt32(2));insert.Parameters.AddWithValue("$s",signature);insert.ExecuteNonQuery();}
+            }
             ValidateResourceIds(resources);long duplicates;
             using(var c=Open(resources))
             {
@@ -48,7 +54,7 @@ public sealed partial class Store
                 typeSources=Sources("type_meta");roomSources=Sources("room_members").Concat(Sources("room_facilities")).Distinct().ToArray();evidenceSources=Sources("evidence_sources").Concat(Sources("station_sources")).Distinct().ToArray();clusterSources=Sources("clusters").Concat(Sources("cluster_inputs")).Distinct().ToArray();Run(c,"VACUUM");
             }
             CheckDatabase(resources);CheckDatabase(catalog);ct.ThrowIfCancellationRequested();
-            var manifest=new DataManifest(version,1,FileSha(resources),FileSha(catalog),typeSources,roomSources,evidenceSources,clusterSources,duplicates,["ODF","光交接箱","光分纤箱","光终端盒","多媒体箱"]);File.WriteAllText(Path.Combine(stage,"manifest.json"),JsonSerializer.Serialize(manifest));
+            var manifest=new DataManifest(version,2,FileSha(resources),FileSha(catalog),typeSources,roomSources,evidenceSources,clusterSources,duplicates,["ODF","光交接箱","光分纤箱","光终端盒","多媒体箱"]);File.WriteAllText(Path.Combine(stage,"manifest.json"),JsonSerializer.Serialize(manifest));
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(destination))!);if(File.Exists(temporary))File.Delete(temporary);using(var zip=ZipFile.Open(temporary,ZipArchiveMode.Create))foreach(string name in new[]{"resources.db","catalog.db","manifest.json"})zip.CreateEntryFromFile(Path.Combine(stage,name),name,CompressionLevel.Optimal);File.Move(temporary,destination,true);return destination;
         }
         finally{if(File.Exists(temporary))File.Delete(temporary);Directory.Delete(stage,true);}
@@ -82,7 +88,7 @@ public sealed partial class Store
                 foreach(var entry in archive.Entries){ct.ThrowIfCancellationRequested();if(!allowed.Contains(entry.FullName)||entry.Length<1||entry.Length>2L*1024*1024*1024||((size+=entry.Length)>3L*1024*1024*1024)||entry.FullName=="manifest.json"&&entry.Length>1024*1024)throw new InvalidDataException("数据更新包文件无效");entry.ExtractToFile(Path.Combine(prepared.Directory,entry.FullName));}
             }
             var manifest=JsonSerializer.Deserialize<DataManifest>(File.ReadAllText(Path.Combine(prepared.Directory,"manifest.json")))??throw new InvalidDataException("数据清单为空");prepared.Manifest=manifest;
-            if(manifest.Schema!=1||string.IsNullOrWhiteSpace(manifest.Version)||expectedVersion!=null&&manifest.Version!=expectedVersion)throw new InvalidDataException("数据版本或结构不兼容");
+            if(manifest.Schema is not (1 or 2)||string.IsNullOrWhiteSpace(manifest.Version)||expectedVersion!=null&&manifest.Version!=expectedVersion)throw new InvalidDataException("数据版本或结构不兼容");
             string resource=Path.Combine(prepared.Directory,"resources.db"),catalog=Path.Combine(prepared.Directory,"catalog.db");if(!FileSha(resource).Equals(manifest.ResourceSha256,StringComparison.OrdinalIgnoreCase)||!FileSha(catalog).Equals(manifest.CatalogSha256,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("数据包内容SHA256不符");CheckDatabase(resource);CheckDatabase(catalog);
             using(var c=Open(resource)){using var q=c.CreateCommand();q.CommandText="SELECT count(*) FROM edges e LEFT JOIN nodes a ON a.id=e.a LEFT JOIN nodes b ON b.id=e.b WHERE a.id IS NULL OR b.id IS NULL OR free<0 OR total<free OR length<0";if((long)q.ExecuteScalar()!>0)throw new InvalidDataException("资源端点或芯数非法");foreach(string table in new[]{"nodes","edges"}){q.CommandText="SELECT count(*),coalesce(max(id),-1),coalesce(min(id),0),count(DISTINCT id) FROM "+table;using var r=q.ExecuteReader();if(!r.Read()||(table=="nodes"&&r.GetInt64(0)==0)||r.GetInt64(0)!=r.GetInt64(1)+1||r.GetInt64(2)!=0||r.GetInt64(0)!=r.GetInt64(3))throw new InvalidDataException("资源编号不连续："+table);}}
             ValidateResourceIds(resource);
@@ -133,6 +139,7 @@ public sealed partial class Store
             using var mark=c.CreateCommand();mark.Transaction=tx;mark.CommandText="INSERT OR IGNORE INTO main.room_kind_imports VALUES($kind)";mark.Parameters.AddWithValue("$kind",kind);mark.ExecuteNonQuery();
         }
         Execute("INSERT INTO main.room_facilities(id,name,room,source,kind,rank,rownum) SELECT id,name,CASE WHEN instr(room,'挂墙')>0 THEN '' ELSE room END,source,kind,rank,rownum FROM incoming.room_facilities WHERE true ON CONFLICT(kind,id) DO UPDATE SET name=excluded.name,room=excluded.room,source=excluded.source,rank=excluded.rank,rownum=excluded.rownum WHERE name<>excluded.name OR room<>excluded.room OR rank<>excluded.rank");
+        Execute("DELETE FROM main.managed_room_choices; INSERT INTO main.managed_room_choices SELECT * FROM incoming.managed_room_choices");
         using(var state=c.CreateCommand())
         {
             state.Transaction=tx;state.CommandText="SELECT active FROM incoming.room_catalog_state LIMIT 1";

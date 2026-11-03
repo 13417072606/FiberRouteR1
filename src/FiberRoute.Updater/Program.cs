@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Security.Cryptography;
-if(args.Length!=5){Console.Error.WriteLine("此程序由光路调度路由查询调用，请勿单独启动。");return 2;}
+if(args.Length!=5){Console.Error.WriteLine("此程序由光路调度路由分析调用，请勿单独启动。");return 2;}
 string root=Path.GetFullPath(args[2]),zip=args[1],stage=Path.Combine(Path.GetTempPath(),"FiberRoute-update-"+Guid.NewGuid()),backupRoot=Path.Combine(root,"补丁备份"),backup=Path.Combine(backupRoot,"R"+System.Reflection.AssemblyName.GetAssemblyName(Path.Combine(root,"程序","FiberRouteR1.dll")).Version!.ToString(3));
 string rollback=Path.Combine(Path.GetTempPath(),"FiberRoute-rollback-"+Guid.NewGuid());
 var replaced=new List<(string Destination,string? Backup)>();
@@ -30,7 +30,7 @@ try
         }
         replaced.Add((dest,old.Length==0?null:old));Directory.CreateDirectory(Path.GetDirectoryName(dest)!);File.Copy(source,dest,true);
     }
-    string brand=Path.Combine(root,"程序","FiberRoute.Brand.exe");if(File.Exists(Path.Combine(root,"资源","品牌原图.png"))&&File.Exists(brand))
+    string brand=Path.Combine(root,"程序","FiberRoute.Brand.exe"),newLauncher=Path.Combine(root,"光路调度路由分析.exe");if(!File.Exists(newLauncher)&&File.Exists(Path.Combine(root,"资源","品牌原图.png"))&&File.Exists(brand))
     {
         using var apply=Process.Start(new ProcessStartInfo(brand){UseShellExecute=false,Arguments="--apply-existing",WorkingDirectory=root})??throw new IOException("品牌图标组件未启动");if(!apply.WaitForExit(60000)){try{apply.Kill();apply.WaitForExit(2000);}catch{}throw new TimeoutException("品牌图标应用超时");}if(apply.ExitCode!=0)throw new IOException("原品牌图标恢复失败，程序升级已取消，请查看品牌替换失败.txt");
     }
@@ -39,7 +39,7 @@ try
     foreach(string old in Directory.Exists(backupRoot)?Directory.GetDirectories(backupRoot):[])if(!old.Equals(backup,StringComparison.OrdinalIgnoreCase))try{Directory.Delete(old,true);}catch{}
     string backgroundBackup=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"FiberRouteR1","补丁备份");
     if(Directory.Exists(Path.Combine(backup,"业务数据"))&&Directory.Exists(backgroundBackup))try{Directory.Delete(backgroundBackup,true);}catch{}
-    Process.Start(new ProcessStartInfo(args[3]){UseShellExecute=true});File.Delete(zip);return 0;
+    string nextLauncher=Path.Combine(root,"光路调度路由分析.exe");Process.Start(new ProcessStartInfo(File.Exists(nextLauncher)?nextLauncher:args[3]){UseShellExecute=true});File.Delete(zip);return 0;
 }
 catch(Exception e)
 {

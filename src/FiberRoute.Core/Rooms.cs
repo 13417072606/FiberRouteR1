@@ -7,7 +7,8 @@ namespace FiberRoute.Core;
 public sealed record RoomAssignment(string Name,string Room,string Source,string Status,string Reason,bool Enabled,bool IsCabinet);
 public sealed record RoomSeed(string Name,string Room,string Source);
 public sealed record RoomFacility(string Id,string Name,string Room,string Source,string Kind,int Rank,int Row);
-public sealed record RoomCatalogPreview(int Rows,int UniqueRooms,int CurrentRooms,int MatchedRooms,int UnmatchedRooms);
+public sealed record RoomCatalogMiss(string FacilityId,string FacilityName,string Room,string Kind,string Source,int SourceRow);
+public sealed record RoomCatalogPreview(int Rows,int UniqueRooms,int CurrentRooms,int MatchedRooms,int UnmatchedRooms,IReadOnlyList<RoomCatalogMiss> Misses);
 
 public sealed partial class Store
 {
@@ -18,7 +19,13 @@ public sealed partial class Store
         {
             Run(c,"CREATE TABLE room_facilities_next(id TEXT NOT NULL,name TEXT NOT NULL,room TEXT NOT NULL,source TEXT NOT NULL,kind TEXT NOT NULL,rank INTEGER NOT NULL,rownum INTEGER NOT NULL,PRIMARY KEY(kind,id)) WITHOUT ROWID; INSERT OR REPLACE INTO room_facilities_next SELECT id,name,room,source,kind,rank,rownum FROM room_facilities ORDER BY rowid; DROP TABLE room_facilities; ALTER TABLE room_facilities_next RENAME TO room_facilities");
         }
-        Run(c,"CREATE TABLE IF NOT EXISTS room_facilities(id TEXT NOT NULL,name TEXT NOT NULL,room TEXT NOT NULL,source TEXT NOT NULL,kind TEXT NOT NULL,rank INTEGER NOT NULL,rownum INTEGER NOT NULL,PRIMARY KEY(kind,id)) WITHOUT ROWID; CREATE INDEX IF NOT EXISTS room_facilities_id ON room_facilities(id); CREATE TABLE IF NOT EXISTS room_kind_imports(kind TEXT PRIMARY KEY) WITHOUT ROWID; CREATE TABLE IF NOT EXISTS room_catalog(name TEXT PRIMARY KEY,category TEXT NOT NULL,source TEXT NOT NULL,rownum INTEGER NOT NULL) WITHOUT ROWID; CREATE TABLE IF NOT EXISTS room_catalog_state(active INTEGER NOT NULL)");
+        Run(c,"CREATE TABLE IF NOT EXISTS room_facilities(id TEXT NOT NULL,name TEXT NOT NULL,room TEXT NOT NULL,source TEXT NOT NULL,kind TEXT NOT NULL,rank INTEGER NOT NULL,rownum INTEGER NOT NULL,PRIMARY KEY(kind,id)) WITHOUT ROWID; CREATE INDEX IF NOT EXISTS room_facilities_id ON room_facilities(id); CREATE TABLE IF NOT EXISTS room_kind_imports(kind TEXT PRIMARY KEY) WITHOUT ROWID; CREATE TABLE IF NOT EXISTS room_catalog(name TEXT PRIMARY KEY,category TEXT NOT NULL,source TEXT NOT NULL,rownum INTEGER NOT NULL) WITHOUT ROWID; CREATE TABLE IF NOT EXISTS room_catalog_state(active INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS managed_room_choices(name TEXT PRIMARY KEY,room TEXT NOT NULL,enabled INTEGER NOT NULL,signature TEXT NOT NULL)");
+    }
+    static string? RoomSourceSignature(SqliteConnection c,string name,string room)
+    {
+        using(var state=c.CreateCommand()){state.CommandText="SELECT active FROM room_catalog_state LIMIT 1";if(state.ExecuteScalar() is long active&&active==1){using var catalog=c.CreateCommand();catalog.CommandText="SELECT count(*) FROM room_catalog WHERE name=$r";catalog.Parameters.AddWithValue("$r",room);if((long)catalog.ExecuteScalar()!<1)return null;}}
+        using var q=c.CreateCommand();q.CommandText="SELECT id,kind,source FROM room_facilities WHERE name=$n AND room=$r AND rank=(SELECT max(rank) FROM room_facilities WHERE name=$n) ORDER BY id,kind,source";q.Parameters.AddWithValue("$n",name);q.Parameters.AddWithValue("$r",room);using var reader=q.ExecuteReader();var rows=new List<string>();while(reader.Read())rows.Add(reader.GetString(0)+"|"+reader.GetString(1)+"|"+reader.GetString(2));
+        return rows.Count==0?null:Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(name+"\n"+room+"\n"+string.Join('\n',rows))));
     }
     // Room affiliation is an explicit field, never a station name, upstream room or name prefix.
     static bool HasRoom(string room)=>room.Trim() is not ("" or "--" or "无" or "未知" or "未填写");
@@ -143,7 +150,9 @@ public sealed partial class Store
         using var c=Open(Personal);using var q=c.CreateCommand();q.CommandText="SELECT DISTINCT room FROM room_facilities WHERE room<>''";
         using var reader=q.ExecuteReader();int current=0,matched=0;
         while(reader.Read()){ct.ThrowIfCancellationRequested();current++;if(catalog.ContainsKey(reader.GetString(0).Trim()))matched++;}
-        return new(input.Length,catalog.Count,current,matched,current-matched);
+        reader.Close();var misses=new List<RoomCatalogMiss>();using var rows=c.CreateCommand();rows.CommandText="SELECT id,name,room,kind,source,rownum FROM room_facilities WHERE room<>'' ORDER BY room,kind,id";
+        using var result=rows.ExecuteReader();while(result.Read()){ct.ThrowIfCancellationRequested();string room=result.GetString(2).Trim();if(catalog.ContainsKey(room))continue;misses.Add(new(result.GetString(0),result.GetString(1),room,result.GetString(3),result.GetString(4),result.GetInt32(5)));}
+        return new(input.Length,catalog.Count,current,matched,current-matched,misses);
     }
     public void ApplyRoomCatalog(IEnumerable<(string Path,string? Sheet)> files,CancellationToken ct=default)
     {
@@ -223,12 +232,15 @@ public sealed partial class Store
         }
         var choices=new Dictionary<string,(string Room,bool Enabled)>();using(var q=c.CreateCommand()){q.CommandText="SELECT name,room,enabled FROM room_choices";using var r=q.ExecuteReader();while(r.Read())choices[r.GetString(0)]=(r.GetString(1),r.GetInt32(2)==1);}
         var reviews=new Dictionary<string,string>(StringComparer.Ordinal);using(var q=c.CreateCommand()){q.CommandText="SELECT name,signature FROM room_reviews";using var r=q.ExecuteReader();while(r.Read())reviews[r.GetString(0)]=r.GetString(1);}
+        var choiceSources=new Dictionary<string,string>(StringComparer.Ordinal);using(var q=c.CreateCommand()){q.CommandText="SELECT name,signature FROM room_choice_sources";using var r=q.ExecuteReader();while(r.Read())choiceSources[r.GetString(0)]=r.GetString(1);}
+        var managed=new Dictionary<string,(string Room,bool Enabled,string Signature)>(StringComparer.Ordinal);using(var q=c.CreateCommand()){q.CommandText="SELECT name,room,enabled,signature FROM managed_room_choices";using var r=q.ExecuteReader();while(r.Read())managed[r.GetString(0)]=(r.GetString(1),r.GetInt32(2)==1,r.GetString(3));}
         var known=g.Nodes.ToDictionary(n=>n.Name,StringComparer.Ordinal);
         values=values.Where(x=>UsableRoom(x.Room)).ToList();var sourceNames=values.Select(x=>x.Name).ToHashSet(StringComparer.Ordinal);
         return values.Where(x=>known.ContainsKey(x.Name)).GroupBy(x=>x.Name,StringComparer.Ordinal).Select(group=>{
             var n=known[group.Key];bool cabinet=IsCabinet(n);var rooms=group.Select(x=>x.Room).Distinct(StringComparer.Ordinal).ToArray();string room=rooms.Length==1?rooms[0]:string.Join("；",rooms),reason=rooms.Length>1?"同一设施对应多个所属机房":"",source=string.Join('；',group.Select(x=>x.Source).Distinct());bool enable=rooms.Length==1;
             if(conflicts.TryGetValue(n.Name,out var issues)){reason=string.Join('；',issues.Distinct());enable=false;}
-            if(choices.TryGetValue(n.Name,out var choice)){source+="；人工确认";if(rooms.Contains(choice.Room,StringComparer.Ordinal)){room=choice.Room;if(!conflicts.ContainsKey(n.Name)||reviews.GetValueOrDefault(n.Name)==reason){reason="";enable=choice.Enabled;}else enable=false;}else{reason="源数据与既有人工确认归属不一致；原人工归属："+choice.Room;enable=false;}}
+            if(choices.TryGetValue(n.Name,out var choice)){source+="；人工确认";if(rooms.Contains(choice.Room,StringComparer.Ordinal)){room=choice.Room;if(choiceSources.TryGetValue(n.Name,out var signature)&&RoomSourceSignature(c,n.Name,choice.Room)!=signature){reason="人工确认的设施来源或机房清单已变化，需重新核对";enable=false;}else if(!conflicts.ContainsKey(n.Name)||reviews.GetValueOrDefault(n.Name)==reason){reason="";enable=choice.Enabled;}else enable=false;}else{reason="源数据与既有人工确认归属不一致；原人工归属："+choice.Room;enable=false;}}
+            else if(managed.TryGetValue(n.Name,out var approved)){source+="；管理方确认";if(rooms.Contains(approved.Room,StringComparer.Ordinal)&&RoomSourceSignature(c,n.Name,approved.Room)==approved.Signature&&!conflicts.ContainsKey(n.Name)){room=approved.Room;reason="";enable=approved.Enabled;}else{reason="管理方确认的设施来源或机房清单已变化，需重新核对";enable=false;}}
             if(!sourceNames.Contains(n.Name)){reason="原所属机房来源已移除，保留人工记录并暂停归并";enable=false;}
             if(rooms.Any(SuspiciousRoom)){reason="疑似安装位置（挂墙/壁挂），所属机房需要人工复核";enable=false;}
             return new RoomAssignment(n.Name,room,source,reason.Length>0?"需核对":"已确认",reason.Length>0?reason:!enable?"已人工暂停归并":"",enable,cabinet);
@@ -239,10 +251,10 @@ public sealed partial class Store
         var match=RoomAssignments().FirstOrDefault(x=>x.Name==name)??throw new InvalidDataException("未找到设施的所属机房记录");
         if(enabled&&SuspiciousRoom(room))throw new InvalidDataException("该名称疑似安装位置，请先核对并更正源表中的真实所属机房，再重新导入。当前已暂停归并。");
         if(!match.Room.Split('；').Contains(room,StringComparer.Ordinal))throw new InvalidDataException("只能从表格已有的所属机房中选择，请先更正并导入源表。");
-        using var c=Open(Personal);using var tx=c.BeginTransaction();using var q=c.CreateCommand();q.Transaction=tx;q.CommandText="INSERT OR REPLACE INTO room_choices VALUES($n,$r,$e)";q.Parameters.AddWithValue("$n",name);q.Parameters.AddWithValue("$r",room);q.Parameters.AddWithValue("$e",enabled?1:0);q.ExecuteNonQuery();
+        using var c=Open(Personal);string? signature=RoomSourceSignature(c,name,room);if(signature==null)throw new InvalidDataException("机房来源或清单已变化，请重新导入后确认");using var tx=c.BeginTransaction();using var q=c.CreateCommand();q.Transaction=tx;q.CommandText="INSERT OR REPLACE INTO room_choices VALUES($n,$r,$e)";q.Parameters.AddWithValue("$n",name);q.Parameters.AddWithValue("$r",room);q.Parameters.AddWithValue("$e",enabled?1:0);q.ExecuteNonQuery();
         using var review=c.CreateCommand();review.Transaction=tx;review.CommandText="INSERT OR REPLACE INTO room_reviews VALUES($n,$s)";review.Parameters.AddWithValue("$n",name);
         string? previous=null;using(var old=c.CreateCommand()){old.Transaction=tx;old.CommandText="SELECT signature FROM room_reviews WHERE name=$n";old.Parameters.AddWithValue("$n",name);previous=old.ExecuteScalar() as string;}
-        review.Parameters.AddWithValue("$s",match.Status=="需核对"?match.Reason:previous??"");review.ExecuteNonQuery();tx.Commit();Reload();
+        review.Parameters.AddWithValue("$s",match.Status=="需核对"?match.Reason:previous??"");review.ExecuteNonQuery();using var source=c.CreateCommand();source.Transaction=tx;source.CommandText="INSERT OR REPLACE INTO room_choice_sources VALUES($n,$s)";source.Parameters.AddWithValue("$n",name);source.Parameters.AddWithValue("$s",signature);source.ExecuteNonQuery();tx.Commit();Reload();
     }
     IEnumerable<ClusterRecord> RoutingGroups(Graph g)
     {

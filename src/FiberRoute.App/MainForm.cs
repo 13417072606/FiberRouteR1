@@ -33,7 +33,7 @@ public sealed partial class MainForm:Form
     public MainForm(Store s)
     {
         SuspendLayout();
-        store=s;Text="光路调度路由查询 R"+DisplayVersion;Width=1380;Height=950;MinimumSize=new Size(1080,700);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Microsoft YaHei UI",10);BackColor=Theme.Canvas;ForeColor=Theme.Ink;
+        store=s;Text="光路调度路由分析 R"+DisplayVersion;Width=1380;Height=950;MinimumSize=new Size(1080,700);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Microsoft YaHei UI",10);BackColor=Theme.Canvas;ForeColor=Theme.Ink;
         AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;
         tabs.Appearance=TabAppearance.FlatButtons;tabs.ItemSize=new Size(1,1);tabs.SizeMode=TabSizeMode.Fixed;
         Controls.Add(tabs);Controls.Add(status);BuildRoutes();BuildResources();BuildTypes();BuildImport();Controls.Add(BuildHeader());InstallLayoutMemory();RefreshData();tabs.SelectedIndexChanged+=(_,_)=>{if(tabs.SelectedIndex==1)LoadResources();else if(tabs.SelectedIndex==2){LoadTypes();LoadClusters();LoadRooms();}};
@@ -149,7 +149,7 @@ public sealed partial class MainForm:Form
     async Task PreviewTypes()
     {
         if(busy)return;using var file=new OpenFileDialog{Filter=TableInput.Filter};if(file.ShowDialog()!=DialogResult.OK)return;
-        using var dialog=new Form{Text="节点类型表 · 格式、工作表及字段映射",Width=680,Height=540,StartPosition=FormStartPosition.CenterParent,Font=Font};
+        using var dialog=new Form{Icon=Icon,Text="节点类型表 · 格式、工作表及字段映射",Width=680,Height=540,StartPosition=FormStartPosition.CenterParent,Font=Font};
         var panel=Stack();var enc=new UiComboBox{Width=240,DropDownStyle=ComboBoxStyle.DropDownList};enc.Items.AddRange(["自动","UTF-8","GB18030","GBK","utf-16","utf-16BE"]);enc.SelectedIndex=0;
         var sheet=new UiComboBox{Width=300,DropDownStyle=ComboBoxStyle.DropDownList};var nc=new UiComboBox{Width=300,DropDownStyle=ComboBoxStyle.DropDownList};var tc=new UiComboBox{Width=300,DropDownStyle=ComboBoxStyle.DropDownList};var info=L("");
         string? key=null;string detected="自动";
@@ -199,11 +199,11 @@ public sealed partial class MainForm:Form
 
     async Task ImportData()
     {
-        if(map.Count==0||previewKey!=InputKey())throw new InvalidOperationException("请先重新预览当前文件、编码及工作表");foreach(var field in Store.Required)if(map[field].Text=="（无）")throw new InvalidOperationException("请映射必需字段："+field);if(MessageBox.Show("校验成功后替换当前资源；失败或取消保留原版。继续？","确认导入",MessageBoxButtons.YesNo)!=DialogResult.Yes)return;
+        if(map.Count==0||previewKey!=InputKey())throw new InvalidOperationException("请先重新预览当前文件、编码及工作表");foreach(var field in Store.Required)if(map[field].Text=="（无）")throw new InvalidOperationException("请映射必需字段："+field);if(!ConfirmFinalImportMapping())return;
         string file=importPath.Text,enc=detectedEncoding;string? sheet=resourceFormat.SelectedIndex==1&&sheets.Items.Count==0?"__RESOURCE_RAW__":sheets.SelectedItem as string;double unit=units.SelectedIndex==0?1:1000;var mapping=map.ToDictionary(x=>x.Key,x=>x.Value.Text);
         await Work("开始导入…",async ct=>{
             var progress=new Progress<ImportProgress>(p=>status.Text=$"读取 {p.Read:N0} · 可接入 {p.Accepted:N0} · 异常 {p.Invalid:N0} · 节点 {p.Nodes:N0}（可取消）");
-            var r=await store.ImportAsync(file,enc,mapping,unit,progress,ct,sheet);if(!r.Unchanged)store.SetSetting("remoteResourceVersion","");errorFile=r.ErrorFile;RefreshData();if(r.Unchanged){status.Text="中继段 ID 与内容均无变化，已跳过资源更新。";return;}previewStats.Text=$"校验完成：读取 {r.Read:N0} 条 · 可接入 {r.Accepted:N0} 条 · 隔离异常 {r.Invalid:N0} 条";status.Text=$"完成：新增 {r.Added:N0} · 更新 {r.Changed:N0} · 删除旧 ID {r.Removed:N0}；现有 {r.Accepted:N0} 段。数据版本 {r.Version}";
+            var r=await store.ImportAsync(file,enc,mapping,unit,progress,ct,sheet);if(!r.Unchanged)store.SetSetting("remoteResourceVersion","");errorFile=r.ErrorFile;RefreshData();if(r.Unchanged){status.Text="中继段 ID 与内容均无变化，已跳过资源更新。";return;}string reasons="";if(r.Invalid>0&&File.Exists(errorFile))reasons=string.Join(" · ",Csv.Read(errorFile,"UTF-8").Skip(1).Where(x=>x.Length>1).GroupBy(x=>x[1]).OrderByDescending(x=>x.Count()).Select(x=>x.Key+" "+x.Count().ToString("N0")));previewStats.Text=$"校验完成：读取 {r.Read:N0} 条 · 可接入 {r.Accepted:N0} 条 · 隔离异常 {r.Invalid:N0} 条"+(reasons.Length>0?"\n"+reasons+"；点击“导出异常”查看逐条清单":"");status.Text=$"完成：新增 {r.Added:N0} · 更新 {r.Changed:N0} · 删除旧 ID {r.Removed:N0}；现有 {r.Accepted:N0} 段。数据版本 {r.Version}";
         });
     }
     void RefreshData()

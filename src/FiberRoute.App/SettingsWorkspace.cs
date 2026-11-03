@@ -57,7 +57,7 @@ public sealed partial class MainForm
                         if(!ok){state.Text=status.Text;return;}
                         if(program)
                         {
-                            string launcher=Path.Combine(ApplicationRoot,"光路调度路由查询.exe");if(!File.Exists(launcher))launcher=Application.ExecutablePath;
+                            string launcher=Path.Combine(ApplicationRoot,"光路调度路由分析.exe");if(!File.Exists(launcher))launcher=Path.Combine(ApplicationRoot,"光路调度路由查询.exe");if(!File.Exists(launcher))launcher=Application.ExecutablePath;
                             var start=new ProcessStartInfo(Path.Combine(helper!,"FiberRoute.Updater.exe")){UseShellExecute=false,WorkingDirectory=helper!};foreach(string arg in new[]{Environment.ProcessId.ToString(),package!,ApplicationRoot,launcher,release.Sha256})start.ArgumentList.Add(arg);Process.Start(start);launched=true;package=null;dialog.Close();BeginInvoke((Action)Close);return;
                         }
                         if(prepared==null)throw new InvalidDataException("没有可应用的数据预览");
@@ -92,8 +92,8 @@ public sealed partial class MainForm
     }
     bool ConfirmDataUpdate(Form owner,PreparedDataUpdate update)
     {
-        using var dialog=new Form{Text="数据更新预览 · "+update.Manifest.Version,Width=1000,Height=650,Font=Font,StartPosition=FormStartPosition.CenterParent};var grid=Grid();grid.DataSource=update.Details.Take(1000).ToList();grid.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.Fill;grid.AutoSizeRowsMode=DataGridViewAutoSizeRowsMode.AllCells;dialog.Controls.Add(grid);
-        dialog.Controls.Add(new Label{Text=$"中继段：新增 {update.Added:N0} · 修改 {update.Changed:N0} · 删除 {update.Removed:N0} · 无变化 {update.Unchanged:N0}\n目录资料处理 {update.MetadataChanged:N0} 次：节点类型 {update.TypeOperations:N0} · 集群 {update.ClusterOperations:N0} · 机房归属 {update.RoomOperations:N0} · 来源证据 {update.EvidenceOperations:N0}\n目录数字是数据库行操作次数，不等于发生变化的设施数量。\n人工冲突 {update.ManualConflicts:N0}：保留本机人工值并标需核对。下表只列中继段变化和人工冲突，最多 1000 项；列表为空时目录资料仍可能更新。",Dock=DockStyle.Top,Height=142,Padding=new Padding(10),BackColor=Theme.Tint});var actions=Flow();actions.Dock=DockStyle.Bottom;actions.Controls.AddRange([B("确认更新",()=>dialog.DialogResult=DialogResult.OK),B("取消",()=>dialog.DialogResult=DialogResult.Cancel)]);dialog.Controls.Add(actions);return dialog.ShowDialog(owner)==DialogResult.OK;
+        using var dialog=new Form{Icon=Icon,Text="数据更新预览 · "+update.Manifest.Version,Width=1000,Height=650,Font=Font,StartPosition=FormStartPosition.CenterParent,BackColor=Theme.Canvas};var grid=Grid();grid.DataSource=update.Details.Take(1000).ToList();grid.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.Fill;grid.AutoSizeRowsMode=DataGridViewAutoSizeRowsMode.AllCells;dialog.Controls.Add(grid);
+        var summary=DialogTextCard("本次更新",$"中继段  新增 {update.Added:N0} · 修改 {update.Changed:N0} · 删除 {update.Removed:N0} · 无变化 {update.Unchanged:N0}\r\n目录资料  {update.MetadataChanged:N0} 次 · 人工冲突 {update.ManualConflicts:N0} 项（保留本机人工值）",92);summary.Dock=DockStyle.Top;dialog.Controls.Add(summary);var actions=Flow();actions.Dock=DockStyle.Bottom;actions.Controls.AddRange([B("确认更新",()=>dialog.DialogResult=DialogResult.OK),B("取消",()=>dialog.DialogResult=DialogResult.Cancel)]);dialog.Controls.Add(actions);return dialog.ShowDialog(owner)==DialogResult.OK;
     }
     internal static void CleanupUpdateHelpers()
     {

@@ -8,7 +8,7 @@
 #define PRODUCT L"光路调度路由查询"
 #define TARGET L"程序\\FiberRouteR1.exe"
 #else
-#define PRODUCT L"管理方发布工具"
+#define PRODUCT L"光路调度更新工具"
 #define TARGET L"程序\\FiberRoute.Publisher.exe"
 #endif
 static WCHAR root[32768],program[32768],command[65536],data[32768],database[32768];

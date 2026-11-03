@@ -33,7 +33,7 @@ public sealed partial class MainForm
     Control BuildHeader()
     {
         var header=new TableLayoutPanel{Dock=DockStyle.Top,Height=72,Padding=new Padding(16,4,16,0),ColumnCount=3,RowCount=1,BackColor=Color.White};header.RowStyles.Add(new(SizeType.Percent,100));header.ColumnStyles.Add(new(SizeType.Absolute,300));header.ColumnStyles.Add(new(SizeType.Percent,100));header.ColumnStyles.Add(new(SizeType.Absolute,204));
-        var brand=new Panel{Dock=DockStyle.Fill,BackColor=Color.White};var icon=Path.Combine(AppContext.BaseDirectory,"app.ico");var original=BrandAssets.Load();if(original.Icon!=null)Icon=original.Icon;else if(File.Exists(icon))Icon=new Icon(icon);if(Icon!=null){var logo=original.Image??Icon.ToBitmap();brand.Controls.Add(new PictureBox{Image=logo,SizeMode=PictureBoxSizeMode.Zoom,Size=new Size(40,40),Location=new Point(0,10)});FormClosed+=(_,_)=>logo.Dispose();}brand.Controls.Add(new Label{Text="光路调度路由查询",AutoSize=true,Font=new Font(Font.FontFamily,17,FontStyle.Bold),Location=new Point(50,15),ForeColor=Theme.Ink});header.Controls.Add(brand,0,0);
+        var brand=new Panel{Dock=DockStyle.Fill,BackColor=Color.White};var icon=Path.Combine(AppContext.BaseDirectory,"app.ico");var original=BrandAssets.Load();if(original.Icon!=null)Icon=original.Icon;else if(File.Exists(icon))Icon=new Icon(icon);if(Icon!=null){var logo=original.Image??Icon.ToBitmap();brand.Controls.Add(new PictureBox{Image=logo,SizeMode=PictureBoxSizeMode.Zoom,Size=new Size(40,40),Location=new Point(0,10)});FormClosed+=(_,_)=>logo.Dispose();}brand.Controls.Add(new Label{Text="光路调度路由分析",AutoSize=true,Font=new Font(Font.FontFamily,17,FontStyle.Bold),Location=new Point(50,15),ForeColor=Theme.Ink});header.Controls.Add(brand,0,0);
         var nav=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=4,RowCount=1,BackColor=Color.White};nav.RowStyles.Add(new(SizeType.Percent,100));
         for(int i=0;i<tabs.TabPages.Count;i++){int index=i;nav.ColumnStyles.Add(new(SizeType.Percent,25));var b=new UiButton{Text=tabs.TabPages[i].Text,Dock=DockStyle.Fill,Navigation=true,Selected=tabs.SelectedIndex==i,Font=new Font(Font.FontFamily,11,tabs.SelectedIndex==i?FontStyle.Bold:FontStyle.Regular),Margin=new Padding(6,0,6,0)};b.Click+=(_,_)=>tabs.SelectedIndex=index;tabs.SelectedIndexChanged+=(_,_)=>{b.Selected=tabs.SelectedIndex==index;b.Font=new Font(Font.FontFamily,11,b.Selected?FontStyle.Bold:FontStyle.Regular);b.Invalidate();};Shown+=(_,_)=>{b.Selected=tabs.SelectedIndex==index;b.Font=new Font(Font.FontFamily,11,b.Selected?FontStyle.Bold:FontStyle.Regular);b.Invalidate();};nav.Controls.Add(b,i,0);}header.Controls.Add(nav,1,0);
         var settingsHost=new Panel{Dock=DockStyle.Fill,BackColor=Color.White};
@@ -50,7 +50,7 @@ public sealed partial class MainForm
     {
         int index=0;foreach(var grid in new[]{routeGrid,segments,resourceGrid,typeGrid,importGrid,typePreview,clusterGrid,assignmentGrid,roomGrid})
         {
-            string key=(grid==clusterGrid?"grid-v8-":grid==resourceGrid?"grid-v6-":"grid-v4-")+index++;grid.Name=key;
+            string key=(grid==clusterGrid?"grid-v8-":grid==resourceGrid?"grid-v6-":grid==roomGrid?"grid-v5-":"grid-v4-")+index++;grid.Name=key;
             try{if(store.Setting(key) is string json)gridStates[grid]=JsonSerializer.Deserialize<GridState>(json)!;}catch{}
             PrepareGrid(grid);grid.DataBindingComplete+=(_,_)=>FitGrid(grid);
             grid.SizeChanged+=(_,_)=>{if(!gridStates.ContainsKey(grid))FitGrid(grid);else QueueRowMeasure(grid);};
@@ -84,7 +84,12 @@ public sealed partial class MainForm
                     if(grid==resourceGrid)return (int)((c.Name switch{"序号"=>54,"始端设施"=>210,"始端类型" or "终端类型"=>94,"始端区域" or "终端区域"=>90,"终端设施"=>244,"长度米"=>92,"空闲_总芯"=>104,"业务状态"=>88,"操作"=>64,_=>70})*grid.DeviceDpi/96f);
                     return (int)((c.Name.Contains("设施")||c.Name is "名称" or "始端" or "终端" or "成员" or "所属机房"?200:c.Name is "序号" or "操作"?70:c.Name=="空闲_总芯"?116:c.Name=="需求后余量"?120:c.Name is "确认状态" or "类型"?86:c.Name.Contains("ID")?150:100)*grid.DeviceDpi/96f);
                 }
-                int extra=Math.Max(0,available-columns.Sum(Initial));foreach(var c in columns)c.Width=Initial(c)+extra*Weight(c)/Math.Max(1,total);
+                if(grid==roomGrid)
+                {
+                    foreach(var c in columns.Where(c=>c.Name!="所属机房"))c.Width=(int)((c.Name switch{"序号"=>48,"设施数" or "已纳入"=>60,"确认状态" or "归并状态"=>76,"操作"=>54,_=>70})*grid.DeviceDpi/96f);
+                    if(grid.Columns.Contains("所属机房"))grid.Columns["所属机房"].Width=Math.Max((int)(160*grid.DeviceDpi/96f),available-columns.Where(c=>c.Name!="所属机房").Sum(c=>c.Width));
+                }
+                else{int extra=Math.Max(0,available-columns.Sum(Initial));foreach(var c in columns)c.Width=Initial(c)+extra*Weight(c)/Math.Max(1,total);}
             }
             MeasureRows(grid);SizeGridHeaders(grid);
         }finally{remembering=false;}
@@ -92,14 +97,14 @@ public sealed partial class MainForm
     void RememberGrid(DataGridView grid){if(remembering||grid.Columns.Count==0||!Visible)return;remembering=true;try{gridStates[grid]=new(grid.Columns.Cast<DataGridViewColumn>().Select(c=>new ColumnState(c.Name,c.Width,c.DisplayIndex,c.Visible)).ToArray(),rowMinimum.GetValueOrDefault(grid,gridStates.GetValueOrDefault(grid)?.Height??38*grid.DeviceDpi/96),grid.DeviceDpi);}finally{remembering=false;}}
     void SetRowHeight(DataGridView grid)
     {
-        if(grid.CurrentRow==null)return;using var d=new Form{Text="行高",Width=340,Height=175,Font=Font,StartPosition=FormStartPosition.CenterParent};var n=Num(24,600,Math.Clamp(grid.CurrentRow.Height,24,600));n.Dock=DockStyle.Top;d.Controls.Add(n);var ok=B("应用到本表",()=>{rowMinimum[grid]=(int)n.Value;RememberGrid(grid);MeasureRows(grid);d.Close();});ok.Dock=DockStyle.Bottom;d.Controls.Add(ok);d.ShowDialog(this);
+        if(grid.CurrentRow==null)return;using var d=new Form{Icon=Icon,Text="行高",Width=340,Height=175,Font=Font,StartPosition=FormStartPosition.CenterParent};var n=Num(24,600,Math.Clamp(grid.CurrentRow.Height,24,600));n.Dock=DockStyle.Top;d.Controls.Add(n);var ok=B("应用到本表",()=>{rowMinimum[grid]=(int)n.Value;RememberGrid(grid);MeasureRows(grid);d.Close();});ok.Dock=DockStyle.Bottom;d.Controls.Add(ok);d.ShowDialog(this);
     }
-    void ShowColumns(DataGridView grid){using var d=new Form{Text="列设置 · 拖动表头可调整顺序",Width=420,Height=520,Font=Font};var list=new CheckedListBox{Dock=DockStyle.Fill,CheckOnClick=true};foreach(DataGridViewColumn c in grid.Columns)list.Items.Add(c.HeaderText,c.Visible);var ok=B("应用",()=>{for(int i=0;i<grid.Columns.Count;i++)grid.Columns[i].Visible=list.GetItemChecked(i);RememberGrid(grid);d.Close();});ok.Dock=DockStyle.Bottom;d.Controls.Add(list);d.Controls.Add(ok);d.ShowDialog(this);}
+    void ShowColumns(DataGridView grid){using var d=new Form{Icon=Icon,Text="列设置 · 拖动表头可调整顺序",Width=420,Height=520,Font=Font};var list=new CheckedListBox{Dock=DockStyle.Fill,CheckOnClick=true};foreach(DataGridViewColumn c in grid.Columns)list.Items.Add(c.HeaderText,c.Visible);var ok=B("应用",()=>{for(int i=0;i<grid.Columns.Count;i++)grid.Columns[i].Visible=list.GetItemChecked(i);RememberGrid(grid);d.Close();});ok.Dock=DockStyle.Bottom;d.Controls.Add(list);d.Controls.Add(ok);d.ShowDialog(this);}
     void CreateDesktopShortcut()
     {
-        string executable=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","光路调度路由查询.exe"));if(!File.Exists(executable))executable=Application.ExecutablePath;
+        string executable=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","光路调度路由分析.exe"));if(!File.Exists(executable))executable=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","光路调度路由查询.exe"));if(!File.Exists(executable))executable=Application.ExecutablePath;
         Type type=Type.GetTypeFromProgID("WScript.Shell")??throw new InvalidOperationException("系统快捷方式组件不可用");object shell=Activator.CreateInstance(type)!;object? shortcut=null;
-        try{dynamic host=shell;shortcut=host.CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),"光路调度路由查询.lnk"));dynamic link=shortcut;link.TargetPath=executable;link.WorkingDirectory=Path.GetDirectoryName(executable);link.IconLocation=File.Exists(BrandAssets.IconPath)?BrandAssets.IconPath:executable;link.Save();status.Text="已创建桌面快捷方式";}
+        try{dynamic host=shell;shortcut=host.CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),"光路调度路由分析.lnk"));dynamic link=shortcut;link.TargetPath=executable;link.WorkingDirectory=Path.GetDirectoryName(executable);link.IconLocation=File.Exists(BrandAssets.IconPath)?BrandAssets.IconPath:executable;link.Save();status.Text="已创建桌面快捷方式";}
         finally{if(shortcut!=null)System.Runtime.InteropServices.Marshal.ReleaseComObject(shortcut);System.Runtime.InteropServices.Marshal.ReleaseComObject(shell);}
     }
     void ShowSettings()

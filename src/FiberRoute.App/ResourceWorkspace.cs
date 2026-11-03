@@ -11,8 +11,7 @@ public sealed partial class MainForm
     void ResourceDetail()
     {
         if(resourceGrid.CurrentRow?.Cells["内部序号"].Value is not int ix)return;
-        using var f=new Form{Text="中继段完整详情",Width=850,Height=650,Font=Font,StartPosition=FormStartPosition.CenterParent};var t=new TextBox{Dock=DockStyle.Fill,Multiline=true,ReadOnly=true,ScrollBars=ScrollBars.Both,BorderStyle=BorderStyle.None,BackColor=Color.White};
-        t.Text=JsonSerializer.Serialize(ShantouRegions.ExportFields(JsonSerializer.Deserialize<Dictionary<string,string>>(store.Raw(ix))!,store.Graph.Edges[ix]),new JsonSerializerOptions{WriteIndented=true,Encoder=System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping});f.Controls.Add(t);f.ShowDialog(this);
+        using var f=new Form{Icon=Icon,Text="中继段完整详情",Width=850,Height=650,Font=Font,StartPosition=FormStartPosition.CenterParent,BackColor=Theme.Canvas};var fields=ShantouRegions.ExportFields(JsonSerializer.Deserialize<Dictionary<string,string>>(store.Raw(ix))!,store.Graph.Edges[ix]);var list=Stack();list.BackColor=Theme.Canvas;foreach(var item in fields)list.Controls.Add(DialogTextCard(item.Key,item.Value?.ToString()??"",76));f.Controls.Add(list);f.ShowDialog(this);
     }
     void BuildResourceWorkspace()
     {

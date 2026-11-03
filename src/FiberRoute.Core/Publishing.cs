@@ -58,7 +58,7 @@ public static class Publishing
             if(!new[]{".dll",".exe",".ico"}.Contains(Path.GetExtension(name),StringComparer.OrdinalIgnoreCase)&&!name.EndsWith(".deps.json",StringComparison.OrdinalIgnoreCase)&&!name.EndsWith(".runtimeconfig.json",StringComparison.OrdinalIgnoreCase))continue;
             files.Add(relative,file);
         }
-        string launcher=Path.Combine(root,"光路调度路由查询.exe");if(File.Exists(launcher))files.Add("光路调度路由查询.exe",launcher);
+        string launcher=Path.Combine(root,"光路调度路由分析.exe");if(File.Exists(launcher))files.Add("光路调度路由分析.exe",launcher);else{launcher=Path.Combine(root,"光路调度路由查询.exe");if(File.Exists(launcher))files.Add("光路调度路由查询.exe",launcher);}
         string brand=Path.Combine(root,"资源","品牌原图.png");
         if(File.Exists(brand))
         {
@@ -98,6 +98,6 @@ public static class Publishing
             if(Path.GetFullPath(package)!=Path.GetFullPath(target)&&File.Exists(target))File.Delete(target);
         }
         else if(Path.GetFullPath(package)!=Path.GetFullPath(target))File.Copy(package,target,true);
-        var item=new ReleaseItem(version,new Uri(new Uri(config.ManifestUrl),relative).AbsoluteUri,digest,bytes,notes,"1.4.3",parts);var payloadFile=Path.Combine(directory,"release-payload.json");var current=File.Exists(payloadFile)?JsonSerializer.Deserialize<ReleaseManifest>(File.ReadAllText(payloadFile))??new(null,null):new ReleaseManifest(null,null);var next=channel=="software"?current with{Program=item}:current with{Resources=item};byte[] payload=JsonSerializer.SerializeToUtf8Bytes(next);using var rsa=RSA.Create();rsa.ImportFromPem(File.ReadAllText(Path.Combine(directory,"private-key.pem")));byte[] signature=rsa.SignData(payload,HashAlgorithmName.SHA256,RSASignaturePadding.Pss);string manifest=Path.Combine(directory,"site","manifest.json");File.WriteAllText(manifest+".partial",JsonSerializer.Serialize(new{payload=Convert.ToBase64String(payload),signature=Convert.ToBase64String(signature)}));File.Move(manifest+".partial",manifest,true);File.WriteAllBytes(payloadFile,payload);WriteSiteExtras(Path.Combine(directory,"site"));return next;
+        var item=new ReleaseItem(version,new Uri(new Uri(config.ManifestUrl),relative).AbsoluteUri,digest,bytes,notes,channel=="data"?"1.5.5":"1.4.3",parts);var payloadFile=Path.Combine(directory,"release-payload.json");var current=File.Exists(payloadFile)?JsonSerializer.Deserialize<ReleaseManifest>(File.ReadAllText(payloadFile))??new(null,null):new ReleaseManifest(null,null);var next=channel=="software"?current with{Program=item}:current with{Resources=item};byte[] payload=JsonSerializer.SerializeToUtf8Bytes(next);using var rsa=RSA.Create();rsa.ImportFromPem(File.ReadAllText(Path.Combine(directory,"private-key.pem")));byte[] signature=rsa.SignData(payload,HashAlgorithmName.SHA256,RSASignaturePadding.Pss);string manifest=Path.Combine(directory,"site","manifest.json");File.WriteAllText(manifest+".partial",JsonSerializer.Serialize(new{payload=Convert.ToBase64String(payload),signature=Convert.ToBase64String(signature)}));File.Move(manifest+".partial",manifest,true);File.WriteAllBytes(payloadFile,payload);WriteSiteExtras(Path.Combine(directory,"site"));return next;
     }
 }

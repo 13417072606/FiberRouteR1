@@ -24,10 +24,10 @@ public static partial class PublishingDelivery
                     $ErrorActionPreference = 'Stop'
                     Add-Type -AssemblyName System.Windows.Forms
                     $pick = New-Object System.Windows.Forms.FolderBrowserDialog
-                    $pick.Description = '选择客户端根目录（含光路调度路由查询.exe 和 程序 文件夹）'
+                    $pick.Description = '选择客户端根目录（含光路调度路由分析.exe 和 程序 文件夹）'
                     if ($pick.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { exit 1 }
                     $root = $pick.SelectedPath
-                    if (-not (Test-Path -LiteralPath (Join-Path $root '光路调度路由查询.exe')) -or -not (Test-Path -LiteralPath (Join-Path $root '程序\FiberRouteR1.dll'))) {
+                    if ((-not (Test-Path -LiteralPath (Join-Path $root '光路调度路由分析.exe'))) -and (-not (Test-Path -LiteralPath (Join-Path $root '光路调度路由查询.exe'))) -or -not (Test-Path -LiteralPath (Join-Path $root '程序\FiberRouteR1.dll'))) {
                         [System.Windows.Forms.MessageBox]::Show('所选目录不是客户端根目录。请选择包含主程序和“程序”文件夹的目录。','在线更新配置') | Out-Null
                         exit 1
                     }
@@ -35,9 +35,8 @@ public static partial class PublishingDelivery
                     $targetDir = Join-Path $root '资源'
                     New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
                     Copy-Item -LiteralPath $source -Destination (Join-Path $targetDir 'update-service.json') -Force
-                    [System.Windows.Forms.MessageBox]::Show('在线更新已配置。R1.5.1 客户端每天首次打开时会后台检查更新；也可在“设置”中手动检测。','在线更新配置') | Out-Null
+                    [System.Windows.Forms.MessageBox]::Show('在线更新已配置。可在客户端“设置”中检测软件和数据更新。','在线更新配置') | Out-Null
                     """,new UTF8Encoding(true));
-                Write("使用说明.txt","此包只含公开更新地址和验签公钥，不含管理方私钥或业务数据。\r\n完整解压后双击 Install.cmd，选择本机客户端根目录（包含光路调度路由查询.exe 和 程序 文件夹）。\r\n每台电脑只需配置一次，不要求与管理方处于同一 Wi-Fi；客户端须能访问 Cloudflare Pages。\r\n安装 R1.5.1 后，每天首次打开会后台检查软件和数据更新；发现更新时右上角显示红色标记，直到相应更新完成。当天发布晚于首次检查的新版，可在“设置”中手动检测，或次日首次打开时自动检测。\r\n用户自行下载更新；数据更新下载后仍需预览并确认应用。\r\n",new UTF8Encoding(true));
                 void Write(string name,string content,Encoding encoding){using var writer=new StreamWriter(zip.CreateEntry(name,CompressionLevel.Optimal).Open(),encoding);writer.Write(content);}
             }
             File.Move(temporary,target);return target;

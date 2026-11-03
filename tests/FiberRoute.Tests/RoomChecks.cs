@@ -53,13 +53,27 @@ static class RoomChecks
         string catalog=Path.Combine(root,"catalog.csv");
         Csv.Write(catalog,new object?[][]{["机房名称","省内机房类型"],["A机房","虚拟机房"]});
         var preview=s.PreviewRoomCatalog([(catalog,null)]);
-        check(preview.MatchedRooms==1&&preview.UnmatchedRooms==1,"room catalog preview counts exact name matches");
+        check(preview.MatchedRooms==1&&preview.UnmatchedRooms==1&&preview.Misses.Any(x=>x.Room=="B机房"&&x.FacilityName=="A/ODF01"),"room catalog preview counts exact name matches and exposes unmatched facility details");
         s.ApplyRoomCatalog([(catalog,null)]);
         check(s.RoomAssignments().Count==2&&s.Graph.Edges.Length==2,"catalog match retains even source-classified virtual rooms and all real segments");
         string package=Path.Combine(root,"catalog-update.zip");s.BuildDataPackage(package,"catalog-test");
         var client=new Store(Path.Combine(root,"client"));await client.ImportAsync(edges,"自动",mapping,1,null,default);
         using(var prepared=client.PrepareDataPackage(package)){client.ApplyDataPackage(prepared);}
         check(client.RoomAssignments().Count==2,"data update carries the room catalog to another client");
+        s.ConfirmRoom("A/ODB02","A机房",false);
+        string reviewed=Path.Combine(root,"reviewed-update.zip");s.BuildDataPackage(reviewed,"catalog-reviewed");
+        using(var prepared=client.PrepareDataPackage(reviewed)){check(prepared.Manifest.Schema==2,"published room confirmations require the R1.5.5 data schema");client.ApplyDataPackage(prepared);}
+        check(client.RoomAssignments().Single(x=>x.Name=="A/ODB02") is {Status:"已确认",Enabled:false}&&client.RoomAssignments().Single(x=>x.Name=="A/ODB02").Source.Contains("管理方确认"),"administrator room suspension is published to a fresh client");
+        client.ConfirmRoom("A/ODB02","A机房",true);
+        using(var prepared=client.PrepareDataPackage(reviewed)){client.ApplyDataPackage(prepared);}
+        check(client.RoomAssignments().Single(x=>x.Name=="A/ODB02") is {Status:"已确认",Enabled:true}&&client.RoomAssignments().Single(x=>x.Name=="A/ODB02").Source.Contains("人工确认"),"client local choice wins over administrator confirmation");
+        Csv.Write(odf,new object?[][]{["ID","设施名称","机房名称"],["changed-odb","A/ODB02","A机房"]});s.ApplyRoomFiles([(odf,"ODF",null)]);
+        check(s.RoomAssignments().Single(x=>x.Name=="A/ODB02").Status=="需核对","administrator confirmation pauses when facility ID changes");
+        string changed=Path.Combine(root,"source-changed-update.zip");s.BuildDataPackage(changed,"source-changed");
+        using(var archive=System.IO.Compression.ZipFile.OpenRead(changed))using(var catalogStream=archive.GetEntry("catalog.db")!.Open())
+        {string database=Path.Combine(root,"published-catalog.db");using(var target=File.Create(database))catalogStream.CopyTo(target);using var db=new SqliteConnection($"Data Source={database};Pooling=false");db.Open();using var count=db.CreateCommand();count.CommandText="SELECT count(*) FROM managed_room_choices WHERE name='A/ODB02'";check((long)count.ExecuteScalar()! == 0,"changed administrator source is not republished as a valid confirmation");}
+        using(var prepared=client.PrepareDataPackage(changed)){client.ApplyDataPackage(prepared);}
+        using(var db=new SqliteConnection($"Data Source={client.Personal};Pooling=false")){db.Open();using var count=db.CreateCommand();count.CommandText="SELECT count(*) FROM managed_room_choices WHERE name='A/ODB02'";check((long)count.ExecuteScalar()! == 0&&client.RoomAssignments().Single(x=>x.Name=="A/ODB02").Status=="需核对","next update withdraws stale administrator confirmation and preserves local choice for review");}
         Csv.Write(catalog,new object?[][]{["机房名称","省内机房类型"],["B机房","接入级机房"]});
         s.ApplyRoomCatalog([(catalog,null)]);
         check(s.RoomAssignments().Count==0&&s.Graph.Edges.Length==2,"unmatched affiliations are excluded without deleting facilities or edges");

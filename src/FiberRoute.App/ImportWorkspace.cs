@@ -1,4 +1,5 @@
 using FiberRoute.Core;
+using System.Data;
 namespace FiberRoute.App;
 public sealed partial class MainForm
 {
@@ -38,5 +39,23 @@ public sealed partial class MainForm
         var fields=new[]{"始端设施","终端设施","长度","空闲数量","中继纤芯数量"};var wanted=fields.Where(map.ContainsKey).Select(x=>map[x].Text).ToHashSet();
         foreach(DataGridViewColumn c in importGrid.Columns)c.Visible=wanted.Contains(c.Name);
         mappingStats.Text=$"必需字段映射 {Store.Required.Count(x=>map.TryGetValue(x,out var c)&&c.Text!="（无）")}/{Store.Required.Length} · 可手动调整";
+    }
+    bool ConfirmFinalImportMapping()
+    {
+        var selected=map.ToDictionary(x=>x.Key,x=>x.Value.Text);
+        var duplicate=selected.Where(x=>x.Value!="（无）").GroupBy(x=>x.Value).Where(g=>g.Count()>1).ToArray();
+        if(duplicate.Any(g=>g.Any(x=>Store.Required.Contains(x.Key))))throw new InvalidOperationException("必需字段不能与其他目标字段共用同一原表列："+string.Join("；",duplicate.Where(g=>g.Any(x=>Store.Required.Contains(x.Key))).Select(g=>g.Key)));
+        var exact=selected.Where(x=>headers.Contains(x.Key)&&x.Value!="（无）"&&x.Key!=x.Value).ToArray();
+        var data=importGrid.DataSource as DataTable;
+        if(data==null)throw new InvalidOperationException("请先读取字段预览");
+        using var dialog=new Form{Icon=Icon,Text="最终字段映射预览",Width=900,Height=590,StartPosition=FormStartPosition.CenterParent,Font=Font,BackColor=Theme.Canvas};
+        var grid=Grid();grid.ReadOnly=true;grid.Dock=DockStyle.Fill;grid.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.Fill;
+        grid.DataSource=selected.Select(x=>new {目标字段=x.Key,实际读取列=x.Value,第1条=Sample(x.Value,0),第2条=Sample(x.Value,1),第3条=Sample(x.Value,2)}).ToList();
+        string Sample(string column,int row)=>column=="（无）"||!data.Columns.Contains(column)||row>=data.Rows.Count?"":Convert.ToString(data.Rows[row][column])??"";
+        var warning=new Label{Dock=DockStyle.Top,Height=74,Padding=new Padding(15,10,15,5),BackColor=Color.White,ForeColor=exact.Length>0?Color.DarkOrange:Theme.Muted,Text=exact.Length>0?"原表存在同名列，但以下目标改用了其他列："+string.Join("、",exact.Select(x=>x.Key+"→"+x.Value))+"。请核对下表实际读取值。":duplicate.Length>0?"可选字段重复读取："+string.Join("、",duplicate.Select(x=>x.Key))+"。请核对下表。":"下表展示导入实际读取的列与前 3 条值。"};
+        var buttons=Flow();buttons.Dock=DockStyle.Bottom;buttons.Height=55;buttons.Controls.AddRange([B("确认映射并导入",()=>dialog.DialogResult=DialogResult.OK),B("返回修改",()=>dialog.DialogResult=DialogResult.Cancel)]);
+        dialog.Controls.Add(grid);dialog.Controls.Add(buttons);dialog.Controls.Add(warning);
+        if(dialog.ShowDialog(this)!=DialogResult.OK)return false;
+        return exact.Length==0||MessageBox.Show(this,"同名列已存在，仍使用另选字段导入？","复核字段映射",MessageBoxButtons.YesNo,MessageBoxIcon.Warning)==DialogResult.Yes;
     }
 }

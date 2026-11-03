@@ -1,0 +1,54 @@
+name: Publish R1.5.5 client and update tool
+on:
+  push:
+    tags:
+      - r1.5.5-download
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build Windows applications
+        run: |
+          dotnet publish src/FiberRoute.App/FiberRoute.App.csproj -c Release -r win-x64 --self-contained true -o artifacts/app-r155 -p:DebugType=None -p:DebugSymbols=false
+          dotnet publish src/FiberRoute.Updater/FiberRoute.Updater.csproj -c Release -r win-x64 --self-contained false -o artifacts/updater-r155 -p:DebugType=None -p:DebugSymbols=false
+          dotnet publish src/FiberRoute.Publisher/FiberRoute.Publisher.csproj -c Release -r win-x64 --self-contained true -o artifacts/publisher-r155 -p:DebugType=None -p:DebugSymbols=false
+          dotnet publish src/FiberRoute.Launcher/FiberRoute.Launcher.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o artifacts/launcher-r155 -p:DebugType=None -p:DebugSymbols=false
+          dotnet publish src/FiberRoute.PublisherLauncher/FiberRoute.PublisherLauncher.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o artifacts/publisher-launcher-r155 -p:DebugType=None -p:DebugSymbols=false
+      - name: Verify and package
+        run: |
+          dotnet run --project tests/FiberRoute.Tests/FiberRoute.Tests.csproj -c Release -- --online-only
+          dotnet run --project tests/FiberRoute.Tests/FiberRoute.Tests.csproj -c Release -- --room-catalog-only
+          python3 scripts/make-r155-delivery.py
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from zipfile import ZipFile
+          root=Path('downloads/R1.5.5')
+          packages=[]
+          for kind,name in [('Client','光路调度路由分析R1.5.5.zip'),('Publisher','光路调度更新工具R1.5.5.zip')]:
+              path=root/name
+              with ZipFile(path) as archive:
+                  assert archive.testzip() is None
+                  names=archive.namelist()
+                  assert f'{name[:-4]}/{name[:-4]}.exe' in names
+                  assert not any(x.endswith(('使用说明.txt','.db','.pem','.xlsx')) for x in names)
+              packages.append({'kind':kind,'name':name,'size':path.stat().st_size,'sha256':hashlib.sha256(path.read_bytes()).hexdigest().upper()})
+          (root/'R1.5.5-download.json').write_text(json.dumps({'version':'1.5.5','packages':packages},ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            downloads/R1.5.5/光路调度路由分析R1.5.5.zip \
+            downloads/R1.5.5/光路调度更新工具R1.5.5.zip \
+            downloads/R1.5.5/R1.5.5-download.json \
+            scripts/Download-R155.ps1 \
+            --title "R1.5.5 光路调度路由分析与光路调度更新工具" \
+            --notes "包含客户端和更新工具。下载脚本会校验 SHA256 并解压；交付包不含业务数据库、私钥或使用说明.txt。"
